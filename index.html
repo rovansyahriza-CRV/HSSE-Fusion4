@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSSE-Fusion4 — Status Proyek</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <div class="eyebrow">HSSE Reporting System</div>
+    <h1>HSSE-Fusion4</h1>
+    <p>Pelaporan Health, Safety, Security &amp; Environment untuk pekerjaan konstruksi PT BIMA di proyek oil &amp; gas.</p>
+  </div>
+
+  <div class="card">
+    <h2>✅ Status: CERMAT (MVP pertama) sudah jalan</h2>
+    <p>Supabase &amp; Drive Bridge sudah tersambung. Modul CERMAT (istilah lokal buat PEKA -- Positif/Negatif) sudah bisa dipakai lapor &amp; audit. Modul lain masih menyusul.</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:10px;">Modul</h2>
+    <div class="module-list">
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">CERMAT (PEKA -- Positif &amp; Negatif)</div>
+          <div class="module-desc">Safe act/condition (Positif) &amp; unsafe act/condition/near-miss (Negatif), terikat ke Project/Kontrak (Onshore/Offshore).</div>
+        </div>
+        <span class="badge-done"><a href="cermat-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Audit CERMAT</div>
+          <div class="module-desc">Daftar semua laporan, filter status, update tindak lanjut sampai Closed.</div>
+        </div>
+        <span class="badge-done"><a href="cermat-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Incident / Accident Report</div>
+          <div class="module-desc">Laporan kecelakaan, near-miss, first aid, investigasi &amp; root cause.</div>
+        </div>
+        <span class="badge-todo">Belum digarap</span>
+      </div>
+      <div class="module-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Inspeksi &amp; Observasi Lapangan</div>
+          <div class="module-desc">Safety patrol, checklist APD, kondisi alat/area kerja.</div>
+        </div>
+        <span class="badge-todo">Belum digarap</span>
+      </div>
+      <div class="module-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Permit to Work / JSA / Toolbox Meeting</div>
+          <div class="module-desc">Izin kerja, Job Safety Analysis, briefing harian.</div>
+        </div>
+        <span class="badge-todo">Belum digarap</span>
+      </div>
+      <div class="module-item">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Statistik &amp; KPI HSSE</div>
+          <div class="module-desc">Man-hours, LTIFR/TRIR, temuan terbuka/tertutup.</div>
+        </div>
+        <span class="badge-todo">Belum digarap</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:8px;">Sebelum lanjut ke modul berikutnya</h2>
+    <p style="margin-bottom:8px;">Lihat README.md untuk detail lengkap:</p>
+    <div class="note">1. Jalankan <code>sql/001_cermat_schema.sql</code> di Supabase (kalau belum)</div>
+    <div class="note" style="margin-top:6px;">2. Ganti/tambah data project asli di tabel "projectTbl" (masih ada 1 baris contoh placeholder)</div>
+    <div class="note" style="margin-top:6px;">3. Modul mana yang jadi prioritas berikutnya setelah CERMAT</div>
+  </div>
+
+</div>
+
+</body>
+</html>

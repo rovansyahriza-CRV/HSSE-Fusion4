@@ -1,0 +1,102 @@
+# HSSE-Fusion4
+
+Sistem pelaporan HSSE (Health, Safety, Security & Environment) untuk pekerjaan
+konstruksi PT BIMA sebagai kontraktor di proyek oil & gas (Pertamina Hulu /
+Upstream). Dibangun dengan pola yang sama seperti [Fusion4 SmartGate](https://github.com/rovansyahriza-CRV/Fusion4)
+dan SMMS-BIMA (website mobile-first + Supabase + GitHub Pages + Google Drive
+buat file), tapi dengan **project Supabase & Drive Bridge sendiri, terpisah**
+dari keduanya.
+
+Tujuan utama: data HSSE (insiden, PEKA, inspeksi, permit to work, statistik)
+selalu konsisten & ter-update dari lapangan, sehingga siap disajikan langsung
+kalau ada audit CSMS berkala dari klien migas -- bukan direkap manual pas mepet
+audit.
+
+## Status
+
+✅ **MVP pertama (CERMAT) sudah jadi.** Yang sudah selesai:
+
+- [x] Struktur folder & branding dasar (navy + merah, konsisten sama Fusion4)
+- [x] Riset standar HSSE Pertamina Hulu / Upstream (lihat bagian "Riset" di bawah)
+- [x] Pola Drive Bridge (upload foto/PDF ke Google Drive) disiapkan ulang dari SMMS-BIMA, folder & token sendiri -- `AppsScript-Code.gs` sudah di-deploy & dites (`{"error":"Token tidak valid."}` muncul benar untuk token salah)
+- [x] Project Supabase baru dibuat (`wvzajdnxmjegblqrvgfs.supabase.co`), key publishable sudah diisi di `config.js`
+- [x] **Modul CERMAT (istilah lokal untuk PEKA)** -- form lapor (`cermat-report.html`) + halaman riwayat/audit dengan update status (`cermat-list.html`) + schema & RPC (`sql/001_cermat_schema.sql`)
+- [ ] Belum dijalankan: migrasi `sql/001_cermat_schema.sql` di Supabase SQL Editor (lakukan ini dulu sebelum coba form-nya)
+- [ ] Belum diisi: data Project/Kontrak asli (masih ada 1 baris placeholder "Contoh Project - GANTI INI")
+- [ ] Modul lain (Incident, Inspeksi, Permit to Work, Dashboard KPI) belum dibangun
+
+### Cara mulai pakai CERMAT
+
+1. Buka Supabase project `wvzajdnxmjegblqrvgfs` -> **SQL Editor** -> New query -> paste seluruh isi `sql/001_cermat_schema.sql` -> Run.
+2. Buka tab **Table Editor** -> tabel `projectTbl` -> hapus/ganti baris contoh, tambahkan project/kontrak asli kalian (kolom `TipeKonstruksi` cuma boleh `Onshore` atau `Offshore`).
+3. Buka `cermat-report.html` di browser (atau lewat GitHub Pages setelah di-push) buat coba lapor. Buka `cermat-list.html` buat lihat riwayat & update status tindak lanjut sampai Closed.
+
+## Riset: standar HSSE Pertamina Hulu (Upstream) untuk kontraktor
+
+Dirangkum dari kebijakan resmi PHE, materi HSSE Subholding Upstream, dan
+panduan CSMS -- dipakai sebagai acuan istilah & struktur data:
+
+- **CSMS (Contractor Safety Management System)** -- syarat wajib kontraktor, 3 fase: Pre-Qualification (kuesioner HSSE + statistik TRIR/LTIFR, diklasifikasi Low/Medium/High Risk) -> Seleksi/Tender (HSE Plan dievaluasi pakai kerangka SUPREME) -> Implementation (inspeksi rutin, monitoring, evaluasi akhir).
+- **PEKA (Pengamatan Keselamatan Kerja)** -- ini istilah resmi Pertamina buat "Anomaly Report". Kategori: *safe action*, *unsafe action*, *unsafe condition*, *near-miss*. Proses: Plan -> Observe -> Communicate -> Report. Ada wewenang **Stop Work Authority**.
+- **Klasifikasi keparahan insiden** (6 tingkat): First Aid -> Near Miss -> Medical Treatment Case (MTC) -> Restricted Work Day Case (RWDC) -> Day Away From Work/LTI -> Fatality. **Wajib dilaporkan maksimal 12 jam setelah insiden.**
+- **KPI standar**: TRIR (Total Recordable Incident Rate), LTIFR (Lost Time Injury Frequency Rate), total man-hours, tren temuan terbuka/tertutup.
+- **Dokumen wajib CSMS**: HIRADC/JSA, sistem Permit-to-Work, Emergency Response Plan, matriks kompetensi, log inspeksi, laporan insiden & near-miss dengan root cause, catatan toolbox meeting, laporan audit.
+- **HSSE Golden Rules**: "Patuh - Intervensi - Peduli" (PIP), plus Corporate Life Saving Rules (CLSR) -- daftar 12 aturan spesifiknya belum ketemu sumber terbuka lengkap, sebaiknya cek salinan dari HSE Plan kontrak PT BIMA kalau ada.
+
+Sumber: [Kebijakan HSSE PHE](https://phe.pertamina.com/assets/files/hsse-policy-en.pdf), [Incident Reporting HSSE Subholding Upstream](https://hops-psu.com/bhl/pdf/9.pdf), [HSSE Observation & SWA / PEKA](https://hops-psu.com/bhl/pdf/8.pdf), [Panduan CSMS Pertamina](https://aksenijasa.com/panduan-lengkap-csms-pertamina/).
+
+## Arahan desain (dari diskusi)
+
+Karena tujuan utamanya audit-readiness, urutan bangun yang disepakati:
+
+1. **Tulang punggung bersama dulu**: sistem tracking temuan & corrective action (status Open/In Progress/Closed, penanggung jawab, tenggat) -- dipakai bareng oleh PEKA, Inspeksi, dan Incident Report.
+2. **Dashboard KPI** dihitung otomatis dari data yang masuk (bukan rekap manual).
+3. Baru form-form input spesifik per modul nempel ke tulang punggung itu.
+4. Setiap tabel butuh jejak audit (siapa isi, kapan, idealnya gak bisa diam-diam diedit/dihapus).
+
+## Modul
+
+- [x] **CERMAT** -- istilah lokal untuk PEKA (istilah resmi Pertamina). Sifat **Positif** (Safe Act/Safe Condition) atau **Negatif** (Unsafe Act/Unsafe Condition/Near Miss). Setiap laporan terikat ke satu **Project/Kontrak** (Nama Project + No. Kontrak), dan setiap Project punya tipe **Onshore/Offshore**. Sudah ada form lapor + halaman riwayat/audit dengan tracking status Open -> In Progress -> Closed.
+- [ ] **Incident / Accident Report** -- klasifikasi 6 tingkat + reminder wajib lapor <12 jam, investigasi & root cause.
+- [ ] **Inspeksi & Observasi Lapangan** -- safety patrol, checklist APD, kondisi alat/area kerja.
+- [ ] **Permit to Work / JSA / Toolbox Meeting** -- izin kerja, Job Safety Analysis, briefing harian.
+- [ ] **Statistik & KPI HSSE** -- TRIR, LTIFR, man-hours, temuan terbuka/tertutup -- dashboard audit-ready.
+
+## Penyimpanan file (foto & PDF)
+
+Pola sama seperti Fusion4/SMMS: foto & PDF laporan disimpan di Google Drive
+lewat jembatan Google Apps Script (bukan disimpan langsung di Supabase),
+Supabase cuma nyimpen metadata + link-nya. **Tapi pakai deployment & folder
+Drive SENDIRI**, terpisah dari punya Fusion4/SMMS:
+
+- Folder Drive: https://drive.google.com/drive/folders/1nvBha62Ldm3959CAsBe7PW2VtO01IKVp (100GB)
+- `driveBridge.js` -- kode client, disalin persis dari SMMS-BIMA (generic, gak perlu diubah)
+- `AppsScript-Code.gs` -- kode server (Google Apps Script) yang harus di-deploy manual lewat script.google.com, lihat instruksi lengkap di dalam file itu. Setelah deploy, isi URL & token hasil deploy ke `config.js`.
+
+## Yang masih perlu dikonfirmasi
+
+1. **Jalankan migrasi SQL** -- `sql/001_cermat_schema.sql` belum dijalankan di Supabase, form CERMAT belum bisa dipakai sebelum ini.
+2. **Data Project/Kontrak asli** -- ganti baris placeholder di `projectTbl` dengan project & kontrak beneran (termasuk tipe Onshore/Offshore masing-masing).
+3. **Format HSSE dari klien** -- apakah klien migas sudah punya format laporan wajib buat CERMAT/PEKA, atau bebas ditentukan sendiri.
+4. **Modul prioritas berikutnya** -- Incident Report, Inspeksi, Permit to Work, atau Dashboard KPI dulu?
+
+## Struktur proyek (rencana)
+
+```
+HSSE-Fusion4/
+├── index.html            # Status/landing page, link ke semua modul
+├── config.js              # Kredensial Supabase + Drive Bridge (sudah diisi)
+├── style.css              # Styling bersama, branding PT BIMA
+├── driveBridge.js         # Client helper upload/baca file ke Drive (sudah siap)
+├── AppsScript-Code.gs     # Kode server Drive Bridge (sudah di-deploy)
+├── sql/
+│   └── 001_cermat_schema.sql  # Migrasi tabel projectTbl + cermatTbl + RPC (jalankan di Supabase)
+├── cermat-report.html     # Form lapor CERMAT (Positif/Negatif)
+├── cermat-list.html       # Riwayat & audit CERMAT + update status tindak lanjut
+├── incident-report.html   # (rencana) Form lapor insiden/kecelakaan
+├── inspeksi.html          # (rencana) Form inspeksi & observasi lapangan
+├── permit-to-work.html    # (rencana) Form JSA / permit to work / toolbox meeting
+└── dashboard-kpi.html     # (rencana) Statistik & KPI HSSE
+```
+
+Nama file modul yang belum dibangun masih tentatif, bisa berubah begitu detail tiap modul jelas.

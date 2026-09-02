@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat CERMAT — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .update-form { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 10px; }
+  .update-form .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .update-form select, .update-form input, .update-form textarea {
+    padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12.5px; font-family: inherit;
+  }
+  .update-form .btn-mini {
+    padding: 8px 16px; border: none; border-radius: 8px; background: var(--navy); color: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <div class="eyebrow">HSSE-Fusion4</div>
+    <h1>Riwayat Laporan CERMAT</h1>
+    <p>Semua temuan Positif & Negatif, lengkap sama status tindak lanjut -- siap ditunjukin pas audit.</p>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-status="" onclick="filterByStatus('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Open" onclick="filterByStatus('Open', this)">Open</button>
+    <button type="button" class="filter-btn" data-status="In Progress" onclick="filterByStatus('In Progress', this)">In Progress</button>
+    <button type="button" class="filter-btn" data-status="Closed" onclick="filterByStatus('Closed', this)">Closed</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentStatusFilter = '';
+  let reports = [];
+
+  document.addEventListener('DOMContentLoaded', () => loadReports());
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_cermat_reports', {
+        p_status: currentStatusFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByStatus(status, btnEl) {
+    currentStatusFilter = status;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Open') return 'open';
+    if (status === 'In Progress') return 'in-progress';
+    return 'closed';
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada laporan CERMAT.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noLaporan}</div>
+              <div class="report-title">${r.jenisTemuan} — ${r.lokasiArea}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges">
+              <span class="sifat-badge ${r.sifat.toLowerCase()}">${r.sifat}</span>
+              <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Deskripsi</b>${escapeHtml(r.deskripsi)}</div>
+          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})</div>` : ''}
+          ${(r.fotoList && r.fotoList.length > 0) ? `<div class="detail-row"><b>Foto (${r.fotoList.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${r.fotoList.map(f => `<img class="detail-photo" style="width:calc(33.33% - 4px); margin-top:0;" src="${f.url}" loading="lazy">`).join('')}</div></div>` : ''}
+          ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
+          ${r.rekomendasi ? `<div class="detail-row"><b>Rekomendasi</b>${escapeHtml(r.rekomendasi)}</div>` : ''}
+          ${r.status === 'Closed' ? `
+            <div class="detail-row"><b>Ditutup</b>${formatDate(r.tanggalClosed)}${r.catatanClosed ? ' — ' + escapeHtml(r.catatanClosed) : ''}</div>
+          ` : `
+            <div class="update-form">
+              <div class="form-row">
+                <input type="text" id="pj-${idx}" placeholder="Penanggung jawab" value="${r.penanggungJawab || ''}" style="flex:1; min-width:140px;">
+                <input type="date" id="tenggat-${idx}" value="${r.tenggat || ''}">
+                <select id="status-${idx}">
+                  <option value="Open" ${r.status === 'Open' ? 'selected' : ''}>Open</option>
+                  <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+              <textarea id="catatan-${idx}" placeholder="Catatan penutupan (isi kalau status Closed)" style="width:100%; min-height:50px; margin-bottom:8px;">${r.catatanClosed || ''}</textarea>
+              <button type="button" class="btn-mini" onclick="updateStatus(${idx}, ${r.id})">💾 Update</button>
+            </div>
+          `}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  async function updateStatus(idx, id) {
+    const penanggungJawab = document.getElementById(`pj-${idx}`).value.trim();
+    const tenggat = document.getElementById(`tenggat-${idx}`).value || null;
+    const status = document.getElementById(`status-${idx}`).value;
+    const catatan = document.getElementById(`catatan-${idx}`).value.trim();
+
+    try {
+      const { error } = await supabaseClient.rpc('update_cermat_status', {
+        p_id: id,
+        p_status: status,
+        p_penanggung_jawab: penanggungJawab,
+        p_tenggat: tenggat,
+        p_catatan_closed: catatan,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) {
+      alert('Gagal update: ' + e.message);
+    }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>

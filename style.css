@@ -1,0 +1,162 @@
+:root {
+  --navy: #2D3C73;
+  --navy-dark: #1B2650;
+  --accent: #E02C2B;
+  --accent-dark: #B32220;
+  --safety-yellow: #F5A623;
+  --bg: #F5F6FA;
+  --surface: #FFFFFF;
+  --border: #E4E7F0;
+  --text: #1E1E1E;
+  --muted: #6B7280;
+  --success: #178A4C;
+  --success-bg: #E5F6EC;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+  padding: 24px 16px 56px;
+}
+
+.page { max-width: 720px; margin: 0 auto; }
+
+.header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+  color: #fff;
+  padding: 28px 24px;
+  border-radius: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(45, 60, 115, 0.25);
+}
+.header .eyebrow {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--safety-yellow); font-weight: 700; margin-bottom: 6px;
+}
+.header h1 { font-size: 24px; font-weight: 800; }
+.header p { font-size: 13px; color: #C7CEE8; margin-top: 6px; }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.card h2 { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+.card p { font-size: 13px; color: var(--muted); }
+
+.module-list { display: flex; flex-direction: column; gap: 10px; }
+.module-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+  background: var(--surface);
+}
+.module-item .status-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  background: #D1D5DB; /* abu-abu = belum digarap */
+}
+.module-item.done .status-dot { background: var(--success); }
+.module-item .module-name { font-size: 13.5px; font-weight: 700; }
+.module-item .module-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.badge-todo {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  background: #FDF3E3; color: var(--safety-yellow); margin-left: auto; white-space: nowrap;
+}
+.badge-done {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  background: var(--success-bg); color: var(--success); margin-left: auto; white-space: nowrap;
+}
+
+.note {
+  font-size: 12.5px; color: var(--muted); background: #FDF3E3; border-left: 3px solid var(--safety-yellow);
+  padding: 10px 12px; border-radius: 0 8px 8px 0; margin-top: 6px;
+}
+
+/* ===== Shared form/status styles (dipakai di semua halaman form HSSE-Fusion4) ===== */
+.status-msg {
+  display: none; font-size: 13px; font-weight: 600; padding: 12px 14px;
+  border-radius: 10px; margin-bottom: 14px; line-height: 1.5;
+}
+.status-msg.info { background: #E8F4FD; color: #1E88E5; }
+.status-msg.success { background: var(--success-bg); color: var(--success); }
+.status-msg.error { background: #FCEAE8; color: var(--accent); }
+
+.status-badge {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 999px; white-space: nowrap;
+}
+.status-badge.open { background: #FCEAE8; color: var(--accent); }
+.status-badge.in-progress { background: #FDF3E3; color: var(--safety-yellow); }
+.status-badge.closed { background: var(--success-bg); color: var(--success); }
+
+.sifat-badge {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+}
+.sifat-badge.positif { background: var(--success-bg); color: var(--success); }
+.sifat-badge.negatif { background: #FCEAE8; color: var(--accent); }
+
+/* ===== Identifikasi Pelapor (Scan QR / Scan Wajah) -- dipakai di semua form HSSE ===== */
+.id-gate-buttons { display: flex; gap: 10px; }
+.id-gate-buttons button {
+  flex: 1; padding: 13px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface); font-weight: 700; font-size: 13.5px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.id-gate-buttons button:active { background: var(--bg); }
+
+.cam-wrap {
+  position: relative; width: 100%; aspect-ratio: 1/1; margin: 12px auto; max-width: 320px;
+  overflow: hidden; border-radius: 16px; background: #0B0D10; display: none;
+}
+.cam-wrap video, .cam-wrap canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.cam-face-oval {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 58%; height: 74%; border: 4px solid #9CA8C9; border-radius: 50%;
+  display: none; pointer-events: none;
+}
+.cam-qr-box {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 68%; aspect-ratio: 1/1; border: 3px dashed var(--accent); border-radius: 12px;
+  display: none; pointer-events: none; box-shadow: 0 0 0 999px rgba(0,0,0,.35);
+}
+
+.id-result-banner {
+  display: none; align-items: center; gap: 10px; background: var(--success-bg); color: var(--success);
+  border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin-top: 10px;
+}
+.id-result-banner .id-name { flex: 1; }
+.id-result-banner button {
+  border: none; background: transparent; color: var(--muted); font-size: 12px;
+  font-weight: 700; cursor: pointer; text-decoration: underline;
+}
+
+/* ===== Slot foto (buka kamera belakang langsung) ===== */
+.photo-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.photo-slot {
+  position: relative; aspect-ratio: 1/1; border: 1.5px dashed var(--border); border-radius: 12px;
+  overflow: hidden; background: var(--bg); display: flex; align-items: center; justify-content: center;
+}
+.photo-slot input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.photo-slot .slot-placeholder { font-size: 24px; color: var(--muted); pointer-events: none; }
+.photo-slot img.slot-preview {
+  display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.photo-slot.filled { border-style: solid; border-color: var(--success); }
+.photo-slot.filled .slot-placeholder { display: none; }
+.photo-slot .slot-remove {
+  display: none; position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+  border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px;
+  font-weight: 700; cursor: pointer; z-index: 2; line-height: 1;
+}
+.photo-slot.filled .slot-remove { display: block; }
