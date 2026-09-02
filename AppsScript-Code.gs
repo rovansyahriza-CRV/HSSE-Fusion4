@@ -86,7 +86,12 @@ function uploadFile_(body) {
   return {
     fileId: fileId,
     viewUrl: file.getUrl(),
-    directUrl: 'https://drive.google.com/uc?export=view&id=' + fileId,
+    // Dulu pakai '/uc?export=view&id=' -- sekarang sering diblokir Google buat hotlink
+    // <img> (muncul ikon broken image). Endpoint '/thumbnail' ini lebih reliable buat
+    // ditampilkan langsung di <img>. Client (cermat-list.html) sebenarnya udah gak
+    // bergantung ke field ini lagi -- dia bangun ulang dari fileId sendiri -- tapi tetap
+    // dibenerin di sini biar konsisten kalau ada yang pakai directUrl ini langsung.
+    directUrl: 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000',
   };
 }
 

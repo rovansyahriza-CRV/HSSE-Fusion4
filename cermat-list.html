@@ -8,8 +8,15 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="driveBridge.js"></script>
 <style>
   .page { max-width: 900px; }
+  .update-form .photo-slots { grid-template-columns: repeat(4, 1fr); max-width: 260px; margin-bottom: 10px; }
+  .update-form .photo-slot { aspect-ratio: 1/1; }
+  .reopen-btn {
+    border: none; background: transparent; color: var(--navy); font-size: 12px;
+    font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 4px;
+  }
   .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
   .filter-btn {
     padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
@@ -66,6 +73,7 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentStatusFilter = '';
   let reports = [];
+  let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap renderReports()
 
   document.addEventListener('DOMContentLoaded', () => loadReports());
 
@@ -97,7 +105,13 @@
     return 'closed';
   }
 
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank"><img class="detail-photo" style="width:calc(33.33% - 4px); margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
   function renderReports() {
+    followupPhotoSlots = {};
     const container = document.getElementById('reportContainer');
     if (reports.length === 0) {
       container.innerHTML = '<div class="empty-state">Belum ada laporan CERMAT.</div>';
@@ -122,11 +136,13 @@
         <div class="detail-panel" id="detail-${idx}">
           <div class="detail-row"><b>Deskripsi</b>${escapeHtml(r.deskripsi)}</div>
           ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})</div>` : ''}
-          ${(r.fotoList && r.fotoList.length > 0) ? `<div class="detail-row"><b>Foto (${r.fotoList.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${r.fotoList.map(f => `<img class="detail-photo" style="width:calc(33.33% - 4px); margin-top:0;" src="${f.url}" loading="lazy">`).join('')}</div></div>` : ''}
+          ${photoGalleryHtml('Foto Temuan', r.fotoList)}
+          ${photoGalleryHtml('Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList)}
           ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
           ${r.rekomendasi ? `<div class="detail-row"><b>Rekomendasi</b>${escapeHtml(r.rekomendasi)}</div>` : ''}
           ${r.status === 'Closed' ? `
             <div class="detail-row"><b>Ditutup</b>${formatDate(r.tanggalClosed)}${r.catatanClosed ? ' — ' + escapeHtml(r.catatanClosed) : ''}</div>
+            <button type="button" class="reopen-btn" onclick="reopenReport(${idx}, ${r.id})">🔓 Buka Lagi (reopen)</button>
           ` : `
             <div class="update-form">
               <div class="form-row">
@@ -138,8 +154,23 @@
                   <option value="Closed">Closed</option>
                 </select>
               </div>
+              <label style="display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Foto Tindak Lanjut (opsional, bisa sampai 2 -- buka kamera belakang)</label>
+              <div class="photo-slots">
+                <div class="photo-slot" id="followup-slot-${idx}-0">
+                  <input type="file" accept="image/*" capture="environment" onchange="handleFollowupPhoto(event, ${idx}, 0)">
+                  <div class="slot-placeholder">📷</div>
+                  <img class="slot-preview">
+                  <button type="button" class="slot-remove" onclick="removeFollowupPhoto(${idx}, 0, event)">✕</button>
+                </div>
+                <div class="photo-slot" id="followup-slot-${idx}-1">
+                  <input type="file" accept="image/*" capture="environment" onchange="handleFollowupPhoto(event, ${idx}, 1)">
+                  <div class="slot-placeholder">📷</div>
+                  <img class="slot-preview">
+                  <button type="button" class="slot-remove" onclick="removeFollowupPhoto(${idx}, 1, event)">✕</button>
+                </div>
+              </div>
               <textarea id="catatan-${idx}" placeholder="Catatan penutupan (isi kalau status Closed)" style="width:100%; min-height:50px; margin-bottom:8px;">${r.catatanClosed || ''}</textarea>
-              <button type="button" class="btn-mini" onclick="updateStatus(${idx}, ${r.id})">💾 Update</button>
+              <button type="button" class="btn-mini" id="btn-update-${idx}" onclick="updateStatus(${idx}, ${r.id})">💾 Update</button>
             </div>
           `}
         </div>
@@ -152,24 +183,83 @@
     panel.classList.toggle('open');
   }
 
+  function handleFollowupPhoto(event, idx, slotIdx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    followupPhotoSlots[`${idx}-${slotIdx}`] = file;
+    const slotEl = document.getElementById(`followup-slot-${idx}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeFollowupPhoto(idx, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    delete followupPhotoSlots[`${idx}-${slotIdx}`];
+    const slotEl = document.getElementById(`followup-slot-${idx}-${slotIdx}`);
+    if (!slotEl) return;
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
   async function updateStatus(idx, id) {
     const penanggungJawab = document.getElementById(`pj-${idx}`).value.trim();
     const tenggat = document.getElementById(`tenggat-${idx}`).value || null;
     const status = document.getElementById(`status-${idx}`).value;
     const catatan = document.getElementById(`catatan-${idx}`).value.trim();
+    const btn = document.getElementById(`btn-update-${idx}`);
+
+    const filledSlots = [0, 1].map(s => followupPhotoSlots[`${idx}-${s}`]).filter(Boolean);
 
     try {
+      let fotoTambahan = [];
+      if (filledSlots.length > 0) {
+        btn.disabled = true;
+        btn.innerText = `⏳ Mengupload ${filledSlots.length} foto...`;
+        for (let i = 0; i < filledSlots.length; i++) {
+          const fileName = `CERMAT_TindakLanjut_${id}_${Date.now()}_${i + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(filledSlots[i], fileName);
+          fotoTambahan.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Menyimpan...';
       const { error } = await supabaseClient.rpc('update_cermat_status', {
         p_id: id,
         p_status: status,
         p_penanggung_jawab: penanggungJawab,
         p_tenggat: tenggat,
         p_catatan_closed: catatan,
+        p_foto_tambahan: fotoTambahan,
       });
       if (error) throw error;
       await loadReports();
     } catch (e) {
       alert('Gagal update: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerText = '💾 Update'; }
+    }
+  }
+
+  async function reopenReport(idx, id) {
+    if (!confirm('Buka lagi laporan ini? Status bakal balik ke "Open".')) return;
+    try {
+      const r = reports.find(x => x.id === id);
+      const { error } = await supabaseClient.rpc('update_cermat_status', {
+        p_id: id,
+        p_status: 'Open',
+        p_penanggung_jawab: (r && r.penanggungJawab) || '',
+        p_tenggat: (r && r.tenggat) || null,
+        p_catatan_closed: '',
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) {
+      alert('Gagal buka lagi laporan: ' + e.message);
     }
   }
 
@@ -184,6 +274,26 @@
     const div = document.createElement('div');
     div.innerText = str || '';
     return div.innerHTML;
+  }
+
+  // =====================================================================================
+  // Link 'directUrl' lama (drive.google.com/uc?export=view) sering diblokir Google buat
+  // hotlink <img> (jadi ikon broken image). Kita bangun ulang src dari "fileId" yang udah
+  // kesimpen di FotoList -- lebih reliable, dan otomatis mbenerin foto lama juga (gak perlu
+  // migrasi data, cukup ganti cara render doang). Kalau endpoint pertama gagal, onerror
+  // di <img> bakal coba format kedua (lh3.googleusercontent.com) sebagai cadangan.
+  // =====================================================================================
+  function drivePhotoSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
   }
 </script>
 
