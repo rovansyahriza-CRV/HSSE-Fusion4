@@ -107,7 +107,7 @@
 
   function photoGalleryHtml(label, fotoArr) {
     if (!fotoArr || fotoArr.length === 0) return '';
-    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank"><img class="detail-photo" style="width:calc(33.33% - 4px); margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
   }
 
   function renderReports() {
