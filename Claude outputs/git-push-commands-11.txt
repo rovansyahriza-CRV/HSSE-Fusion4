@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah diagram alur proses (PDF) untuk Inspeksi/Observasi, Permit to Work, dan Toolbox Meeting" -m "- alur-inspeksi.pdf/html: diagram ad-hoc + cabang keputusan auto-generate CERMAT kalau ada temuan Tidak Sesuai" -m "- alur-ptw.pdf/html: diagram 5 status + 3 titik verifikasi Author-gated + 3 back-edge (2 reject, 1 reopen)" -m "- alur-tbm.pdf/html: diagram mulai sesi -> loop absen peserta -> tutup sesi" -m "- Ketiganya pakai pola visual yang sama persis dengan alur-cermat.pdf & alur-incident.pdf yang udah ada (SVG state diagram + tabel referensi Author + catatan implementasi)" -m "- Link '📄 Lihat Alur Proses (PDF)' dipasang di header inspeksi-list.html, ptw-list.html, dan tbm-list.html" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

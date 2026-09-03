@@ -126,6 +126,7 @@
       </div>
     </div>
     <p>Alur: Requester ajukan (JSA + hazard checklist) -&gt; HSE Officer review -&gt; Area Authority approve -&gt; Aktif -&gt; ajukan penutupan -&gt; HSE approve closing -&gt; Ditutup.</p>
+    <a href="alur-ptw.pdf" target="_blank" class="pdf-link" style="margin-top:10px;">📄 Lihat Alur Proses (PDF)</a>
   </div>
 
   <div class="filter-row" id="filterRow">
@@ -409,8 +410,9 @@
               <div class="report-title">${escapeHtml(r.jenisPekerjaan)} — ${escapeHtml(r.lokasiArea)}</div>
               <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Requester: ${escapeHtml(r.namaRequester)}${r.requesterQrCodeId ? ' ✅' : ''}</div>
             </div>
-            <div class="badges">
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+              <a href="ptw-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
             </div>
           </div>
         </div>

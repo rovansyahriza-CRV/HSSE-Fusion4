@@ -1,0 +1,210 @@
+<title>Alur Toolbox Meeting</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --review-blue: #1E88E5;
+    --success: #178A4C;
+    --bg: #F5F6FA;
+    --surface: #FFFFFF;
+    --border: #E4E7F0;
+    --text: #1E1E1E;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: #fff;
+    padding: 30px 28px;
+    border-radius: 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 28px rgba(45, 60, 115, 0.25);
+  }
+  .header .eyebrow {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--safety-yellow); font-weight: 700; margin-bottom: 8px;
+  }
+  .header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+  .header p { font-size: 13.5px; color: #C7CEE8; margin-top: 8px; max-width: 58ch; }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+
+  figure { margin: 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  .diagram-scroll { overflow-x: auto; }
+  figcaption {
+    font-size: 12.5px; color: var(--muted); margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--border); line-height: 1.6;
+  }
+
+  .key-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .key-row .key-item { display: flex; align-items: center; gap: 7px; }
+  .key-swatch { width: 22px; height: 0; border-top-width: 2.5px; border-top-style: solid; flex-shrink: 0; }
+
+  h2.section-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+  .section-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+
+  table.ref-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ref-table th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-weight: 700; padding: 0 10px 8px; border-bottom: 1.5px solid var(--border);
+  }
+  table.ref-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.ref-table tr:last-child td { border-bottom: none; }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+  .tag-chip {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500;
+    background: rgba(45,60,115,0.08); color: var(--navy); padding: 3px 8px; border-radius: 5px;
+    white-space: nowrap; display: inline-block;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 620px) { .two-col { grid-template-columns: 1fr; } }
+  .two-col h3 { font-size: 13.5px; font-weight: 800; margin-bottom: 6px; }
+  .two-col p { font-size: 13px; color: var(--muted); }
+  .two-col p b { color: var(--text); font-weight: 700; }
+
+  .footnote { font-size: 12px; color: var(--muted); }
+  .footnote .tag-chip { margin: 0 2px; }
+</style>
+
+<div class="page">
+
+  <div class="header">
+    <div class="eyebrow">HSSE-Fusion4 · Modul Toolbox Meeting</div>
+    <h1>Alur Toolbox Meeting</h1>
+    <p>Leader buka sesi, peserta absen sendiri-sendiri lewat scan wajah/QR berurutan (mode kamera aktif terus), Leader tutup sesi kapan aja. Gak ada approval bertahap kayak CERMAT/Incident/PTW -- lebih ke alur operasional sekali jalan.</p>
+  </div>
+
+  <div class="card">
+    <div class="diagram-scroll">
+      <figure>
+        <svg viewBox="0 0 780 760" role="img" aria-label="Diagram alur Toolbox Meeting: Leader dengan Author Leader Toolbox Meeting verifikasi identitas lalu mulai sesi dengan mengisi Project, Lokasi, Topik Briefing dan opsional link ke Permit to Work Aktif sehingga tergenerate Nomor Sesi dan status menjadi Sedang Absen, peserta kemudian scan wajah atau QR satu per satu secara berulang dimana jika QrCodeId sudah pernah absen maka ditolak dengan pesan sudah absen jam sekian tanpa menambah baris baru, dan Leader menekan tombol Selesai kapan saja dengan opsional catatan dan foto sehingga status menjadi Selesai dan tersimpan sebagai riwayat.">
+          <defs>
+            <marker id="arrowNavy5" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2D3C73"></path>
+            </marker>
+            <marker id="arrowMuted5" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#6B7280"></path>
+            </marker>
+            <marker id="arrowRed5" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#E02C2B"></path>
+            </marker>
+          </defs>
+
+          <!-- ===== Start ===== -->
+          <ellipse cx="290" cy="48" rx="195" ry="28" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></ellipse>
+          <text x="290" y="53" text-anchor="middle" font-size="12.5" font-weight="700" fill="#2D3C73">Leader verifikasi identitas (QR/Wajah)</text>
+
+          <line x1="290" y1="76" x2="290" y2="146" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy5)"></line>
+          <text x="310" y="118" font-size="10.5" font-weight="700" fill="#E02C2B">Gagal kalau gak punya izin</text>
+          <rect x="310" y="124" width="220" height="20" rx="5" fill="rgba(224,44,43,0.08)"></rect>
+          <text x="320" y="138" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11" fill="#E02C2B">Author: Leader Toolbox Meeting</text>
+
+          <!-- ===== MULAI SESI ===== -->
+          <rect x="90" y="150" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="168" width="120" height="24" rx="12" fill="#2D3C73"></rect>
+          <text x="170" y="184" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">MULAI SESI</text>
+          <text x="110" y="234" font-size="13" font-weight="600" fill="#1E1E1E">Isi Project, Lokasi, Topik</text>
+          <text x="110" y="256" font-size="13" font-weight="600" fill="#1E1E1E">Briefing, opsional link ke Permit</text>
+          <text x="110" y="278" font-size="13" font-weight="600" fill="#1E1E1E">to Work Aktif -&gt; generate No. Sesi</text>
+
+          <line x1="290" y1="300" x2="290" y2="368" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy5)"></line>
+
+          <!-- ===== SEDANG ABSEN (loop) ===== -->
+          <rect x="90" y="372" width="400" height="192" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="390" width="152" height="24" rx="12" fill="#F5A623"></rect>
+          <text x="186" y="406" text-anchor="middle" font-size="11.5" font-weight="700" fill="#4A3400">SEDANG ABSEN</text>
+          <text x="110" y="456" font-size="13" font-weight="600" fill="#1E1E1E">Peserta scan wajah/QR satu</text>
+          <text x="110" y="478" font-size="13" font-weight="600" fill="#1E1E1E">per satu, berurutan (kamera</text>
+          <text x="110" y="500" font-size="13" font-weight="600" fill="#1E1E1E">aktif terus, gak perlu bolak-balik)</text>
+          <text x="110" y="530" font-size="11.5" font-weight="700" fill="#E02C2B">Udah pernah absen? -&gt; ditolak</text>
+          <text x="110" y="548" font-size="11" fill="#6B7280">"sudah absen jam HH:MM", gak nambah baris</text>
+
+          <!-- loop arrow -->
+          <path d="M490,462 L540,462 L540,462 L490,462" fill="none"></path>
+          <path d="M470,414 C 540,414 540,520 470,520" fill="none" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy5)"></path>
+          <text x="552" y="472" font-size="11.5" font-weight="700" fill="#2D3C73">Ulang buat</text>
+          <text x="552" y="488" font-size="11.5" font-weight="700" fill="#2D3C73">peserta</text>
+          <text x="552" y="504" font-size="11.5" font-weight="700" fill="#2D3C73">berikutnya</text>
+
+          <line x1="290" y1="564" x2="290" y2="632" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy5)"></line>
+          <text x="310" y="604" font-size="13" font-weight="700" fill="#2D3C73">Leader tekan "Selesai" (kapan aja)</text>
+          <text x="310" y="622" font-size="10.5" fill="#6B7280">+ opsional catatan &amp; foto (maks 3)</text>
+
+          <!-- ===== SELESAI ===== -->
+          <rect x="90" y="636" width="400" height="118" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="654" width="86" height="24" rx="12" fill="#178A4C"></rect>
+          <text x="153" y="670" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">SELESAI</text>
+          <text x="212" y="670" font-size="12.5" font-weight="700" fill="#6B7280">Sesi ditutup</text>
+          <text x="110" y="720" font-size="13" font-weight="600" fill="#1E1E1E">Tersimpan sebagai Riwayat --</text>
+          <text x="110" y="742" font-size="13" font-weight="600" fill="#1E1E1E">daftar hadir lengkap dgn jam absen</text>
+        </svg>
+      </figure>
+    </div>
+
+    <div class="key-row">
+      <div class="key-item"><span class="key-swatch" style="border-color:#2D3C73;"></span>Alur normal / berulang</div>
+      <div class="key-item"><span class="key-swatch" style="border-color:#E02C2B;"></span>Butuh izin Author / ditolak</div>
+    </div>
+
+    <figcaption>Gak ada tahap "Review" atau "Approve" di modul ini -- begitu sesi Selesai, datanya langsung final sebagai riwayat (gak ada reject/reopen kayak CERMAT/Incident/PTW).</figcaption>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Referensi cepat: siapa yang berhak</h2>
+    <p class="section-sub">Dicocokkan ke kolom Author di data karyawan Fusion4.</p>
+    <table class="ref-table">
+      <tr><th>Aksi</th><th>Siapa</th><th>Author yang berhak</th></tr>
+      <tr>
+        <td>Mulai sesi (generate No. Sesi)</td>
+        <td>Leader Toolbox Meeting</td>
+        <td><span class="tag-chip">Leader Toolbox Meeting</span></td>
+      </tr>
+      <tr>
+        <td>Absen (scan wajah/QR)</td>
+        <td>Peserta (siapa aja)</td>
+        <td>Cuma identifikasi, gak perlu tag khusus</td>
+      </tr>
+      <tr>
+        <td>Tutup sesi</td>
+        <td>Leader yang sama (masih login sesi itu)</td>
+        <td>Gak scan ulang -- identitas Leader dipakai dari awal sesi</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="two-col">
+      <div>
+        <h3>Kenapa peserta gak scan lewat menu terpisah?</h3>
+        <p>Biar prosesnya cepat pas briefing beneran lagi jalan di lapangan -- satu HP/tablet dipegang Leader, peserta gantian maju scan wajah/QR sendiri, layar tetap di mode kamera aktif sampai Leader tekan "Selesai".</p>
+      </div>
+      <div>
+        <h3>Kenapa bisa link ke Permit to Work?</h3>
+        <p>Toolbox Meeting sering dilakukan sebagai briefing sebelum kerjaan yang udah punya Permit to Work Aktif -- link ini opsional, cuma buat nunjukin sesi TBM ini persiapan buat kerjaan yang mana di Riwayat.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Catatan implementasi: cek duplikat absen dilakukan di RPC <span class="tag-chip">tbm_scan_peserta()</span> dengan mencocokkan <span class="tag-chip">qrCodeId</span> di kolom <span class="tag-chip">PesertaList</span> (JSONB array) -- kalau ketemu, ditolak tanpa nambah baris baru.</p>
+
+</div>

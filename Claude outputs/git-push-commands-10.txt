@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah report PDF per transaksi Permit to Work" -m "- ptw-pdf.html: lembar cetak A4 per permit -- info umum (No. Permit, No. WO, Status, Project, Requester, Lokasi, Jadwal), JSA table, Hazard Checklist, Foto Lampiran, Lampiran Dokumen Pendukung, riwayat proses (timeline approval), dan 3 kotak tanda tangan (Requester/HSE Officer/Area Authority) -- pola sama persis dengan cermat-pdf.html/incident-pdf.html/inspeksi-pdf.html" -m "- ptw-list.html: tombol '📄 PDF' di tiap kartu riwayat, buka ptw-pdf.html?id=... di tab baru" -m "- index.html: catatan tombol cetak PDF di deskripsi modul Riwayat Permit to Work" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

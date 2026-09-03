@@ -1,0 +1,218 @@
+<title>Alur Inspeksi & Observasi</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --review-blue: #1E88E5;
+    --success: #178A4C;
+    --bg: #F5F6FA;
+    --surface: #FFFFFF;
+    --border: #E4E7F0;
+    --text: #1E1E1E;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: #fff;
+    padding: 30px 28px;
+    border-radius: 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 28px rgba(45, 60, 115, 0.25);
+  }
+  .header .eyebrow {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--safety-yellow); font-weight: 700; margin-bottom: 8px;
+  }
+  .header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+  .header p { font-size: 13.5px; color: #C7CEE8; margin-top: 8px; max-width: 56ch; }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+
+  figure { margin: 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  .diagram-scroll { overflow-x: auto; }
+  figcaption {
+    font-size: 12.5px; color: var(--muted); margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--border); line-height: 1.6;
+  }
+
+  .key-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .key-row .key-item { display: flex; align-items: center; gap: 7px; }
+  .key-swatch { width: 22px; height: 0; border-top-width: 2.5px; border-top-style: solid; flex-shrink: 0; }
+
+  h2.section-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+  .section-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+
+  table.ref-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ref-table th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-weight: 700; padding: 0 10px 8px; border-bottom: 1.5px solid var(--border);
+  }
+  table.ref-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.ref-table tr:last-child td { border-bottom: none; }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+  .tag-chip {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500;
+    background: rgba(45,60,115,0.08); color: var(--navy); padding: 3px 8px; border-radius: 5px;
+    white-space: nowrap; display: inline-block;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 620px) { .two-col { grid-template-columns: 1fr; } }
+  .two-col h3 { font-size: 13.5px; font-weight: 800; margin-bottom: 6px; }
+  .two-col p { font-size: 13px; color: var(--muted); }
+  .two-col p b { color: var(--text); font-weight: 700; }
+
+  .footnote { font-size: 12px; color: var(--muted); }
+  .footnote .tag-chip { margin: 0 2px; }
+</style>
+
+<div class="page">
+
+  <div class="header">
+    <div class="eyebrow">HSSE-Fusion4 · Modul Inspeksi &amp; Observasi Lapangan</div>
+    <h1>Alur Inspeksi &amp; Observasi Lapangan</h1>
+    <p>Ad-hoc, satu langkah -- siapa aja yang identifikasi (scan QR/Wajah) boleh isi, gak perlu Author khusus. Temuan "Tidak Sesuai" otomatis dibikinin Laporan CERMAT biar ditindaklanjuti.</p>
+  </div>
+
+  <div class="card">
+    <div class="diagram-scroll">
+      <figure>
+        <svg viewBox="0 0 780 980" role="img" aria-label="Diagram alur Inspeksi dan Observasi: Inspektor atau Observer verifikasi identitas lalu isi checklist per item dengan hasil Sesuai, Tidak Sesuai, atau N-A, submit menghitung skor otomatis, jika ada item Tidak Sesuai maka sistem otomatis membuat satu Laporan CERMAT konsolidasi yang tertaut balik ke laporan inspeksi, jika semua sesuai maka langsung tersimpan sebagai riwayat.">
+          <defs>
+            <marker id="arrowNavy3" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2D3C73"></path>
+            </marker>
+            <marker id="arrowRed3" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#E02C2B"></path>
+            </marker>
+            <marker id="arrowMuted3" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#6B7280"></path>
+            </marker>
+          </defs>
+
+          <!-- ===== Start ===== -->
+          <ellipse cx="290" cy="48" rx="185" ry="28" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></ellipse>
+          <text x="290" y="53" text-anchor="middle" font-size="13" font-weight="700" fill="#2D3C73">Inspektor/Observer verifikasi identitas (QR/Wajah)</text>
+
+          <line x1="290" y1="76" x2="290" y2="146" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy3)"></line>
+
+          <!-- ===== ISI CHECKLIST ===== -->
+          <rect x="90" y="150" width="400" height="168" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="168" width="100" height="24" rx="12" fill="#2D3C73"></rect>
+          <text x="160" y="184" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">AD-HOC</text>
+          <text x="222" y="184" font-size="12.5" font-weight="700" fill="#6B7280">Gak perlu Author khusus</text>
+          <text x="110" y="234" font-size="13.5" font-weight="600" fill="#1E1E1E">Pilih Jenis: Inspeksi atau</text>
+          <text x="110" y="256" font-size="13.5" font-weight="600" fill="#1E1E1E">Observasi -- tiap item pilih</text>
+          <text x="110" y="278" font-size="13.5" font-weight="600" fill="#1E1E1E">hasil (dropdown Sesuai/Tidak</text>
+          <text x="110" y="300" font-size="13.5" font-weight="600" fill="#1E1E1E">Sesuai/N-A) + keterangan + foto</text>
+
+          <line x1="290" y1="318" x2="290" y2="388" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy3)"></line>
+          <text x="310" y="359" font-size="13" font-weight="700" fill="#2D3C73">Submit -- skor dihitung</text>
+          <text x="310" y="378" font-size="11" fill="#6B7280">Sesuai / (Sesuai+TidakSesuai) × 100</text>
+
+          <!-- ===== DECISION DIAMOND ===== -->
+          <polygon points="290,392 410,442 290,492 170,442" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></polygon>
+          <text x="290" y="436" text-anchor="middle" font-size="12" font-weight="700" fill="#1E1E1E">Ada item</text>
+          <text x="290" y="454" text-anchor="middle" font-size="12" font-weight="700" fill="#1E1E1E">"Tidak Sesuai"?</text>
+
+          <!-- ===== YA -> AUTO CERMAT ===== -->
+          <line x1="290" y1="492" x2="290" y2="558" stroke="#E02C2B" stroke-width="2.5" marker-end="url(#arrowRed3)"></line>
+          <text x="308" y="530" font-size="12.5" font-weight="700" fill="#E02C2B">Ya</text>
+
+          <rect x="90" y="562" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="580" width="168" height="24" rx="12" fill="#E02C2B"></rect>
+          <text x="194" y="596" text-anchor="middle" font-size="11.5" font-weight="700" fill="#FFFFFF">AUTO-GENERATE CERMAT</text>
+          <text x="110" y="646" font-size="13.5" font-weight="600" fill="#1E1E1E">1 laporan konsolidasi --</text>
+          <text x="110" y="668" font-size="13.5" font-weight="600" fill="#1E1E1E">Sifat: Negatif, Jenis Temuan:</text>
+          <text x="110" y="690" font-size="13.5" font-weight="600" fill="#1E1E1E">Unsafe Condition, deskripsi</text>
+          <text x="110" y="702" font-size="11" fill="#6B7280">berisi daftar semua item Tidak Sesuai</text>
+
+          <line x1="290" y1="712" x2="290" y2="770" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy3)"></line>
+
+          <!-- ===== TIDAK -> skip langsung ke Riwayat ===== -->
+          <path d="M410,442 L640,442 L640,835 L490,835" fill="none" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrowMuted3)"></path>
+          <text x="652" y="636" font-size="12.5" font-weight="700" fill="#6B7280">Tidak</text>
+          <text x="652" y="654" font-size="11" fill="#6B7280">(semua Sesuai/N-A)</text>
+
+          <!-- ===== TERSIMPAN SEBAGAI RIWAYAT ===== -->
+          <rect x="90" y="774" width="400" height="168" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="792" width="84" height="24" rx="12" fill="#178A4C"></rect>
+          <text x="152" y="808" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">RIWAYAT</text>
+          <text x="206" y="808" font-size="12.5" font-weight="700" fill="#6B7280">Laporan tersimpan</text>
+          <text x="110" y="858" font-size="13.5" font-weight="600" fill="#1E1E1E">Bisa cetak PDF kapan aja.</text>
+          <text x="110" y="880" font-size="13.5" font-weight="600" fill="#1E1E1E">Kalau ada temuan, badge link</text>
+          <text x="110" y="902" font-size="13.5" font-weight="600" fill="#1E1E1E">"Dari Inspeksi ..." muncul di</text>
+          <text x="110" y="924" font-size="13.5" font-weight="600" fill="#1E1E1E">Riwayat CERMAT (link 2 arah)</text>
+        </svg>
+      </figure>
+    </div>
+
+    <div class="key-row">
+      <div class="key-item"><span class="key-swatch" style="border-color:#2D3C73;"></span>Alur normal</div>
+      <div class="key-item"><span class="key-swatch" style="border-color:#E02C2B;"></span>Ada temuan Tidak Sesuai</div>
+      <div class="key-item"><span class="key-swatch" style="border-color:#6B7280;"></span>Tanpa temuan (skip)</div>
+    </div>
+
+    <figcaption>Beda dari CERMAT/Incident/Permit to Work, modul ini gak punya alur approval bertahap -- satu kali submit langsung tersimpan. Yang "bertahap" cuma cabangnya: ada temuan atau tidak.</figcaption>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Referensi cepat: skor &amp; siapa yang berhak</h2>
+    <p class="section-sub">Gak ada verifikasi Author khusus di modul ini -- siapa aja yang berhasil identifikasi (QR/Wajah) boleh isi laporan.</p>
+    <table class="ref-table">
+      <tr><th>Hal</th><th>Ketentuan</th></tr>
+      <tr>
+        <td>Siapa yang boleh isi</td>
+        <td>Siapa aja yang identifikasi -- <span class="tag-chip">tanpa tag Author khusus</span></td>
+      </tr>
+      <tr>
+        <td>Perhitungan skor</td>
+        <td>Sesuai / (Sesuai + Tidak Sesuai) × 100 -- item N/A dikecualikan dari pembagi</td>
+      </tr>
+      <tr>
+        <td>Auto-generate CERMAT</td>
+        <td>Kalau ≥ 1 item "Tidak Sesuai" -- satu laporan konsolidasi (bukan per item)</td>
+      </tr>
+      <tr>
+        <td>Link 2 arah ke CERMAT</td>
+        <td>Riwayat Inspeksi tampil link ke CERMAT, Riwayat CERMAT tampil badge "Dari Inspeksi ..."</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="two-col">
+      <div>
+        <h3>Kenapa gak ada approval bertahap?</h3>
+        <p>Inspeksi/Observasi itu sifatnya <b>audit rutin lapangan</b>, bukan laporan yang perlu ditindaklanjuti berjenjang. Yang perlu ditindaklanjuti (temuan "Tidak Sesuai") otomatis dilempar ke alur CERMAT yang memang sudah punya approval bertahap.</p>
+      </div>
+      <div>
+        <h3>Kenapa foto &amp; keterangan selalu ada, gak cuma pas "Tidak Sesuai"?</h3>
+        <p>Biar dokumentasi lapangan tetap lengkap walau kondisinya udah sesuai -- foto "Sesuai" juga berguna sebagai bukti kondisi baik di tanggal tertentu, bukan cuma nyatet yang bermasalah.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Catatan implementasi: skor <span class="tag-chip">skorPersen</span> dihitung di RPC <span class="tag-chip">submit_inspeksi_report()</span>, sekaligus manggil <span class="tag-chip">submit_cermat_report()</span> secara internal kalau ada temuan -- satu transaksi submit, dua efek.</p>
+
+</div>

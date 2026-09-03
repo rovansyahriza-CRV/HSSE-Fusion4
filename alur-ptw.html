@@ -1,0 +1,261 @@
+<title>Alur Permit to Work & JSA</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --review-blue: #1E88E5;
+    --success: #178A4C;
+    --bg: #F5F6FA;
+    --surface: #FFFFFF;
+    --border: #E4E7F0;
+    --text: #1E1E1E;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: #fff;
+    padding: 30px 28px;
+    border-radius: 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 28px rgba(45, 60, 115, 0.25);
+  }
+  .header .eyebrow {
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--safety-yellow); font-weight: 700; margin-bottom: 8px;
+  }
+  .header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+  .header p { font-size: 13.5px; color: #C7CEE8; margin-top: 8px; max-width: 60ch; }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+
+  figure { margin: 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  .diagram-scroll { overflow-x: auto; }
+  figcaption {
+    font-size: 12.5px; color: var(--muted); margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--border); line-height: 1.6;
+  }
+
+  .key-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .key-row .key-item { display: flex; align-items: center; gap: 7px; }
+  .key-swatch { width: 22px; height: 0; border-top-width: 2.5px; border-top-style: solid; flex-shrink: 0; }
+
+  h2.section-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+  .section-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+
+  table.ref-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ref-table th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-weight: 700; padding: 0 10px 8px; border-bottom: 1.5px solid var(--border);
+  }
+  table.ref-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.ref-table tr:last-child td { border-bottom: none; }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+  .tag-chip {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500;
+    background: rgba(45,60,115,0.08); color: var(--navy); padding: 3px 8px; border-radius: 5px;
+    white-space: nowrap; display: inline-block;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 620px) { .two-col { grid-template-columns: 1fr; } }
+  .two-col h3 { font-size: 13.5px; font-weight: 800; margin-bottom: 6px; }
+  .two-col p { font-size: 13px; color: var(--muted); }
+  .two-col p b { color: var(--text); font-weight: 700; }
+
+  .footnote { font-size: 12px; color: var(--muted); }
+  .footnote .tag-chip { margin: 0 2px; }
+</style>
+
+<div class="page">
+
+  <div class="header">
+    <div class="eyebrow">HSSE-Fusion4 · Modul Permit to Work &amp; JSA</div>
+    <h1>Alur Permit to Work &amp; JSA</h1>
+    <p>5 status, 3 titik verifikasi Author-gated. Requester wajib punya izin "Permit &amp; JSA" buat mulai ngisi -- form ini nyatuin izin kerja + JSA + hazard checklist per jenis pekerjaan.</p>
+  </div>
+
+  <div class="card">
+    <div class="diagram-scroll">
+      <figure>
+        <svg viewBox="0 0 900 1300" role="img" aria-label="Diagram alur Permit to Work: Requester dengan Author Permit dan JSA mengajukan permit berstatus Diajukan, HSE Officer dengan Author Review Permit to Work mereview dan menyetujui menjadi Menunggu Approval Area Authority atau menolak kembali ke Diajukan, Area Authority dengan Author Approve Permit to Work menyetujui menjadi Aktif atau menolak kembali langsung ke Diajukan tanpa lewat HSE lagi, dari Aktif siapa saja yang teridentifikasi dapat mengajukan penutupan menjadi Menunggu Approval Penutupan, HSE Officer dengan Author Review Permit to Work yang sama menyetujui penutupan menjadi Ditutup atau menolak kembali ke Aktif supaya pekerjaan lanjut, dan status Ditutup dapat dibuka kembali langsung menjadi Aktif tanpa approval ulang dari awal.">
+          <defs>
+            <marker id="arrowNavy4" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2D3C73"></path>
+            </marker>
+            <marker id="arrowRed4" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#E02C2B"></path>
+            </marker>
+            <marker id="arrowMuted4" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#6B7280"></path>
+            </marker>
+          </defs>
+
+          <!-- ===== Start ===== -->
+          <ellipse cx="290" cy="48" rx="205" ry="30" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></ellipse>
+          <text x="290" y="46" text-anchor="middle" font-size="12.5" font-weight="700" fill="#2D3C73">Requester (Author "Permit &amp; JSA") ajukan</text>
+          <text x="290" y="62" text-anchor="middle" font-size="12.5" font-weight="700" fill="#2D3C73">permit + isi JSA &amp; Hazard Checklist</text>
+
+          <line x1="290" y1="78" x2="290" y2="146" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy4)"></line>
+
+          <!-- ===== DIAJUKAN ===== -->
+          <rect x="90" y="150" width="400" height="148" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="168" width="96" height="24" rx="12" fill="#E02C2B"></rect>
+          <text x="158" y="184" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">DIAJUKAN</text>
+          <text x="218" y="184" font-size="12.5" font-weight="700" fill="#6B7280">Milik Requester</text>
+          <text x="110" y="234" font-size="13" font-weight="600" fill="#1E1E1E">No. WO (opsional), JSA,</text>
+          <text x="110" y="256" font-size="13" font-weight="600" fill="#1E1E1E">Hazard Checklist (wajib semua</text>
+          <text x="110" y="278" font-size="13" font-weight="600" fill="#1E1E1E">"terpenuhi"), foto &amp; lampiran</text>
+
+          <line x1="290" y1="298" x2="290" y2="384" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy4)"></line>
+          <text x="310" y="330" font-size="13" font-weight="700" fill="#2D3C73">Review &amp; setujui</text>
+          <rect x="310" y="338" width="208" height="20" rx="5" fill="rgba(45,60,115,0.08)"></rect>
+          <text x="320" y="352" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11.5" fill="#2D3C73">Author: Review Permit to Work</text>
+          <text x="310" y="374" font-size="10.5" fill="#E02C2B">Reject -&gt; tetap di Diajukan (+ catatan revisi)</text>
+
+          <!-- ===== MENUNGGU AREA AUTHORITY ===== -->
+          <rect x="90" y="388" width="400" height="148" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="406" width="230" height="24" rx="12" fill="#F5A623"></rect>
+          <text x="225" y="422" text-anchor="middle" font-size="11" font-weight="700" fill="#4A3400">MENUNGGU AREA AUTHORITY</text>
+          <text x="110" y="472" font-size="13" font-weight="600" fill="#1E1E1E">Menunggu keputusan Area</text>
+          <text x="110" y="494" font-size="13" font-weight="600" fill="#1E1E1E">Authority (yang berwenang atas</text>
+          <text x="110" y="516" font-size="13" font-weight="600" fill="#1E1E1E">area/lokasi kerja tersebut)</text>
+
+          <line x1="290" y1="536" x2="290" y2="622" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy4)"></line>
+          <text x="310" y="568" font-size="13" font-weight="700" fill="#2D3C73">Setujui</text>
+          <rect x="310" y="576" width="228" height="20" rx="5" fill="rgba(45,60,115,0.08)"></rect>
+          <text x="320" y="590" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11.5" fill="#2D3C73">Author: Approve Permit to Work</text>
+          <text x="310" y="612" font-size="10.5" fill="#E02C2B">Reject -&gt; balik ke Diajukan (bukan ke HSE dulu)</text>
+
+          <!-- ===== AKTIF ===== -->
+          <rect x="90" y="626" width="400" height="148" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="644" width="70" height="24" rx="12" fill="#178A4C"></rect>
+          <text x="145" y="660" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">AKTIF</text>
+          <text x="192" y="660" font-size="12.5" font-weight="700" fill="#6B7280">Kerjaan berjalan</text>
+          <text x="110" y="710" font-size="13" font-weight="600" fill="#1E1E1E">Permit sah dipegang di lokasi.</text>
+          <text x="110" y="732" font-size="13" font-weight="600" fill="#1E1E1E">Siapa aja yang teridentifikasi</text>
+          <text x="110" y="754" font-size="13" font-weight="600" fill="#1E1E1E">bisa ajukan penutupan kapan aja</text>
+
+          <line x1="290" y1="774" x2="290" y2="860" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy4)"></line>
+          <text x="310" y="811" font-size="13" font-weight="700" fill="#2D3C73">Ajukan penutupan</text>
+          <text x="310" y="830" font-size="10.5" fill="#6B7280">(cuma identifikasi, gak perlu Author khusus)</text>
+
+          <!-- ===== MENUNGGU APPROVAL PENUTUPAN ===== -->
+          <rect x="90" y="864" width="400" height="148" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="882" width="240" height="24" rx="12" fill="#1E88E5"></rect>
+          <text x="230" y="898" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF">MENUNGGU APPROVAL PENUTUPAN</text>
+          <text x="110" y="948" font-size="13" font-weight="600" fill="#1E1E1E">Foto dokumentasi penutupan</text>
+          <text x="110" y="970" font-size="13" font-weight="600" fill="#1E1E1E">(opsional), menunggu HSE</text>
+          <text x="110" y="992" font-size="13" font-weight="600" fill="#1E1E1E">Officer approve closing</text>
+
+          <line x1="290" y1="1012" x2="290" y2="1098" stroke="#2D3C73" stroke-width="2.5" marker-end="url(#arrowNavy4)"></line>
+          <text x="310" y="1044" font-size="13" font-weight="700" fill="#2D3C73">Setujui penutupan</text>
+          <rect x="310" y="1052" width="208" height="20" rx="5" fill="rgba(45,60,115,0.08)"></rect>
+          <text x="320" y="1066" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11.5" fill="#2D3C73">Author: Review Permit to Work</text>
+          <text x="310" y="1088" font-size="10.5" fill="#E02C2B">Reject -&gt; balik ke Aktif (kerjaan lanjut lagi)</text>
+
+          <!-- ===== DITUTUP ===== -->
+          <rect x="90" y="1102" width="400" height="148" rx="16" fill="#FFFFFF" stroke="#E4E7F0" stroke-width="1.5"></rect>
+          <rect x="110" y="1120" width="86" height="24" rx="12" fill="#6B7280"></rect>
+          <text x="153" y="1136" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">DITUTUP</text>
+          <text x="210" y="1136" font-size="12.5" font-weight="700" fill="#6B7280">Permit selesai</text>
+          <text x="110" y="1186" font-size="13" font-weight="600" fill="#1E1E1E">Tersimpan sebagai riwayat &amp;</text>
+          <text x="110" y="1208" font-size="13" font-weight="600" fill="#1E1E1E">bisa cetak PDF (bisa dibuka</text>
+          <text x="110" y="1230" font-size="13" font-weight="600" fill="#1E1E1E">lagi / reopen langsung ke Aktif)</text>
+
+          <!-- ===== Back-edge: Menunggu Area Authority -> Diajukan (reject) ===== -->
+          <path d="M490,462 L620,462 L620,224 L490,224" fill="none" stroke="#E02C2B" stroke-width="2.5" marker-end="url(#arrowRed4)"></path>
+          <text x="632" y="348" font-size="12.5" font-weight="700" fill="#E02C2B">Reject</text>
+          <text x="632" y="366" font-size="11" fill="#6B7280">(Area Authority)</text>
+
+          <!-- ===== Back-edge: Menunggu Approval Penutupan -> Aktif (reject) ===== -->
+          <path d="M490,938 L630,938 L630,700 L490,700" fill="none" stroke="#E02C2B" stroke-width="2.5" marker-end="url(#arrowRed4)"></path>
+          <text x="642" y="824" font-size="12.5" font-weight="700" fill="#E02C2B">Reject</text>
+          <text x="642" y="842" font-size="11" fill="#6B7280">(closing ditolak)</text>
+
+          <!-- ===== Back-edge: Ditutup -> Aktif (reopen) ===== -->
+          <path d="M490,1176 L760,1176 L760,680 L490,680" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#arrowMuted4)"></path>
+          <text x="772" y="932" font-size="12.5" font-weight="700" fill="#6B7280">Reopen</text>
+          <text x="772" y="950" font-size="11" fill="#6B7280">(HSE Officer,</text>
+          <text x="772" y="966" font-size="11" fill="#6B7280">langsung Aktif)</text>
+        </svg>
+      </figure>
+    </div>
+
+    <div class="key-row">
+      <div class="key-item"><span class="key-swatch" style="border-color:#2D3C73;"></span>Alur normal</div>
+      <div class="key-item"><span class="key-swatch" style="border-color:#E02C2B;"></span>Ditolak (reject)</div>
+      <div class="key-item"><span class="key-swatch" style="border-color:#6B7280; border-top-style:dashed;"></span>Reopen manual</div>
+    </div>
+
+    <figcaption>Tiap kotak = satu status permit. Tiap panah = aksi yang cuma bisa dijalankan setelah verifikasi (scan wajah / QR / PIN) cocok dengan orang yang punya tag Author yang tertulis di panahnya. Perhatikan: reject dari Area Authority BALIK KE DIAJUKAN, bukan ke HSE Officer dulu -- beda dari pola CERMAT/Incident yang cuma 1 titik reject.</figcaption>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Referensi cepat: status &amp; siapa yang berhak</h2>
+    <p class="section-sub">Dicocokkan ke kolom Author di data karyawan Fusion4 (bisa lebih dari satu tag per orang, dipisah koma).</p>
+    <table class="ref-table">
+      <tr><th>Status</th><th>Dipegang oleh</th><th>Author yang berhak gerakkan</th></tr>
+      <tr>
+        <td><span class="status-dot" style="background:#E02C2B;"></span>Diajukan</td>
+        <td>Requester -&gt; HSE Officer</td>
+        <td><span class="tag-chip">Permit &amp; JSA</span> (ngisi) -&gt; <span class="tag-chip">Review Permit to Work</span> (review)</td>
+      </tr>
+      <tr>
+        <td><span class="status-dot" style="background:#F5A623;"></span>Menunggu Area Authority</td>
+        <td>Area Authority</td>
+        <td><span class="tag-chip">Approve Permit to Work</span></td>
+      </tr>
+      <tr>
+        <td><span class="status-dot" style="background:#178A4C;"></span>Aktif</td>
+        <td>Siapa aja (ajukan closing)</td>
+        <td>Cuma identifikasi, gak perlu tag khusus</td>
+      </tr>
+      <tr>
+        <td><span class="status-dot" style="background:#1E88E5;"></span>Menunggu Approval Penutupan</td>
+        <td>HSE Officer</td>
+        <td><span class="tag-chip">Review Permit to Work</span> (tag yang sama dipakai lagi)</td>
+      </tr>
+      <tr>
+        <td><span class="status-dot" style="background:#6B7280;"></span>Ditutup</td>
+        <td>— (arsip, bisa dibuka lagi)</td>
+        <td><span class="tag-chip">Review Permit to Work</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="two-col">
+      <div>
+        <h3>Kenapa Requester juga butuh Author?</h3>
+        <p>Beda dari CERMAT/Incident/Inspeksi yang ad-hoc, ngisi Permit to Work butuh <b>paham detail teknis</b> izin kerja &amp; JSA. Makanya Requester wajib punya tag <span class="tag-chip">Permit &amp; JSA</span> -- diverifikasi via Scan QR, Scan Wajah, atau Input PIN (biar tetap bisa dikerjakan di laptop tanpa kamera).</p>
+      </div>
+      <div>
+        <h3>Kenapa reject Area Authority gak balik ke HSE dulu?</h3>
+        <p>Karena isi permit (JSA, hazard checklist) belum tentu salah di sisi teknis HSE -- yang ditolak biasanya soal kesesuaian sama kondisi area (misal jadwal bentrok kerjaan lain). Jadi permit balik ke Requester buat direvisi &amp; diajukan ulang dari awal.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Catatan implementasi: identitas &amp; verifikasi direset tiap kali permit pindah tahap (fungsi <span class="tag-chip">loadReports()</span> di <span class="tag-chip">ptw-list.html</span>). Hazard Checklist beda per Jenis Pekerjaan, disimpan di <span class="tag-chip">ptwHazardChecklistTemplateTbl</span> -- bisa diedit/tambah lewat Table Editor Supabase tanpa ubah kode.</p>
+
+</div>

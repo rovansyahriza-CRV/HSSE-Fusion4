@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Permit to Work — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  /* ===== Toolbar (gak ikut kecetak) ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  /* ===== Lembar laporan (dicetak) ===== */
+  .sheet {
+    max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 14px;
+  }
+  .doc-header .brand img { width: 76px; height: 76px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 19px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .no-laporan { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text); margin-top: 3px; font-weight: 700; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+  }
+  .info-cell { padding: 8px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .info-cell:nth-last-child(-n+3) { border-bottom: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
+  .status-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .status-badge.diajukan { background: #FCEAE8; color: var(--accent); }
+  .status-badge.menunggu-area { background: #FDF3E3; color: #8A6100; }
+  .status-badge.aktif { background: var(--success-bg); color: var(--success); }
+  .status-badge.menunggu-close { background: #E8F4FD; color: #1E88E5; }
+  .status-badge.ditutup { background: var(--bg); color: var(--muted); }
+
+  .section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1.5px solid var(--navy);
+  }
+  .section-body { font-size: 11px; }
+
+  .photo-grid { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .photo-grid img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; }
+
+  .lampiran-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 6px; font-size: 10.5px; font-weight: 700; color: var(--text);
+    text-decoration: none;
+  }
+  .lampiran-row .lampiran-icon { font-size: 14px; flex-shrink: 0; }
+  .lampiran-row .lampiran-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ===== JSA table ===== */
+  .jsa-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5px; }
+  .jsa-table th, .jsa-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  .jsa-table th { background: var(--bg); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+
+  /* ===== Hazard checklist review ===== */
+  .hazard-review-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
+  .hazard-review-item:last-child { border-bottom: none; }
+  .hazard-review-item .check-icon { flex-shrink: 0; }
+  .hazard-review-keterangan { font-size: 9.5px; color: var(--muted); margin-top: 1px; }
+
+  .warning-box {
+    background: #FDF3E3; color: #8A6100; border-radius: 8px; padding: 10px 12px; font-size: 10.5px; margin-bottom: 8px;
+  }
+  .warning-box b { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+
+  /* ===== Riwayat approval (timeline) ===== */
+  .riwayat-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
+  .riwayat-item:last-child { border-bottom: none; }
+  .riwayat-item .riwayat-icon { flex-shrink: 0; }
+  .riwayat-item .riwayat-label { font-weight: 700; }
+  .riwayat-item .riwayat-sub { color: var(--muted); font-size: 9.5px; margin-top: 1px; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 8.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 30px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9px; font-weight: 700; }
+  .signature-box .sub { font-size: 7.5px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 6mm 8mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4; margin: 10mm; }
+  }
+
+  @media screen and (max-width: 780px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 4vw 10mm; }
+    .doc-header { flex-wrap: wrap; row-gap: 10px; }
+    .doc-header .doc-title { text-align: left; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(3n) { border-right: 1px solid var(--border); }
+    .info-cell:nth-child(2n) { border-right: none; }
+    .info-cell:nth-last-child(-n+3) { border-bottom: 1px solid var(--border); }
+    .info-cell:nth-last-child(-n+2) { border-bottom: none; }
+    .jsa-table { display: block; overflow-x: auto; white-space: nowrap; }
+    .signature-row { grid-template-columns: 1fr; gap: 22px; }
+    .signature-box { text-align: left; }
+    .signature-box .role { margin-bottom: 20px; }
+    .doc-footer { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="ptw-list.html">⬅ Kembali ke Riwayat</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, dan aktifkan opsi "Background graphics" biar warna badge-nya ikut kecetak.</div>
+
+<div id="loadingState" class="loading">Memuat permit...</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Izin Kerja (Permit to Work) &amp; JSA</h1>
+      <div class="no-laporan" id="fNoPermit"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Tanggal &amp; Waktu Pengajuan</div>
+      <div class="value" id="fTanggal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">No. WO / Work Order</div>
+      <div class="value" id="fWoNo">-</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Status</div>
+      <div class="value" id="fStatus"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Project / Kontrak</div>
+      <div class="value" id="fProject"></div>
+      <div class="value small" id="fKontrak"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Jenis Pekerjaan</div>
+      <div class="value" id="fJenis"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Requester</div>
+      <div class="value" id="fRequester"></div>
+      <div class="value small" id="fQrCodeId"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Lokasi / Area Kerja</div>
+      <div class="value" id="fLokasi"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Rencana Jadwal Kerja</div>
+      <div class="value" id="fJadwal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Jumlah Pekerja</div>
+      <div class="value" id="fJumlahPekerja">-</div>
+    </div>
+  </div>
+
+  <div class="section" id="penolakanSection" style="display:none;">
+    <div class="warning-box" id="fPenolakanBox"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Deskripsi Pekerjaan</div>
+    <div class="section-body" id="fDeskripsi"></div>
+    <div class="section-body" id="fAlat" style="margin-top:4px; color:var(--muted);"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">JSA -- Job Safety Analysis</div>
+    <div class="section-body" id="fJsaTable"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" id="fHazardTitle">Hazard Checklist</div>
+    <div class="section-body" id="fHazardBody"></div>
+  </div>
+
+  <div class="section" id="fotoSection" style="display:none;">
+    <div class="section-title" id="fotoTitle">Foto Lampiran</div>
+    <div class="photo-grid" id="fotoGrid"></div>
+  </div>
+
+  <div class="section" id="lampiranSection" style="display:none;">
+    <div class="section-title" id="lampiranTitle">Lampiran Dokumen Pendukung</div>
+    <div class="section-body" id="lampiranBody"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Riwayat Proses</div>
+    <div class="section-body" id="fRiwayat"></div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Diajukan Oleh (Requester)</div>
+      <div class="line" id="fSignRequester">&nbsp;</div>
+      <div class="sub" id="fSignRequesterSub">&nbsp;</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Direview Oleh (HSE Officer)</div>
+      <div class="line" id="fSignHse">&nbsp;</div>
+      <div class="sub" id="fSignHseSub">&nbsp;</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Disetujui Oleh (Area Authority)</div>
+      <div class="line" id="fSignArea">&nbsp;</div>
+      <div class="sub" id="fSignAreaSub">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function driveThumbSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w800`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Diajukan') return 'diajukan';
+    if (status === 'Menunggu Approval Area Authority') return 'menunggu-area';
+    if (status === 'Aktif') return 'aktif';
+    if (status === 'Menunggu Approval Penutupan') return 'menunggu-close';
+    return 'ditutup';
+  }
+
+  function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = '';
+    if (titleEl) titleEl.innerText = `${titleText} (${fotoArr.length})`;
+    gridEl.innerHTML = fotoArr.map(f =>
+      `<img src="${driveThumbSrc(f)}" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';">`
+    ).join('');
+  }
+
+  function renderLampiranList(bodyEl, sectionEl, titleEl, titleText, lampiranArr) {
+    if (!lampiranArr || lampiranArr.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = '';
+    if (titleEl) titleEl.innerText = `${titleText} (${lampiranArr.length})`;
+    bodyEl.innerHTML = lampiranArr.map(f => {
+      const isPdf = (f.mimeType || '').includes('pdf') || (f.fileName || '').toLowerCase().endsWith('.pdf');
+      return `<a class="lampiran-row" href="${driveViewUrl(f)}" target="_blank">
+        <span class="lampiran-icon">${isPdf ? '📄' : '🖼️'}</span>
+        <span class="lampiran-name">${escapeHtml(f.fileName || 'Lampiran')}</span>
+      </a>`;
+    }).join('');
+  }
+
+  function renderJsaTable(jsaItems) {
+    const el = document.getElementById('fJsaTable');
+    if (!jsaItems || jsaItems.length === 0) { el.innerHTML = '-'; return; }
+    el.innerHTML = `<table class="jsa-table"><thead><tr><th>Langkah Kerja</th><th>Potensi Bahaya</th><th>Pengendalian Risiko</th></tr></thead><tbody>
+      ${jsaItems.map(r => `<tr><td>${escapeHtml(r.langkah)}</td><td>${escapeHtml(r.bahaya)}</td><td>${escapeHtml(r.pengendalian)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  function renderHazardChecklist(hazardChecklist) {
+    const el = document.getElementById('fHazardBody');
+    if (!hazardChecklist || hazardChecklist.length === 0) { el.innerHTML = '-'; return; }
+    el.innerHTML = hazardChecklist.map(it => `
+      <div class="hazard-review-item">
+        <span class="check-icon">${it.terpenuhi ? '✅' : '❌'}</span>
+        <div>
+          <div>${escapeHtml(it.item)}</div>
+          ${it.keterangan ? `<div class="hazard-review-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function riwayatRow(icon, label, sub) {
+    return `<div class="riwayat-item">
+      <span class="riwayat-icon">${icon}</span>
+      <div>
+        <div class="riwayat-label">${label}</div>
+        ${sub ? `<div class="riwayat-sub">${sub}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderRiwayat(r) {
+    const el = document.getElementById('fRiwayat');
+    let html = riwayatRow('📝', `Diajukan oleh ${escapeHtml(r.namaRequester)}`, formatDate(r.tanggalWaktu));
+
+    if (r.hseReviewOleh) {
+      html += riwayatRow('✅', `Direview HSE Officer: ${escapeHtml(r.hseReviewOleh)}`, formatDate(r.tanggalHseReview));
+    }
+    if (r.areaAuthorityOleh) {
+      html += riwayatRow('✅', `Disetujui Area Authority: ${escapeHtml(r.areaAuthorityOleh)}`, formatDate(r.tanggalAreaAuthority));
+    }
+    if (r.penutupanDiajukanOleh) {
+      html += riwayatRow('🔒', `Penutupan diajukan oleh ${escapeHtml(r.penutupanDiajukanOleh)}`,
+        formatDate(r.tanggalPenutupanDiajukan) + (r.catatanPenutupanDiajukan ? ' — ' + escapeHtml(r.catatanPenutupanDiajukan) : ''));
+    }
+    if (r.ditutupOleh) {
+      html += riwayatRow('🏁', `Ditutup oleh HSE Officer: ${escapeHtml(r.ditutupOleh)}`, formatDate(r.tanggalDitutup));
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadReport() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Id permit tidak ditemukan di URL.';
+      return;
+    }
+
+    try {
+      const { data: r, error } = await supabaseClient.rpc('get_ptw_by_id', { p_id: id });
+      if (error) throw error;
+      if (!r) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorState').innerText = '❌ Permit tidak ditemukan.';
+        return;
+      }
+
+      document.title = `${r.noPermit} — HSSE-Fusion4`;
+      document.getElementById('fNoPermit').innerText = r.noPermit;
+      document.getElementById('fTanggal').innerText = formatDate(r.tanggalWaktu);
+      document.getElementById('fWoNo').innerText = r.woNo || '-';
+      document.getElementById('fStatus').innerHTML = `<span class="status-badge ${statusBadgeClass(r.status)}">${escapeHtml(r.status)}</span>`;
+      document.getElementById('fProject').innerText = r.namaProject;
+      document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
+      document.getElementById('fJenis').innerText = r.jenisPekerjaan;
+      document.getElementById('fRequester').innerHTML = escapeHtml(r.namaRequester) +
+        (r.requesterQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
+      document.getElementById('fQrCodeId').innerText = r.requesterQrCodeId ? `QrCodeId: ${r.requesterQrCodeId}` : '';
+      document.getElementById('fLokasi').innerText = r.lokasiArea;
+      document.getElementById('fJadwal').innerText =
+        `${r.tanggalMulaiKerja ? formatDate(r.tanggalMulaiKerja) : '-'} s/d ${r.tanggalSelesaiKerja ? formatDate(r.tanggalSelesaiKerja) : '-'}`;
+      document.getElementById('fJumlahPekerja').innerText = r.jumlahPekerja ? `${r.jumlahPekerja} orang` : '-';
+
+      if (r.catatanPenolakan) {
+        document.getElementById('penolakanSection').style.display = 'block';
+        document.getElementById('fPenolakanBox').innerHTML = '<b>Catatan Penolakan / Revisi Terakhir</b>' + escapeHtml(r.catatanPenolakan);
+      }
+
+      document.getElementById('fDeskripsi').innerText = r.deskripsiPekerjaan;
+      document.getElementById('fAlat').innerText = r.alatYangDipakai ? `Alat yang dipakai: ${r.alatYangDipakai}` : '';
+
+      renderJsaTable(r.jsaItems);
+
+      document.getElementById('fHazardTitle').innerText = `Hazard Checklist -- ${r.jenisPekerjaan}`;
+      renderHazardChecklist(r.hazardChecklist);
+
+      renderPhotoGrid(
+        document.getElementById('fotoGrid'), document.getElementById('fotoSection'),
+        document.getElementById('fotoTitle'), 'Foto Lampiran', r.fotoList
+      );
+
+      renderLampiranList(
+        document.getElementById('lampiranBody'), document.getElementById('lampiranSection'),
+        document.getElementById('lampiranTitle'), 'Lampiran Dokumen Pendukung', r.lampiranList
+      );
+
+      renderRiwayat(r);
+
+      document.getElementById('fSignRequester').innerText = r.namaRequester || '';
+      document.getElementById('fSignRequesterSub').innerText = r.requesterQrCodeId || '';
+      document.getElementById('fSignHse').innerText = r.hseReviewOleh || '';
+      document.getElementById('fSignHseSub').innerText = r.hseReviewOleh ? (r.hseReviewQrCodeId || '') : 'Nama & Tanda Tangan';
+      document.getElementById('fSignArea').innerText = r.areaAuthorityOleh || '';
+      document.getElementById('fSignAreaSub').innerText = r.areaAuthorityOleh ? (r.areaAuthorityQrCodeId || '') : 'Nama & Tanda Tangan';
+
+      document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('sheet').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Gagal memuat permit: ' + e.message;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+
+</body>
+</html>
