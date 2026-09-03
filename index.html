@@ -23,8 +23,8 @@
   </div>
 
   <div class="card">
-    <h2>✅ Status: CERMAT (MVP pertama) sudah jalan</h2>
-    <p>Supabase &amp; Drive Bridge sudah tersambung. Modul CERMAT (istilah lokal buat PEKA -- Positif/Negatif) sudah bisa dipakai lapor &amp; audit. Modul lain masih menyusul.</p>
+    <h2>✅ Status: CERMAT &amp; Incident/Accident sudah jalan</h2>
+    <p>Supabase &amp; Drive Bridge sudah tersambung. Modul CERMAT (istilah lokal buat PEKA -- Positif/Negatif) dan Incident/Accident Report sudah bisa dipakai lapor &amp; audit. Modul lain masih menyusul.</p>
   </div>
 
   <div class="card">
@@ -46,13 +46,21 @@
         </div>
         <span class="badge-done"><a href="cermat-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
       </div>
-      <div class="module-item">
+      <div class="module-item done">
         <span class="status-dot"></span>
         <div>
           <div class="module-name">Incident / Accident Report</div>
-          <div class="module-desc">Laporan kecelakaan, near-miss, first aid, investigasi &amp; root cause.</div>
+          <div class="module-desc">Klasifikasi Near Miss s/d Fatality, info korban, investigasi (akar masalah &amp; tindakan korektif), terikat ke Project/Kontrak.</div>
         </div>
-        <span class="badge-todo">Belum digarap</span>
+        <span class="badge-done"><a href="incident-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Investigasi Incident</div>
+          <div class="module-desc">Daftar semua laporan, filter status, update investigasi sampai Closed.</div>
+        </div>
+        <span class="badge-done"><a href="incident-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
       </div>
       <div class="module-item">
         <span class="status-dot"></span>
@@ -84,9 +92,9 @@
   <div class="card">
     <h2 style="margin-bottom:8px;">Sebelum lanjut ke modul berikutnya</h2>
     <p style="margin-bottom:8px;">Lihat README.md untuk detail lengkap:</p>
-    <div class="note">1. Jalankan <code>sql/001_cermat_schema.sql</code> di Supabase (kalau belum)</div>
+    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>005</code> di Supabase secara berurutan (kalau belum)</div>
     <div class="note" style="margin-top:6px;">2. Ganti/tambah data project asli di tabel "projectTbl" (masih ada 1 baris contoh placeholder)</div>
-    <div class="note" style="margin-top:6px;">3. Modul mana yang jadi prioritas berikutnya setelah CERMAT</div>
+    <div class="note" style="margin-top:6px;">3. Modul mana yang jadi prioritas berikutnya setelah Incident/Accident</div>
   </div>
 
 </div>

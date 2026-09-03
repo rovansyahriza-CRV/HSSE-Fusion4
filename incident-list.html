@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat Incident/Accident — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .update-form .photo-slots { grid-template-columns: repeat(4, 1fr); max-width: 260px; margin-bottom: 10px; }
+  .update-form .photo-slot { aspect-ratio: 1/1; }
+  .reopen-btn {
+    border: none; background: transparent; color: var(--navy); font-size: 12px;
+    font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 4px;
+  }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .update-form { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 10px; }
+  .update-form .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .update-form select, .update-form input, .update-form textarea {
+    padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12.5px; font-family: inherit;
+  }
+  .update-form label.mini-label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 6px; margin-top: 10px;
+  }
+  .update-form label.mini-label:first-child { margin-top: 0; }
+  .update-form .btn-mini {
+    padding: 8px 16px; border: none; border-radius: 8px; background: var(--navy); color: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer; margin-top: 8px;
+  }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  /* Badge klasifikasi -- color-coded by severity, biar gampang di-scan mata pas audit/rekap. */
+  .klas-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .klas-badge.klas-nearmiss { background: #E8F4FD; color: #1E88E5; }
+  .klas-badge.klas-fac { background: var(--success-bg); color: var(--success); }
+  .klas-badge.klas-mtc { background: #FDF3E3; color: var(--safety-yellow); }
+  .klas-badge.klas-rwc { background: #FDE9D8; color: #C56A15; }
+  .klas-badge.klas-lti { background: #FCEAE8; color: var(--accent); }
+  .klas-badge.klas-fatality { background: #2A1010; color: #fff; }
+  .klas-badge.klas-properti { background: #EFEFF4; color: #5B5F6B; }
+  .klas-badge.klas-lingkungan { background: #E4F5E9; color: #1E7A46; }
+  .klas-badge.klas-security { background: #F0E9FB; color: #6A3FBF; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat Incident / Accident</h1>
+      </div>
+    </div>
+    <p>Semua laporan kecelakaan &amp; insiden, lengkap sama status investigasi -- siap ditunjukin pas audit.</p>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-status="" onclick="filterByStatus('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Open" onclick="filterByStatus('Open', this)">Open</button>
+    <button type="button" class="filter-btn" data-status="Investigasi" onclick="filterByStatus('Investigasi', this)">Investigasi</button>
+    <button type="button" class="filter-btn" data-status="Closed" onclick="filterByStatus('Closed', this)">Closed</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentStatusFilter = '';
+  let reports = [];
+  let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap renderReports()
+
+  const KLAS_CLASS = {
+    'Near Miss': 'klas-nearmiss',
+    'First Aid Case': 'klas-fac',
+    'Medical Treatment Case': 'klas-mtc',
+    'Restricted Work Case': 'klas-rwc',
+    'Lost Time Injury': 'klas-lti',
+    'Fatality': 'klas-fatality',
+    'Kerusakan Properti': 'klas-properti',
+    'Lingkungan': 'klas-lingkungan',
+    'Keamanan/Security': 'klas-security',
+  };
+
+  document.addEventListener('DOMContentLoaded', () => loadReports());
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_incident_reports', {
+        p_status: currentStatusFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByStatus(status, btnEl) {
+    currentStatusFilter = status;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Open') return 'open';
+    if (status === 'Investigasi') return 'in-progress';
+    return 'closed';
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function renderReports() {
+    followupPhotoSlots = {};
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada laporan Incident/Accident.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noLaporan}</div>
+              <div class="report-title">${r.klasifikasi} — ${r.lokasiArea}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <span class="klas-badge ${KLAS_CLASS[r.klasifikasi] || ''}">${r.klasifikasi}</span>
+              <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Kronologi</b>${escapeHtml(r.kronologi)}</div>
+          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})</div>` : ''}
+          ${r.namaKorban ? `<div class="detail-row"><b>Korban / Yang Terlibat</b>${escapeHtml(r.namaKorban)}${r.jabatanPerusahaanKorban ? ' — ' + escapeHtml(r.jabatanPerusahaanKorban) : ''}${r.hariKerjaHilang != null ? ` (Hari Kerja Hilang: ${r.hariKerjaHilang})` : ''}</div>` : ''}
+          ${photoGalleryHtml('Foto Bukti', r.fotoList)}
+          ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
+          ${r.akarMasalah ? `<div class="detail-row"><b>Akar Masalah</b>${escapeHtml(r.akarMasalah)}</div>` : ''}
+          ${r.tindakanKorektif ? `<div class="detail-row"><b>Tindakan Korektif</b>${escapeHtml(r.tindakanKorektif)}</div>` : ''}
+          ${photoGalleryHtml('Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList)}
+          ${r.status === 'Closed' ? `
+            <div class="detail-row"><b>Ditutup</b>${formatDate(r.tanggalClosed)}${r.catatanClosed ? ' — ' + escapeHtml(r.catatanClosed) : ''}</div>
+            <button type="button" class="reopen-btn" onclick="reopenReport(${idx}, ${r.id})">🔓 Buka Lagi (reopen)</button>
+          ` : `
+            <div class="update-form">
+              <label class="mini-label">Investigasi</label>
+              <div class="form-row">
+                <input type="text" id="pj-${idx}" placeholder="Penanggung jawab" value="${r.penanggungJawab || ''}" style="flex:1; min-width:140px;">
+                <input type="date" id="tenggat-${idx}" value="${r.tenggat || ''}">
+                <select id="status-${idx}">
+                  <option value="Open" ${r.status === 'Open' ? 'selected' : ''}>Open</option>
+                  <option value="Investigasi" ${r.status === 'Investigasi' ? 'selected' : ''}>Investigasi</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+              <textarea id="akar-${idx}" placeholder="Akar masalah / root cause" style="width:100%; min-height:44px; margin-bottom:8px;">${r.akarMasalah || ''}</textarea>
+              <textarea id="korektif-${idx}" placeholder="Tindakan korektif" style="width:100%; min-height:44px; margin-bottom:8px;">${r.tindakanKorektif || ''}</textarea>
+              <input type="number" id="hari-${idx}" min="0" placeholder="Hari kerja hilang (kalau ada)" value="${r.hariKerjaHilang != null ? r.hariKerjaHilang : ''}" style="width:100%; margin-bottom:8px;">
+
+              <label class="mini-label">Foto Tindak Lanjut (opsional, bisa sampai 2 -- buka kamera belakang)</label>
+              <div class="photo-slots">
+                <div class="photo-slot" id="followup-slot-${idx}-0">
+                  <input type="file" accept="image/*" capture="environment" onchange="handleFollowupPhoto(event, ${idx}, 0)">
+                  <div class="slot-placeholder">📷</div>
+                  <img class="slot-preview">
+                  <button type="button" class="slot-remove" onclick="removeFollowupPhoto(${idx}, 0, event)">✕</button>
+                </div>
+                <div class="photo-slot" id="followup-slot-${idx}-1">
+                  <input type="file" accept="image/*" capture="environment" onchange="handleFollowupPhoto(event, ${idx}, 1)">
+                  <div class="slot-placeholder">📷</div>
+                  <img class="slot-preview">
+                  <button type="button" class="slot-remove" onclick="removeFollowupPhoto(${idx}, 1, event)">✕</button>
+                </div>
+              </div>
+              <textarea id="catatan-${idx}" placeholder="Catatan penutupan (isi kalau status Closed)" style="width:100%; min-height:50px; margin-bottom:8px;">${r.catatanClosed || ''}</textarea>
+              <button type="button" class="btn-mini" id="btn-update-${idx}" onclick="updateStatus(${idx}, ${r.id})">💾 Update</button>
+            </div>
+          `}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  function handleFollowupPhoto(event, idx, slotIdx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    followupPhotoSlots[`${idx}-${slotIdx}`] = file;
+    const slotEl = document.getElementById(`followup-slot-${idx}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeFollowupPhoto(idx, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    delete followupPhotoSlots[`${idx}-${slotIdx}`];
+    const slotEl = document.getElementById(`followup-slot-${idx}-${slotIdx}`);
+    if (!slotEl) return;
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  async function updateStatus(idx, id) {
+    const penanggungJawab = document.getElementById(`pj-${idx}`).value.trim();
+    const tenggat = document.getElementById(`tenggat-${idx}`).value || null;
+    const status = document.getElementById(`status-${idx}`).value;
+    const catatan = document.getElementById(`catatan-${idx}`).value.trim();
+    const akarMasalah = document.getElementById(`akar-${idx}`).value.trim();
+    const tindakanKorektif = document.getElementById(`korektif-${idx}`).value.trim();
+    const hariRaw = document.getElementById(`hari-${idx}`).value.trim();
+    const hariKerjaHilang = hariRaw ? parseInt(hariRaw, 10) : null;
+    const btn = document.getElementById(`btn-update-${idx}`);
+
+    const filledSlots = [0, 1].map(s => followupPhotoSlots[`${idx}-${s}`]).filter(Boolean);
+
+    try {
+      let fotoTambahan = [];
+      if (filledSlots.length > 0) {
+        btn.disabled = true;
+        btn.innerText = `⏳ Mengupload ${filledSlots.length} foto...`;
+        for (let i = 0; i < filledSlots.length; i++) {
+          const fileName = `INSIDEN_TindakLanjut_${id}_${Date.now()}_${i + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(filledSlots[i], fileName);
+          fotoTambahan.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Menyimpan...';
+      const { error } = await supabaseClient.rpc('update_incident_status', {
+        p_id: id,
+        p_status: status,
+        p_penanggung_jawab: penanggungJawab,
+        p_tenggat: tenggat,
+        p_catatan_closed: catatan,
+        p_foto_tambahan: fotoTambahan,
+        p_akar_masalah: akarMasalah,
+        p_tindakan_korektif: tindakanKorektif,
+        p_hari_kerja_hilang: hariKerjaHilang,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) {
+      alert('Gagal update: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerText = '💾 Update'; }
+    }
+  }
+
+  async function reopenReport(idx, id) {
+    if (!confirm('Buka lagi laporan ini? Status bakal balik ke "Open".')) return;
+    try {
+      const r = reports.find(x => x.id === id);
+      const { error } = await supabaseClient.rpc('update_incident_status', {
+        p_id: id,
+        p_status: 'Open',
+        p_penanggung_jawab: (r && r.penanggungJawab) || '',
+        p_tenggat: (r && r.tenggat) || null,
+        p_catatan_closed: '',
+        p_akar_masalah: (r && r.akarMasalah) || '',
+        p_tindakan_korektif: (r && r.tindakanKorektif) || '',
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) {
+      alert('Gagal buka lagi laporan: ' + e.message);
+    }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+
+  function drivePhotoSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+</script>
+
+</body>
+</html>
