@@ -140,11 +140,16 @@
       }
       const hasilClass = it.hasil === 'Sesuai' ? 'sesuai' : it.hasil === 'Tidak Sesuai' ? 'tidak' : 'na';
       const hasilIcon = it.hasil === 'Sesuai' ? '✅' : it.hasil === 'Tidak Sesuai' ? '⚠️' : '➖';
+      // fotoList (array, laporan baru) -- fallback ke "foto" tunggal (laporan lama sebelum migrasi 015).
+      const fotoArr = (it.fotoList && it.fotoList.length > 0) ? it.fotoList : (it.foto ? [it.foto] : []);
+      const fotoHtml = fotoArr.length > 0
+        ? `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank"><img class="detail-photo" style="max-width:80px; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div>`
+        : '';
       html += `<div class="checklist-review-item">
         <div>
           <div>${escapeHtml(it.item)}</div>
           ${it.keterangan ? `<div class="checklist-review-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
-          ${it.foto ? `<a href="${driveViewUrl(it.foto)}" target="_blank"><img class="detail-photo" style="max-width:100px;" src="${drivePhotoSrc(it.foto)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(it.foto)}';"></a>` : ''}
+          ${fotoHtml}
         </div>
         <span class="checklist-review-hasil ${hasilClass}">${hasilIcon} ${escapeHtml(it.hasil)}</span>
       </div>`;

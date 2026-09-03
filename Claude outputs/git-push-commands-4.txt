@@ -1,0 +1,7 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git add -A
+
+git commit -m "Ubah UI checklist Inspeksi/Observasi: hasil pakai dropdown, foto per item jadi 3 slot" -m "- sql/015: submit_inspeksi_report baca fotoList (array) per item, bukan foto tunggal lagi" -m "- inspeksi-report.html: hasil (Sesuai/Tidak Sesuai/N-A) dipilih lewat dropdown, tiap item selalu ada keterangan + 3 slot foto opsional (gak cuma muncul pas Tidak Sesuai)" -m "- inspeksi-list.html: detail checklist nampilin galeri foto per item (bukan 1 foto)" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+
+git push

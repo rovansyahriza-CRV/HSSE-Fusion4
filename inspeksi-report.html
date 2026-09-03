@@ -41,21 +41,21 @@
   .checklist-kategori { font-size: 12px; font-weight: 800; color: var(--navy); text-transform: uppercase;
     letter-spacing: 0.04em; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1.5px solid var(--border); }
   .checklist-kategori:first-child { margin-top: 0; }
-  .checklist-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .checklist-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
   .checklist-item:last-child { border-bottom: none; }
   .checklist-item-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
-  .hasil-toggle { display: flex; gap: 6px; }
-  .hasil-btn {
-    flex: 1; padding: 9px 4px; border-radius: 9px; border: 1.5px solid var(--border);
-    background: var(--surface); font-weight: 700; font-size: 11.5px; cursor: pointer; color: var(--muted);
+  .hasil-select {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--surface); font-weight: 700; font-size: 12.5px; color: var(--muted); margin-bottom: 8px;
   }
-  .hasil-btn.active-sesuai { background: var(--success-bg); border-color: var(--success); color: var(--success); }
-  .hasil-btn.active-tidak { background: #FCEAE8; border-color: var(--accent); color: var(--accent); }
-  .hasil-btn.active-na { background: var(--bg); border-color: #9CA8C9; color: var(--muted); }
-  .checklist-extra { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .checklist-extra textarea { min-height: 50px; font-size: 12.5px; }
-  .checklist-extra input[type="file"] { font-size: 11.5px; }
-  .checklist-photo-preview { max-width: 120px; border-radius: 8px; margin-top: 4px; display: none; }
+  .hasil-select.val-sesuai { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .hasil-select.val-tidak { background: #FCEAE8; border-color: var(--accent); color: var(--accent); }
+  .hasil-select.val-na { background: var(--bg); border-color: #9CA8C9; color: var(--muted); }
+  .checklist-extra { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+  .checklist-extra textarea { min-height: 44px; font-size: 12.5px; }
+  .item-photo-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 220px; }
+  .item-photo-slots .photo-slot { aspect-ratio: 1/1; border-radius: 8px; }
+  .item-photo-slots .slot-placeholder { font-size: 18px; }
 
   .score-preview {
     display: none; background: var(--bg); border-radius: 12px; padding: 14px; margin: 14px 0;
@@ -196,7 +196,7 @@
   let photoSlots = [null, null, null];
   let projectList = [];
   let checklistTemplate = []; // [{id, kategori, item}]
-  let checklistState = {}; // { itemId: { kategori, item, hasil, keterangan, fotoFile } }
+  let checklistState = {}; // { itemId: { kategori, item, hasil, keterangan, fotoFiles: [File|null, File|null, File|null] } }
 
   const statusMsg = document.getElementById('statusMsg');
   const btnSubmit = document.getElementById('btnSubmit');
@@ -250,7 +250,7 @@
         return;
       }
       checklistTemplate.forEach(it => {
-        checklistState[it.id] = { kategori: it.kategori, item: it.item, hasil: '', keterangan: '', fotoFile: null };
+        checklistState[it.id] = { kategori: it.kategori, item: it.item, hasil: '', keterangan: '', fotoFiles: [null, null, null] };
       });
       renderChecklist();
       umumArea.style.display = 'block';
@@ -272,15 +272,34 @@
       html += `
         <div class="checklist-item">
           <div class="checklist-item-label">${escapeHtml(it.item)}</div>
-          <div class="hasil-toggle" id="toggle-${it.id}">
-            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'Sesuai')">✅ Sesuai</button>
-            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'Tidak Sesuai')">⚠️ Tidak Sesuai</button>
-            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'N/A')">➖ N/A</button>
-          </div>
-          <div class="checklist-extra" id="extra-${it.id}" style="display:none;">
-            <textarea placeholder="Keterangan temuan (wajib diisi kalau Tidak Sesuai)..." oninput="setKeterangan(${it.id}, this.value)"></textarea>
-            <input type="file" accept="image/*" capture="environment" id="foto-input-${it.id}" onchange="handleItemPhoto(event, ${it.id})">
-            <img class="checklist-photo-preview" id="foto-preview-${it.id}">
+          <select class="hasil-select" id="hasil-${it.id}" onchange="setHasil(${it.id}, this.value)">
+            <option value="">-- Pilih Hasil --</option>
+            <option value="Sesuai">✅ Sesuai</option>
+            <option value="Tidak Sesuai">⚠️ Tidak Sesuai</option>
+            <option value="N/A">➖ N/A</option>
+          </select>
+          <div class="checklist-extra">
+            <textarea placeholder="Keterangan (opsional, wajib kalau Tidak Sesuai)..." oninput="setKeterangan(${it.id}, this.value)"></textarea>
+            <div class="item-photo-slots">
+              <div class="photo-slot" id="item-slot-${it.id}-0">
+                <input type="file" accept="image/*" capture="environment" onchange="handleItemPhoto(event, ${it.id}, 0)">
+                <div class="slot-placeholder">📷</div>
+                <img class="slot-preview">
+                <button type="button" class="slot-remove" onclick="removeItemPhoto(${it.id}, 0, event)">✕</button>
+              </div>
+              <div class="photo-slot" id="item-slot-${it.id}-1">
+                <input type="file" accept="image/*" capture="environment" onchange="handleItemPhoto(event, ${it.id}, 1)">
+                <div class="slot-placeholder">📷</div>
+                <img class="slot-preview">
+                <button type="button" class="slot-remove" onclick="removeItemPhoto(${it.id}, 1, event)">✕</button>
+              </div>
+              <div class="photo-slot" id="item-slot-${it.id}-2">
+                <input type="file" accept="image/*" capture="environment" onchange="handleItemPhoto(event, ${it.id}, 2)">
+                <div class="slot-placeholder">📷</div>
+                <img class="slot-preview">
+                <button type="button" class="slot-remove" onclick="removeItemPhoto(${it.id}, 2, event)">✕</button>
+              </div>
+            </div>
           </div>
         </div>`;
     });
@@ -289,15 +308,9 @@
 
   function setHasil(itemId, hasil) {
     checklistState[itemId].hasil = hasil;
-    const toggleEl = document.getElementById('toggle-' + itemId);
-    const btns = toggleEl.querySelectorAll('.hasil-btn');
-    btns[0].className = 'hasil-btn' + (hasil === 'Sesuai' ? ' active-sesuai' : '');
-    btns[1].className = 'hasil-btn' + (hasil === 'Tidak Sesuai' ? ' active-tidak' : '');
-    btns[2].className = 'hasil-btn' + (hasil === 'N/A' ? ' active-na' : '');
-
-    const extraEl = document.getElementById('extra-' + itemId);
-    extraEl.style.display = (hasil === 'Tidak Sesuai') ? 'flex' : 'none';
-
+    const selectEl = document.getElementById('hasil-' + itemId);
+    selectEl.className = 'hasil-select' +
+      (hasil === 'Sesuai' ? ' val-sesuai' : hasil === 'Tidak Sesuai' ? ' val-tidak' : hasil === 'N/A' ? ' val-na' : '');
     updateScorePreview();
   }
 
@@ -305,13 +318,26 @@
     checklistState[itemId].keterangan = val;
   }
 
-  function handleItemPhoto(event, itemId) {
+  function handleItemPhoto(event, itemId, slotIdx) {
     const file = event.target.files[0];
     if (!file) return;
-    checklistState[itemId].fotoFile = file;
-    const img = document.getElementById('foto-preview-' + itemId);
+    checklistState[itemId].fotoFiles[slotIdx] = file;
+    const slotEl = document.getElementById(`item-slot-${itemId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
     img.src = URL.createObjectURL(file);
     img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeItemPhoto(itemId, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    checklistState[itemId].fotoFiles[slotIdx] = null;
+    const slotEl = document.getElementById(`item-slot-${itemId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
   }
 
   function updateScorePreview() {
@@ -678,18 +704,19 @@
     btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
 
     try {
-      // Upload foto per-item (kalau ada) dulu.
+      // Upload foto per-item (sampai 3 per item, kalau ada) dulu.
       const checklistPayload = [];
       let uploadedCount = 0;
-      const totalFotoItem = items.filter(([id, st]) => st.fotoFile).length;
+      const totalFotoItem = items.reduce((sum, [id, st]) => sum + st.fotoFiles.filter(f => f).length, 0);
       for (const [id, st] of items) {
-        let foto = null;
-        if (st.fotoFile) {
+        const fotoList = [];
+        const filledFotoSlots = st.fotoFiles.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+        for (const slot of filledFotoSlots) {
           uploadedCount++;
           setStatus(`📤 Mengupload foto item ${uploadedCount}/${totalFotoItem}...`, 'info');
-          const fileName = `INSPEKSI_${Date.now()}_item${id}.jpg`;
-          const uploaded = await uploadPhotoToDrive(st.fotoFile, fileName);
-          foto = { url: uploaded.directUrl, fileId: uploaded.fileId };
+          const fileName = `INSPEKSI_${Date.now()}_item${id}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
         }
         checklistPayload.push({
           id: Number(id),
@@ -697,7 +724,7 @@
           item: st.item,
           hasil: st.hasil,
           keterangan: st.keterangan || '',
-          foto,
+          fotoList,
         });
       }
 
