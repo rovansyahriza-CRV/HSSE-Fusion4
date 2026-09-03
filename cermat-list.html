@@ -132,9 +132,12 @@
               <div class="report-title">${r.jenisTemuan} — ${r.lokasiArea}</div>
               <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}</div>
             </div>
-            <div class="badges">
-              <span class="sifat-badge ${r.sifat.toLowerCase()}">${r.sifat}</span>
-              <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <div style="display:flex; gap:6px;">
+                <span class="sifat-badge ${r.sifat.toLowerCase()}">${r.sifat}</span>
+                <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+              </div>
+              <a href="cermat-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
             </div>
           </div>
         </div>

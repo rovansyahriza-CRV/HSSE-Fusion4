@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Laporan CERMAT — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  /* ===== Toolbar (gak ikut kecetak) ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  /* ===== Lembar laporan (dicetak) ===== */
+  .sheet {
+    max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 14px;
+  }
+  .doc-header .brand img { width: 76px; height: 76px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 19px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .no-laporan { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text); margin-top: 3px; font-weight: 700; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+  }
+  .info-cell { padding: 8px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .badge-positif { background: var(--success-bg); color: var(--success); }
+  .badge-negatif { background: #FCEAE8; color: var(--accent); }
+  .badge-open { background: #FCEAE8; color: var(--accent); }
+  .badge-progress { background: #FDF3E3; color: var(--safety-yellow); }
+  .badge-closed { background: var(--success-bg); color: var(--success); }
+  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
+
+  .section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1.5px solid var(--navy);
+  }
+  .section-body { font-size: 11px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .photo-grid { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .photo-grid img, .photo-placeholder {
+    width: 100px; height: 100px; border-radius: 6px; object-fit: cover;
+  }
+  .photo-placeholder {
+    background: var(--bg); border: 1.5px dashed #C7CEE8; display: flex; align-items: center;
+    justify-content: center; color: #9CA8C9; font-size: 9px; font-weight: 700;
+  }
+
+  .status-box { border: 1.5px solid var(--border); border-radius: 8px; padding: 12px 14px; background: #FAFBFD; }
+  .status-box .status-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .status-box .status-top .status-label { font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.06em; }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .status-grid .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .status-grid .value { font-size: 10.5px; font-weight: 700; }
+  .closing-note { font-size: 10px; background: var(--success-bg); color: var(--success); border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
+  .closing-note b { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+  .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 6mm 8mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4; margin: 10mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <a href="cermat-list.html">⬅ Kembali ke Riwayat</a>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, dan aktifkan opsi "Background graphics" biar warna badge-nya ikut kecetak.</div>
+
+<div id="loadingState" class="loading">Memuat laporan...</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan CERMAT</h1>
+      <div class="no-laporan" id="fNoLaporan"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Tanggal &amp; Waktu</div>
+      <div class="value" id="fTanggal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Project / Kontrak</div>
+      <div class="value" id="fProject"></div>
+      <div class="value small" id="fKontrak"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Pelapor</div>
+      <div class="value" id="fPelapor"></div>
+      <div class="value small" id="fQrCodeId"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Sifat Temuan</div>
+      <div class="value" id="fSifat"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Jenis Temuan</div>
+      <div class="value" id="fJenis"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Lokasi / Area Kerja</div>
+      <div class="value" id="fLokasi"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Deskripsi Temuan</div>
+    <div class="section-body" id="fDeskripsi"></div>
+  </div>
+
+  <div class="section" id="fotoTemuanSection">
+    <div class="section-title" id="fotoTemuanTitle">Foto Temuan</div>
+    <div class="photo-grid" id="fotoTemuanGrid"></div>
+  </div>
+
+  <div class="section two-col">
+    <div>
+      <div class="section-title">Tindakan Langsung</div>
+      <div class="section-body" id="fTindakan"></div>
+    </div>
+    <div>
+      <div class="section-title">Rekomendasi Perbaikan</div>
+      <div class="section-body" id="fRekomendasi"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Status Tindak Lanjut &amp; Penutupan</div>
+    <div class="status-box">
+      <div class="status-top">
+        <div class="status-label">Status Saat Ini</div>
+        <span class="badge" id="fStatusBadge"></span>
+      </div>
+      <div class="status-grid">
+        <div>
+          <div class="label">Penanggung Jawab</div>
+          <div class="value" id="fPenanggungJawab"></div>
+        </div>
+        <div>
+          <div class="label">Tenggat</div>
+          <div class="value" id="fTenggat"></div>
+        </div>
+        <div>
+          <div class="label">Tanggal Ditutup</div>
+          <div class="value" id="fTanggalClosed"></div>
+        </div>
+      </div>
+      <div class="closing-note" id="fCatatanClosedBox" style="display:none;">
+        <b>Catatan Penutupan</b>
+        <span id="fCatatanClosed"></span>
+      </div>
+      <div id="fotoTindakLanjutSection" style="margin-top:10px; display:none;">
+        <div class="label" style="font-size:8px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;" id="fotoTindakLanjutTitle">Foto Tindak Lanjut</div>
+        <div class="photo-grid" id="fotoTindakLanjutGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dibuat Oleh (Pelapor)</div>
+      <div class="line" id="fSignPelapor">&nbsp;</div>
+      <div class="sub" id="fSignQrCodeId">&nbsp;</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Diperiksa Oleh (HSSE)</div>
+      <div class="line">&nbsp;</div>
+      <div class="sub">Nama &amp; Tanda Tangan</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Disetujui Oleh</div>
+      <div class="line">&nbsp;</div>
+      <div class="sub">Nama &amp; Tanda Tangan</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function driveThumbSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w800`;
+    return f.url || '';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function formatDateOnly(str) {
+    if (!str) return '-';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+  function statusBadgeClass(status) {
+    if (status === 'Open') return 'badge-open';
+    if (status === 'In Progress') return 'badge-progress';
+    return 'badge-closed';
+  }
+
+  function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = '';
+    titleEl.innerText = `${titleText} (${fotoArr.length})`;
+    gridEl.innerHTML = fotoArr.map(f =>
+      `<img src="${driveThumbSrc(f)}" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';">`
+    ).join('');
+  }
+
+  async function loadReport() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Id laporan tidak ditemukan di URL.';
+      return;
+    }
+
+    try {
+      const { data: r, error } = await supabaseClient.rpc('get_cermat_report_by_id', { p_id: id });
+      if (error) throw error;
+      if (!r) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorState').innerText = '❌ Laporan tidak ditemukan.';
+        return;
+      }
+
+      document.title = `${r.noLaporan} — HSSE-Fusion4`;
+      document.getElementById('fNoLaporan').innerText = r.noLaporan;
+      document.getElementById('fTanggal').innerText = formatDate(r.tanggalWaktu);
+      document.getElementById('fProject').innerText = r.namaProject;
+      document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
+      document.getElementById('fPelapor').innerHTML = escapeHtml(r.namaPelapor) +
+        (r.pelaporQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
+      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId ? `QrCodeId: ${r.pelaporQrCodeId}` : '';
+      document.getElementById('fSifat').innerHTML = `<span class="badge ${r.sifat === 'Positif' ? 'badge-positif' : 'badge-negatif'}">${r.sifat}</span>`;
+      document.getElementById('fJenis').innerText = r.jenisTemuan;
+      document.getElementById('fLokasi').innerText = r.lokasiArea;
+      document.getElementById('fDeskripsi').innerText = r.deskripsi;
+      document.getElementById('fTindakan').innerText = r.tindakanLangsung || '-';
+      document.getElementById('fRekomendasi').innerText = r.rekomendasi || '-';
+
+      const statusBadge = document.getElementById('fStatusBadge');
+      statusBadge.innerText = r.status;
+      statusBadge.className = 'badge ' + statusBadgeClass(r.status);
+
+      document.getElementById('fPenanggungJawab').innerText = r.penanggungJawab || '—';
+      document.getElementById('fTenggat').innerText = r.tenggat ? formatDateOnly(r.tenggat) : '—';
+      document.getElementById('fTanggalClosed').innerText = r.tanggalClosed ? formatDate(r.tanggalClosed) : '—';
+
+      if (r.catatanClosed) {
+        document.getElementById('fCatatanClosedBox').style.display = 'block';
+        document.getElementById('fCatatanClosed').innerText = r.catatanClosed;
+      }
+
+      renderPhotoGrid(
+        document.getElementById('fotoTemuanGrid'), document.getElementById('fotoTemuanSection'),
+        document.getElementById('fotoTemuanTitle'), 'Foto Temuan', r.fotoList
+      );
+      renderPhotoGrid(
+        document.getElementById('fotoTindakLanjutGrid'), document.getElementById('fotoTindakLanjutSection'),
+        document.getElementById('fotoTindakLanjutTitle'), 'Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList
+      );
+
+      document.getElementById('fSignPelapor').innerText = r.namaPelapor;
+      document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId || '';
+      document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('sheet').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Gagal memuat laporan: ' + e.message;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+
+</body>
+</html>
