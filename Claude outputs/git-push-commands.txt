@@ -1,0 +1,7 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git add -A
+
+git commit -m "Fix Fusion4 identity RPC, dept-routing lewat Fusion4, fix verifikasi CERMAT, redesign Incident/Accident jadi 4 tahap, tambah flowchart alur" -m "- Fix get_all_face_data() di Fusion4 biar ikut balikin digitalPin/author" -m "- CERMAT assign-to-dept sekarang ambil master Divisi/Departemen dari Fusion4 (read-only, cross-project)" -m "- Fix bug pendingApproval yang kebawa lintas tahap di alur verifikasi CERMAT" -m "- Penanggung Jawab followup CERMAT default ke nama Dept yang di-assign" -m "- Redesign Incident/Accident: status Open/Investigasi/Review/Closed, isi laporan digabung satu aksi bareng tiap verifikasi (Investigate/Review/Approved Incident-Accident)" -m "- Tambah field Lesson Learned wajib di tahap Review" -m "- Tambah flowchart alur CERMAT & Incident/Accident (HTML + PDF), link 'Lihat Alur Proses' di tiap modul" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+
+git push
