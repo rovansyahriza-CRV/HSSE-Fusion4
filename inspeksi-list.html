@@ -178,6 +178,7 @@
                 <span class="jenis-badge ${r.jenis.toLowerCase()}">${r.jenis === 'Observasi' ? '👀' : '🔧'} ${r.jenis}</span>
                 ${skorBadgeHtml(r)}
               </div>
+              <a href="inspeksi-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
             </div>
           </div>
         </div>

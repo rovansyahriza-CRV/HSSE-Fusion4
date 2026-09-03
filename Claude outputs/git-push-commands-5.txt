@@ -1,0 +1,7 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git add -A
+
+git commit -m "Tambah laporan cetak PDF per transaksi buat Inspeksi & Observasi Lapangan" -m "- Tambah inspeksi-pdf.html (laporan cetak per checklist, nyambung ke get_inspeksi_report_by_id RPC yang udah disiapin dari migrasi 014)" -m "- Detail checklist per kategori dengan badge hasil, keterangan, dan foto per item" -m "- Ringkasan skor kepatuhan + link ke Laporan CERMAT kalau ada temuan Tidak Sesuai" -m "- Tombol 'Lihat PDF' dipasang di tiap kartu riwayat inspeksi-list.html" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+
+git push
