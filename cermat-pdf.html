@@ -390,8 +390,10 @@
       // Diperiksa/Disetujui: kalau udah diverifikasi digital (scan wajah/PIN, lihat
       // cermat-list.html), tampilin nama + tanggal verifikasi. Kalau belum, biarin garis
       // kosong buat tanda tangan basah manual (fallback, misal laporan lama sebelum fitur ini ada).
-      fillSignatureBox('fSignDiperiksa', 'fSignDiperiksaSub', r.diperiksaOleh, r.diperiksaQrCodeId, r.tanggalDiperiksa);
-      fillSignatureBox('fSignDisetujui', 'fSignDisetujuiSub', r.disetujuiOleh, r.disetujuiQrCodeId, r.tanggalDisetujui);
+      // "Diperiksa Oleh (HSSE)" = HSE Admin yang verifikasi & arahkan ke Dept (VerifikatorOleh).
+      // "Disetujui Oleh" = HSE Admin yang approve/tutup laporan di tahap Review (DitutupOleh).
+      fillSignatureBox('fSignDiperiksa', 'fSignDiperiksaSub', r.verifikatorOleh, r.verifikatorQrCodeId, r.tanggalVerifikasi);
+      fillSignatureBox('fSignDisetujui', 'fSignDisetujuiSub', r.ditutupOleh, r.ditutupQrCodeId, r.tanggalClosed);
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

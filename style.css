@@ -107,6 +107,7 @@ body {
 }
 .status-badge.open { background: #FCEAE8; color: var(--accent); }
 .status-badge.in-progress { background: #FDF3E3; color: var(--safety-yellow); }
+.status-badge.review { background: #E8F4FD; color: #1E88E5; }
 .status-badge.closed { background: var(--success-bg); color: var(--success); }
 
 .sifat-badge {
