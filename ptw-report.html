@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permit to Work — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  select, input, textarea {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 13.5px; background: var(--surface); color: var(--text);
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .form-row > * { flex: 1; min-width: 140px; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  #formBody { display: none; }
+  #hazardArea, #jsaArea { display: none; }
+
+  /* ===== JSA table (dinamis, tambah baris) ===== */
+  .jsa-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative; }
+  .jsa-row-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .jsa-row textarea { min-height: 46px; font-size: 12.5px; margin-bottom: 6px; }
+  .jsa-row textarea:last-child { margin-bottom: 0; }
+  .jsa-row .jsa-mini-label { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-bottom: 3px; display: block; }
+  .btn-remove-row {
+    position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: #FCEAE8; color: var(--accent); font-weight: 800; font-size: 13px; cursor: pointer;
+  }
+  .btn-add-row {
+    width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
+  }
+
+  /* ===== Hazard checklist (checkbox per item) ===== */
+  .hazard-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .hazard-item:last-child { border-bottom: none; }
+  .hazard-item input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; accent-color: var(--success); }
+  .hazard-item-body { flex: 1; }
+  .hazard-item-label { font-size: 13px; font-weight: 600; }
+  .hazard-item input[type="text"] { margin-top: 6px; font-size: 12px; padding: 7px 10px; }
+</style>
+</head>
+<body>
+
+<div class="page" style="max-width:520px;">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Permit to Work</h1>
+      </div>
+    </div>
+    <p>Izin kerja + JSA (Job Safety Analysis) jadi satu form. Diajukan Requester, direview HSE Officer, disetujui Area Authority.</p>
+  </div>
+
+  <div id="statusMsg" class="status-msg"></div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Identifikasi Requester</h2>
+    <p style="margin-bottom:10px;">Scan QR badge atau wajah kamu -- nama diambil otomatis dari data karyawan.</p>
+
+    <div class="id-gate-buttons" id="idGateButtons">
+      <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
+      <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+    </div>
+
+    <div class="cam-wrap" id="idCamWrap">
+      <video id="idVideo" autoplay muted playsinline></video>
+      <canvas id="idCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="idFaceOval"></div>
+      <div class="cam-qr-box" id="idQrBox"></div>
+    </div>
+    <div id="idCamStatus" class="status-msg"></div>
+    <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
+    <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+    <div class="id-result-banner" id="idResultBanner">
+      <span class="id-name">✅ <span id="idName"></span></span>
+      <button type="button" onclick="resetIdentification()">Ganti</button>
+    </div>
+  </div>
+
+  <div id="formBody">
+
+  <div class="card">
+    <div class="form-group">
+      <label for="selectJenisPekerjaan">Jenis Pekerjaan</label>
+      <select id="selectJenisPekerjaan" onchange="onJenisPekerjaanChange()">
+        <option value="">-- Memuat daftar jenis pekerjaan... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="selectProject">Project / Kontrak</label>
+      <select id="selectProject">
+        <option value="">-- Memuat daftar project... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtLokasi">Lokasi / Area Kerja</label>
+      <input type="text" id="txtLokasi" placeholder="Contoh: Area Wellpad-3, dekat separator">
+    </div>
+
+    <div class="form-group">
+      <label for="txtDeskripsi">Deskripsi Pekerjaan</label>
+      <textarea id="txtDeskripsi" placeholder="Jelaskan pekerjaan yang akan dilakukan..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="txtAlat">Alat yang Dipakai (opsional)</label>
+      <input type="text" id="txtAlat" placeholder="Contoh: Mesin las, gerinda, tangga lipat">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="numJumlahPekerja">Jumlah Pekerja (opsional)</label>
+        <input type="number" id="numJumlahPekerja" min="1" placeholder="Misal: 4">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="dtMulai">Rencana Mulai Kerja</label>
+        <input type="datetime-local" id="dtMulai">
+      </div>
+      <div class="form-group">
+        <label for="dtSelesai">Rencana Selesai Kerja</label>
+        <input type="datetime-local" id="dtSelesai">
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="jsaArea">
+    <h2 style="margin-bottom:4px;">JSA -- Job Safety Analysis</h2>
+    <p style="margin-bottom:12px;">Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.</p>
+    <div id="jsaRows"></div>
+    <button type="button" class="btn-add-row" onclick="addJsaRow()">+ Tambah Langkah Kerja</button>
+  </div>
+
+  <div class="card" id="hazardArea">
+    <h2 style="margin-bottom:4px;" id="hazardTitle">Hazard Checklist</h2>
+    <p style="margin-bottom:10px;">Konfirmasi semua pengendalian di bawah sudah terpenuhi sebelum kerja dimulai.</p>
+    <div id="hazardBody">Memuat checklist...</div>
+  </div>
+
+  <div class="card" id="fotoArea" style="display:none;">
+    <div class="form-group">
+      <label>Foto Lampiran (opsional, bisa sampai 3)</label>
+      <div class="photo-slots">
+        <div class="photo-slot" id="slot0">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 0)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(0, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot1">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 1)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(1, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot2">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 2)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(2, event)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitPtw()">
+      <span>📤 Ajukan Permit</span>
+    </button>
+  </div>
+
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+
+  let photoSlots = [null, null, null];
+  let projectList = [];
+  let jenisPekerjaanList = [];
+  let hazardTemplate = []; // [{id, item}]
+  let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
+  let jsaRowCount = 0;
+
+  const statusMsg = document.getElementById('statusMsg');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const selectProject = document.getElementById('selectProject');
+  const selectJenisPekerjaan = document.getElementById('selectJenisPekerjaan');
+  const formBody = document.getElementById('formBody');
+  const jsaArea = document.getElementById('jsaArea');
+  const jsaRows = document.getElementById('jsaRows');
+  const hazardArea = document.getElementById('hazardArea');
+  const hazardBody = document.getElementById('hazardBody');
+  const fotoArea = document.getElementById('fotoArea');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadProjects(), loadJenisPekerjaan()]);
+    addJsaRow(); // mulai dengan 1 baris JSA kosong
+  });
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+      if (projectList.length === 0) {
+        selectProject.innerHTML = '<option value="">Belum ada project aktif -- hubungi admin</option>';
+        return;
+      }
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+      setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');
+    }
+  }
+
+  async function loadJenisPekerjaan() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_jenis_pekerjaan_list');
+      if (error) throw error;
+      jenisPekerjaanList = data || [];
+      if (jenisPekerjaanList.length === 0) {
+        selectJenisPekerjaan.innerHTML = '<option value="">Belum ada jenis pekerjaan -- hubungi admin</option>';
+        return;
+      }
+      selectJenisPekerjaan.innerHTML = '<option value="">-- Pilih Jenis Pekerjaan --</option>' +
+        jenisPekerjaanList.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+    } catch (e) {
+      selectJenisPekerjaan.innerHTML = '<option value="">Gagal memuat jenis pekerjaan</option>';
+      setStatus('❌ Gagal memuat jenis pekerjaan: ' + e.message, 'error');
+    }
+  }
+
+  async function onJenisPekerjaanChange() {
+    const jenis = selectJenisPekerjaan.value;
+    if (!jenis) {
+      hazardArea.style.display = 'none';
+      jsaArea.style.display = 'none';
+      fotoArea.style.display = 'none';
+      return;
+    }
+    jsaArea.style.display = 'block';
+    hazardArea.style.display = 'block';
+    hazardBody.innerHTML = 'Memuat checklist...';
+    document.getElementById('hazardTitle').innerText = `Hazard Checklist -- ${jenis}`;
+    hazardState = {};
+
+    try {
+      const { data, error } = await supabaseClient.rpc('get_ptw_hazard_checklist_template', { p_jenis_pekerjaan: jenis });
+      if (error) throw error;
+      hazardTemplate = data || [];
+      if (hazardTemplate.length === 0) {
+        hazardBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis ini -- hubungi admin.</p>';
+        fotoArea.style.display = 'block';
+        return;
+      }
+      hazardTemplate.forEach(it => {
+        hazardState[it.id] = { item: it.item, terpenuhi: false, keterangan: '' };
+      });
+      renderHazardChecklist();
+      fotoArea.style.display = 'block';
+    } catch (e) {
+      hazardBody.innerHTML = '';
+      setStatus('❌ Gagal memuat hazard checklist: ' + e.message, 'error');
+    }
+  }
+
+  function renderHazardChecklist() {
+    hazardBody.innerHTML = hazardTemplate.map(it => `
+      <div class="hazard-item">
+        <input type="checkbox" id="hazard-check-${it.id}" onchange="setHazardTerpenuhi(${it.id}, this.checked)">
+        <div class="hazard-item-body">
+          <label class="hazard-item-label" for="hazard-check-${it.id}">${escapeHtml(it.item)}</label>
+          <input type="text" placeholder="Keterangan (opsional)" oninput="setHazardKeterangan(${it.id}, this.value)">
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function setHazardTerpenuhi(itemId, checked) {
+    hazardState[itemId].terpenuhi = checked;
+  }
+  function setHazardKeterangan(itemId, val) {
+    hazardState[itemId].keterangan = val;
+  }
+
+  // =====================================================================================
+  // JSA -- tabel dinamis, tambah/hapus baris Langkah Kerja / Bahaya / Pengendalian
+  // =====================================================================================
+  function addJsaRow() {
+    const rowId = jsaRowCount++;
+    const div = document.createElement('div');
+    div.className = 'jsa-row';
+    div.id = `jsa-row-${rowId}`;
+    div.innerHTML = `
+      <div class="jsa-row-label">Langkah ${jsaRows.children.length + 1}</div>
+      <button type="button" class="btn-remove-row" onclick="removeJsaRow(${rowId})">✕</button>
+      <span class="jsa-mini-label">Langkah Kerja</span>
+      <textarea id="jsa-langkah-${rowId}" placeholder="Uraikan langkah kerjanya..."></textarea>
+      <span class="jsa-mini-label">Potensi Bahaya</span>
+      <textarea id="jsa-bahaya-${rowId}" placeholder="Bahaya yang mungkin timbul di langkah ini..."></textarea>
+      <span class="jsa-mini-label">Pengendalian Risiko</span>
+      <textarea id="jsa-pengendalian-${rowId}" placeholder="Cara mengendalikan bahaya tersebut..."></textarea>
+    `;
+    jsaRows.appendChild(div);
+  }
+
+  function removeJsaRow(rowId) {
+    const el = document.getElementById(`jsa-row-${rowId}`);
+    if (!el) return;
+    if (jsaRows.children.length <= 1) return alert('Minimal harus ada 1 langkah kerja di JSA.');
+    el.remove();
+    // Renumber label "Langkah N" biar urut.
+    Array.from(jsaRows.children).forEach((row, i) => {
+      row.querySelector('.jsa-row-label').innerText = `Langkah ${i + 1}`;
+    });
+  }
+
+  function collectJsaItems() {
+    return Array.from(jsaRows.children).map(row => {
+      const rowId = row.id.replace('jsa-row-', '');
+      return {
+        langkah: document.getElementById(`jsa-langkah-${rowId}`).value.trim(),
+        bahaya: document.getElementById(`jsa-bahaya-${rowId}`).value.trim(),
+        pengendalian: document.getElementById(`jsa-pengendalian-${rowId}`).value.trim(),
+      };
+    });
+  }
+
+  function handlePhotoSlot(event, idx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    photoSlots[idx] = file;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removePhotoSlot(idx, evt) {
+    if (evt) evt.stopPropagation();
+    photoSlots[idx] = null;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function setStatus(text, kind) {
+    statusMsg.className = 'status-msg ' + (kind || 'info');
+    statusMsg.innerText = text;
+    statusMsg.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // =====================================================================================
+  // IDENTIFIKASI REQUESTER -- pola sama persis dengan form lain di HSSE-Fusion4.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let identifiedNama = null;
+  let identifiedQrCodeId = null;
+  let idFacingMode = "environment";
+  let idQrScanning = false;
+  let idFaceModelsLoaded = false;
+  let allFaceDataCache = null;
+
+  const idGateButtons = document.getElementById('idGateButtons');
+  const idCamWrap = document.getElementById('idCamWrap');
+  const idVideo = document.getElementById('idVideo');
+  const idCanvas = document.getElementById('idCanvas');
+  const idFaceOval = document.getElementById('idFaceOval');
+  const idQrBox = document.getElementById('idQrBox');
+  const idCamStatus = document.getElementById('idCamStatus');
+  const btnIdScanFace = document.getElementById('btnIdScanFace');
+  const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idResultBanner = document.getElementById('idResultBanner');
+  const idNameEl = document.getElementById('idName');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function setIdStatus(text, kind) {
+    if (!text) { idCamStatus.style.display = 'none'; return; }
+    idCamStatus.className = 'status-msg ' + (kind || 'info');
+    idCamStatus.innerText = text;
+    idCamStatus.style.display = 'block';
+  }
+
+  async function ensureIdCamera(facingMode) {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    idVideo.srcObject = stream;
+    await idVideo.play();
+    idCanvas.width = idVideo.videoWidth;
+    idCanvas.height = idVideo.videoHeight;
+    idCamWrap.style.display = 'block';
+  }
+
+  function stopIdCamera() {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    idQrScanning = false;
+    idCamWrap.style.display = 'none';
+    idFaceOval.style.display = 'none';
+    idQrBox.style.display = 'none';
+    btnIdScanFace.style.display = 'none';
+    btnIdSwitchCam.style.display = 'none';
+  }
+
+  document.getElementById('btnIdScanQr').onclick = startIdQr;
+  document.getElementById('btnIdScanFaceStart').onclick = startIdFace;
+  btnIdScanFace.onclick = doIdFaceScan;
+  btnIdSwitchCam.onclick = async () => {
+    idFacingMode = idFacingMode === 'user' ? 'environment' : 'user';
+    try {
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  async function startIdQr() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Menyiapkan kamera...', 'info');
+    try {
+      idFacingMode = 'environment';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    idQrBox.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Arahkan QR badge ke kamera...', 'info');
+    idQrScanning = true;
+    idQrLoop();
+  }
+
+  async function idQrLoop() {
+    const ctx = idCanvas.getContext('2d', { willReadFrequently: true });
+    while (idQrScanning) {
+      if (idVideo.readyState === idVideo.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(idVideo, 0, 0, idCanvas.width, idCanvas.height);
+        const imageData = ctx.getImageData(0, 0, idCanvas.width, idCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          idQrScanning = false;
+          await handleQrScanned(code.data.trim());
+          return;
+        }
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
+  async function handleQrScanned(rawData) {
+    let extractedId = rawData;
+    try {
+      const url = new URL(rawData);
+      const paramId = url.searchParams.get('QrCodeId') || url.searchParams.get('qrCodeId') || url.searchParams.get('qrcodeid');
+      if (paramId) extractedId = paramId;
+    } catch (e) { /* bukan URL, pakai apa adanya */ }
+    const qrId = extractedId.trim().toUpperCase();
+
+    setIdStatus('✅ QR terbaca: ' + qrId + ' -- mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qrId });
+      if (error) throw new Error(error.message);
+      if (!data || data.status === 'NOT_FOUND' || data.status === 'REJECTED' || !data.person) {
+        setIdStatus('❌ ' + (data && data.message ? data.message : 'QR tidak dikenali') + '. Coba lagi.', 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      confirmIdentity(nama, qrId);
+    } catch (e) {
+      setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
+      stopIdCamera();
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  async function loadFaceModelsOnce() {
+    if (idFaceModelsLoaded) return;
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    idFaceModelsLoaded = true;
+  }
+
+  async function startIdFace() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Memuat model wajah...', 'info');
+    try {
+      await loadFaceModelsOnce();
+    } catch (e) {
+      setIdStatus('❌ Gagal memuat model wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    setIdStatus('Mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_face_data');
+      if (error) throw new Error(error.message);
+      allFaceDataCache = data || [];
+    } catch (e) {
+      setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    if (allFaceDataCache.length === 0) {
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code saja.', 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    try {
+      idFacingMode = 'user';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    idFaceOval.style.display = 'block';
+    btnIdScanFace.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+  }
+
+  async function doIdFaceScan() {
+    btnIdScanFace.disabled = true;
+    setIdStatus('Mendeteksi wajah...', 'info');
+
+    let detection;
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = idVideo.videoWidth || 640;
+      snapCanvas.height = idVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    } catch (e) {
+      setIdStatus('❌ ' + e.message, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    if (!detection) {
+      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    const sorted = allFaceDataCache.map(p => ({
+      qrCodeId: p.qrCodeId,
+      nama: p.nama,
+      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+    })).sort((a, b) => a.distance - b.distance);
+
+    const best = sorted[0];
+    const secondBest = sorted[1];
+    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+    if (!withinThreshold) {
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (isAmbiguous) {
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    confirmIdentity(best.nama, best.qrCodeId);
+  }
+
+  function confirmIdentity(nama, qrCodeId) {
+    identifiedNama = nama;
+    identifiedQrCodeId = qrCodeId;
+    stopIdCamera();
+    setIdStatus('', null);
+    idNameEl.innerText = `${nama} (${qrCodeId})`;
+    idResultBanner.style.display = 'flex';
+    formBody.style.display = 'block';
+  }
+
+  function resetIdentification() {
+    identifiedNama = null;
+    identifiedQrCodeId = null;
+    idResultBanner.style.display = 'none';
+    formBody.style.display = 'none';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  }
+
+  // =====================================================================================
+  // SUBMIT PERMIT
+  // =====================================================================================
+  async function submitPtw() {
+    if (!identifiedQrCodeId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return setStatus('❌ Identifikasi Requester dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
+    }
+
+    const jenisPekerjaan = selectJenisPekerjaan.value;
+    const projectId = selectProject.value;
+    const lokasi = document.getElementById('txtLokasi').value.trim();
+    const deskripsi = document.getElementById('txtDeskripsi').value.trim();
+    const alat = document.getElementById('txtAlat').value.trim();
+    const jumlahPekerjaRaw = document.getElementById('numJumlahPekerja').value;
+    const jumlahPekerja = jumlahPekerjaRaw ? Number(jumlahPekerjaRaw) : null;
+    const dtMulai = document.getElementById('dtMulai').value || null;
+    const dtSelesai = document.getElementById('dtSelesai').value || null;
+
+    if (!jenisPekerjaan) return setStatus('❌ Pilih jenis pekerjaan dulu.', 'error');
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    if (!lokasi) return setStatus('❌ Lokasi/area kerja wajib diisi.', 'error');
+    if (!deskripsi) return setStatus('❌ Deskripsi pekerjaan wajib diisi.', 'error');
+
+    const jsaItems = collectJsaItems();
+    const jsaKosong = jsaItems.filter(r => !r.langkah || !r.bahaya || !r.pengendalian);
+    if (jsaKosong.length > 0) {
+      window.scrollTo({ top: jsaArea.offsetTop - 20, behavior: 'smooth' });
+      return setStatus('❌ Semua baris JSA (Langkah Kerja, Bahaya, Pengendalian) wajib diisi lengkap.', 'error');
+    }
+
+    const hazardItems = Object.entries(hazardState);
+    const belumTerpenuhi = hazardItems.filter(([id, st]) => !st.terpenuhi);
+    if (belumTerpenuhi.length > 0) {
+      window.scrollTo({ top: hazardArea.offsetTop - 20, behavior: 'smooth' });
+      return setStatus(`❌ Masih ada ${belumTerpenuhi.length} item hazard checklist yang belum dicentang "terpenuhi". Semua wajib terpenuhi sebelum permit bisa diajukan.`, 'error');
+    }
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
+
+    try {
+      let fotoList = [];
+      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+      if (filledSlots.length > 0) {
+        setStatus(`📤 Mengupload ${filledSlots.length} foto...`, 'info');
+        for (const slot of filledSlots) {
+          const fileName = `PTW_${Date.now()}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      const hazardChecklistPayload = hazardItems.map(([id, st]) => ({
+        id: Number(id), item: st.item, terpenuhi: st.terpenuhi, keterangan: st.keterangan || '',
+      }));
+
+      setStatus('📤 Mengajukan permit...', 'info');
+      const { data, error } = await supabaseClient.rpc('submit_ptw', {
+        p_jenis_pekerjaan: jenisPekerjaan,
+        p_project_id: projectId,
+        p_nama_requester: identifiedNama,
+        p_lokasi_area: lokasi,
+        p_deskripsi_pekerjaan: deskripsi,
+        p_jsa_items: jsaItems,
+        p_hazard_checklist: hazardChecklistPayload,
+        p_requester_qrcode: identifiedQrCodeId,
+        p_alat_yang_dipakai: alat,
+        p_jumlah_pekerja: jumlahPekerja,
+        p_tanggal_mulai: dtMulai,
+        p_tanggal_selesai: dtSelesai,
+        p_foto_list: fotoList,
+      });
+      if (error) throw error;
+
+      setStatus(`✅ Permit berhasil diajukan! No. Permit: ${data.noPermit} -- menunggu review HSE Officer.`, 'success');
+      resetForm();
+    } catch (e) {
+      setStatus('❌ Gagal mengajukan permit: ' + e.message, 'error');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>📤 Ajukan Permit</span>';
+    }
+  }
+
+  function resetForm() {
+    // Identitas Requester SENGAJA tidak direset -- biar 1 orang bisa ajukan beberapa
+    // permit berturut-turut tanpa scan ulang.
+    selectJenisPekerjaan.value = '';
+    selectProject.value = '';
+    document.getElementById('txtLokasi').value = '';
+    document.getElementById('txtDeskripsi').value = '';
+    document.getElementById('txtAlat').value = '';
+    document.getElementById('numJumlahPekerja').value = '';
+    document.getElementById('dtMulai').value = '';
+    document.getElementById('dtSelesai').value = '';
+    jsaRows.innerHTML = '';
+    jsaRowCount = 0;
+    addJsaRow();
+    hazardArea.style.display = 'none';
+    jsaArea.style.display = 'none';
+    fotoArea.style.display = 'none';
+    hazardTemplate = [];
+    hazardState = {};
+    for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
+  }
+</script>
+
+</body>
+</html>

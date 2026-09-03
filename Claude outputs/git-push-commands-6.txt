@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Add Permit to Work / JSA / Toolbox Meeting module" -m "- PTW + JSA satu form: 7 jenis pekerjaan dengan hazard checklist masing-masing, JSA (Langkah Kerja/Bahaya/Pengendalian) dinamis" -m "- Approval PTW 3 tahap: HSE Officer review -> Area Authority approve -> Aktif -> ajukan penutupan -> HSE approve penutupan -> Ditutup (reopen langsung balik Aktif)" -m "- Toolbox Meeting terpisah: Leader (Author 'Leader Toolbox Meeting') buka sesi dapat No. Sesi, peserta absen scan wajah/QR satu-satu berurutan (anti dobel absen), tutup sesi + foto & catatan opsional" -m "- Update index.html: modul PTW & TBM ditandai selesai + catatan Author tag yang perlu di-assign" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

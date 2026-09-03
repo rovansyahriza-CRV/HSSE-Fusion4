@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat Permit to Work — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted); white-space: nowrap;
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  .status-badge.diajukan { background: #FCEAE8; color: var(--accent); }
+  .status-badge.menunggu-area { background: #FDF3E3; color: var(--safety-yellow); }
+  .status-badge.aktif { background: var(--success-bg); color: var(--success); }
+  .status-badge.menunggu-close { background: #E8F4FD; color: #1E88E5; }
+  .status-badge.ditutup { background: var(--bg); color: var(--muted); }
+
+  .jsa-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+  .jsa-table th, .jsa-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  .jsa-table th { background: var(--bg); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+
+  .hazard-review-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .hazard-review-item:last-child { border-bottom: none; }
+  .hazard-review-item .check-icon { flex-shrink: 0; }
+  .hazard-review-keterangan { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .stage-box { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 10px; }
+  .stage-box label.mini-label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 6px;
+  }
+  .stage-box textarea {
+    padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12.5px;
+    font-family: inherit; width: 100%; margin-bottom: 10px;
+  }
+  .btn-mini {
+    padding: 8px 16px; border: none; border-radius: 8px; background: var(--navy); color: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  .btn-mini:disabled { background: #B9C0D4; cursor: not-allowed; }
+  .btn-mini.reject { background: var(--accent); }
+  .btn-approval {
+    padding: 8px 14px; border: none; border-radius: 8px; background: var(--safety-yellow); color: #4A3400;
+    font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  .approval-gate-text { font-size: 12px; color: #8A6100; margin-bottom: 8px; font-weight: 600; }
+  .verified-chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700;
+    color: var(--success); background: var(--success-bg); padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .warning-box {
+    background: #FDF3E3; color: #8A6100; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 10px;
+  }
+  .warning-box b { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .reopen-btn {
+    border: none; background: transparent; color: var(--navy); font-size: 12px;
+    font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 4px;
+  }
+
+  /* ===== Modal verifikasi identitas (scan wajah atau PIN) ===== */
+  .approval-modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(20,24,40,0.55); z-index: 100;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .approval-modal-backdrop.open { display: flex; }
+  .approval-modal {
+    background: var(--surface); border-radius: 16px; padding: 18px; max-width: 380px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .approval-modal h3 { font-size: 15px; margin-bottom: 4px; }
+  .approval-modal .approval-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .approval-choice-buttons { display: flex; gap: 8px; margin-bottom: 4px; }
+  .approval-choice-buttons button {
+    flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg);
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .approval-pin-form { display: none; margin-top: 10px; }
+  .approval-pin-form input {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 15px; letter-spacing: 0.1em; text-align: center; margin-bottom: 10px;
+  }
+  .approval-cancel { display: block; text-align: center; margin-top: 12px; font-size: 12px; color: var(--muted); cursor: pointer; background: none; border: none; width: 100%; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  .photo-slots.closing-slots { grid-template-columns: repeat(2, 1fr); max-width: 180px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat Permit to Work</h1>
+      </div>
+    </div>
+    <p>Alur: Requester ajukan (JSA + hazard checklist) -&gt; HSE Officer review -&gt; Area Authority approve -&gt; Aktif -&gt; ajukan penutupan -&gt; HSE approve closing -&gt; Ditutup.</p>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-status="" onclick="filterByStatus('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Diajukan" onclick="filterByStatus('Diajukan', this)">Diajukan</button>
+    <button type="button" class="filter-btn" data-status="Menunggu Approval Area Authority" onclick="filterByStatus('Menunggu Approval Area Authority', this)">Menunggu Area Authority</button>
+    <button type="button" class="filter-btn" data-status="Aktif" onclick="filterByStatus('Aktif', this)">Aktif</button>
+    <button type="button" class="filter-btn" data-status="Menunggu Approval Penutupan" onclick="filterByStatus('Menunggu Approval Penutupan', this)">Menunggu Penutupan</button>
+    <button type="button" class="filter-btn" data-status="Ditutup" onclick="filterByStatus('Ditutup', this)">Ditutup</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<!-- ===== Modal verifikasi identitas -- scan wajah atau PIN, dipakai di semua tahap ===== -->
+<div class="approval-modal-backdrop" id="approvalModalBackdrop">
+  <div class="approval-modal">
+    <h3 id="approvalModalTitle">Verifikasi</h3>
+    <p class="approval-sub" id="approvalModalSub"></p>
+
+    <div id="approvalChoiceScreen">
+      <div class="approval-choice-buttons">
+        <button type="button" id="btnApprovalScanFace">🙂 Scan Wajah</button>
+        <button type="button" id="btnApprovalUsePin">🔢 Input PIN</button>
+      </div>
+    </div>
+
+    <div class="cam-wrap" id="approvalCamWrap">
+      <video id="approvalVideo" autoplay muted playsinline></video>
+      <canvas id="approvalCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="approvalFaceOval"></div>
+    </div>
+    <button type="button" id="btnApprovalScanFaceGo" class="btn-block btn-primary" style="display:none; margin-top:10px;">📸 Scan Wajah</button>
+
+    <form class="approval-pin-form" id="approvalPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="approvalPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnApprovalPinSubmit">Verifikasi PIN</button>
+    </form>
+
+    <div id="approvalModalStatus" class="status-msg"></div>
+
+    <button type="button" class="approval-cancel" onclick="closeApprovalModal()">Batal</button>
+  </div>
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let currentStatusFilter = '';
+  let reports = [];
+  let pendingApproval = {}; // { idx: {nama, qrCodeId} }
+  let rejectingIdx = null;
+  let rejectingStage = null; // 'hse' | 'areaAuthority' | 'closing'
+  let closingPhotoSlots = {}; // { idx-slotIdx: File }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadReports();
+  });
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    // Sama kayak cermat-list.html: reset pendingApproval di sini (data-fetch), BUKAN di
+    // renderReports() -- karena renderReports() juga dipanggil langsung abis verifikasi
+    // identitas sukses (buat nampilin form tahap berikutnya tanpa ilang status keverifikasi).
+    pendingApproval = {};
+    rejectingIdx = null;
+    rejectingStage = null;
+    closingPhotoSlots = {};
+    try {
+      const { data, error } = await supabaseClient.rpc('get_ptw_list', { p_status: currentStatusFilter || null });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByStatus(status, btnEl) {
+    currentStatusFilter = status;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Diajukan') return 'diajukan';
+    if (status === 'Menunggu Approval Area Authority') return 'menunggu-area';
+    if (status === 'Aktif') return 'aktif';
+    if (status === 'Menunggu Approval Penutupan') return 'menunggu-close';
+    return 'ditutup';
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function jsaTableHtml(jsaItems) {
+    if (!jsaItems || jsaItems.length === 0) return '<p style="color:var(--muted); font-size:12px;">-</p>';
+    return `<table class="jsa-table"><thead><tr><th>Langkah Kerja</th><th>Potensi Bahaya</th><th>Pengendalian Risiko</th></tr></thead><tbody>
+      ${jsaItems.map(r => `<tr><td>${escapeHtml(r.langkah)}</td><td>${escapeHtml(r.bahaya)}</td><td>${escapeHtml(r.pengendalian)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  function hazardReviewHtml(hazardChecklist) {
+    if (!hazardChecklist || hazardChecklist.length === 0) return '<p style="color:var(--muted); font-size:12px;">-</p>';
+    return hazardChecklist.map(it => `
+      <div class="hazard-review-item">
+        <span class="check-icon">${it.terpenuhi ? '✅' : '❌'}</span>
+        <div>
+          <div>${escapeHtml(it.item)}</div>
+          ${it.keterangan ? `<div class="hazard-review-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // =====================================================================================
+  // Render area "tahap saat ini" per kartu -- tergantung status permit.
+  // =====================================================================================
+  function stageAreaHtml(r, idx) {
+    const verified = pendingApproval[idx];
+
+    if (r.status === 'Diajukan') {
+      if (!verified) {
+        return `<div class="stage-box">
+          ${r.catatanPenolakan ? `<div class="warning-box"><b>Ditolak, perlu revisi</b>${escapeHtml(r.catatanPenolakan)}</div>` : ''}
+          <div class="approval-gate-text">🔍 Perlu diverifikasi HSE Officer (Author "Review Permit to Work") buat direview.</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'Review Permit to Work')">Verifikasi HSE Officer</button>
+        </div>`;
+      }
+      if (rejectingIdx === idx && rejectingStage === 'hse') {
+        return `<div class="stage-box">
+          <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+          <label class="mini-label">Catatan buat Requester (kenapa ditolak)</label>
+          <textarea id="reject-catatan-${idx}" placeholder="Jelaskan revisi yang diperlukan..."></textarea>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-mini reject" onclick="hseReject(${idx}, ${r.id})">↩ Tolak, Kirim Balik</button>
+            <button type="button" class="btn-mini" style="background:var(--bg); color:var(--text);" onclick="rejectingIdx=null; renderReports();">Batal</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="stage-box">
+        <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-mini" onclick="hseApprove(${idx}, ${r.id})">✅ Setujui, Lanjut Area Authority</button>
+          <button type="button" class="btn-mini reject" onclick="rejectingIdx=${idx}; rejectingStage='hse'; renderReports();">↩ Tolak</button>
+        </div>
+      </div>`;
+    }
+
+    if (r.status === 'Menunggu Approval Area Authority') {
+      if (!verified) {
+        return `<div class="stage-box">
+          <div class="approval-gate-text">🔍 Perlu diverifikasi Area Authority (Author "Approve Permit to Work") buat approve final.</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'Approve Permit to Work')">Verifikasi Area Authority</button>
+        </div>`;
+      }
+      if (rejectingIdx === idx && rejectingStage === 'areaAuthority') {
+        return `<div class="stage-box">
+          <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+          <label class="mini-label">Catatan buat Requester (kenapa ditolak)</label>
+          <textarea id="reject-catatan-${idx}" placeholder="Jelaskan revisi yang diperlukan..."></textarea>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-mini reject" onclick="areaAuthorityReject(${idx}, ${r.id})">↩ Tolak, Kirim Balik ke Requester</button>
+            <button type="button" class="btn-mini" style="background:var(--bg); color:var(--text);" onclick="rejectingIdx=null; renderReports();">Batal</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="stage-box">
+        <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-mini" onclick="areaAuthorityApprove(${idx}, ${r.id})">✅ Setujui (Aktif)</button>
+          <button type="button" class="btn-mini reject" onclick="rejectingIdx=${idx}; rejectingStage='areaAuthority'; renderReports();">↩ Tolak</button>
+        </div>
+      </div>`;
+    }
+
+    if (r.status === 'Aktif') {
+      if (!verified) {
+        return `<div class="stage-box">
+          ${r.catatanPenolakan ? `<div class="warning-box"><b>Penutupan ditolak HSE</b>${escapeHtml(r.catatanPenolakan)}</div>` : ''}
+          <div class="approval-gate-text">🔍 Identifikasi dulu buat ajukan penutupan (siapa aja boleh, gak perlu izin khusus).</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, null)">Identifikasi</button>
+        </div>`;
+      }
+      return `<div class="stage-box">
+        ${r.catatanPenolakan ? `<div class="warning-box"><b>Penutupan ditolak HSE</b>${escapeHtml(r.catatanPenolakan)}</div>` : ''}
+        <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+        <label class="mini-label">Catatan Penutupan (opsional)</label>
+        <textarea id="closing-catatan-${idx}" placeholder="Pekerjaan sudah selesai, kondisi area..."></textarea>
+        <button type="button" class="btn-mini" onclick="requestClosing(${idx}, ${r.id})">🏁 Ajukan Penutupan</button>
+      </div>`;
+    }
+
+    if (r.status === 'Menunggu Approval Penutupan') {
+      if (!verified) {
+        return `<div class="stage-box">
+          <div class="approval-gate-text">🔍 Perlu diverifikasi HSE Officer (Author "Review Permit to Work") buat approve penutupan.</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'Review Permit to Work')">Verifikasi HSE Officer</button>
+        </div>`;
+      }
+      if (rejectingIdx === idx && rejectingStage === 'closing') {
+        return `<div class="stage-box">
+          <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+          <label class="mini-label">Catatan (kenapa belum bisa ditutup)</label>
+          <textarea id="reject-catatan-${idx}" placeholder="Jelaskan kondisi yang masih perlu diselesaikan..."></textarea>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-mini reject" onclick="closingReject(${idx}, ${r.id})">↩ Tolak, Kembali ke Aktif</button>
+            <button type="button" class="btn-mini" style="background:var(--bg); color:var(--text);" onclick="rejectingIdx=null; renderReports();">Batal</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="stage-box">
+        <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+        <label class="mini-label">Foto Kondisi Akhir (opsional, bisa sampai 2)</label>
+        <div class="photo-slots closing-slots">
+          <div class="photo-slot" id="closing-slot-${idx}-0">
+            <input type="file" accept="image/*" capture="environment" onchange="handleClosingPhoto(event, ${idx}, 0)">
+            <div class="slot-placeholder">📷</div>
+            <img class="slot-preview">
+            <button type="button" class="slot-remove" onclick="removeClosingPhoto(${idx}, 0, event)">✕</button>
+          </div>
+          <div class="photo-slot" id="closing-slot-${idx}-1">
+            <input type="file" accept="image/*" capture="environment" onchange="handleClosingPhoto(event, ${idx}, 1)">
+            <div class="slot-placeholder">📷</div>
+            <img class="slot-preview">
+            <button type="button" class="slot-remove" onclick="removeClosingPhoto(${idx}, 1, event)">✕</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-mini" id="btn-close-approve-${idx}" onclick="closingApprove(${idx}, ${r.id})">✅ Setujui (Ditutup)</button>
+          <button type="button" class="btn-mini reject" onclick="rejectingIdx=${idx}; rejectingStage='closing'; renderReports();">↩ Tolak</button>
+        </div>
+      </div>`;
+    }
+
+    // Ditutup
+    if (!verified) {
+      return `<div class="stage-box">
+        <div class="approval-gate-text">🔍 Perlu diverifikasi HSE Officer (Author "Review Permit to Work") buat buka lagi permit ini.</div>
+        <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'Review Permit to Work')">Verifikasi HSE Officer</button>
+      </div>`;
+    }
+    return `<div class="stage-box">
+      <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+      <button type="button" class="reopen-btn" onclick="reopenPtw(${idx}, ${r.id})">🔓 Buka Lagi (kembali ke Aktif)</button>
+    </div>`;
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada Permit to Work.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noPermit}</div>
+              <div class="report-title">${escapeHtml(r.jenisPekerjaan)} — ${escapeHtml(r.lokasiArea)}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Requester: ${escapeHtml(r.namaRequester)}${r.requesterQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges">
+              <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Deskripsi Pekerjaan</b>${escapeHtml(r.deskripsiPekerjaan)}</div>
+          ${r.alatYangDipakai ? `<div class="detail-row"><b>Alat yang Dipakai</b>${escapeHtml(r.alatYangDipakai)}</div>` : ''}
+          <div class="detail-row"><b>Jadwal Kerja</b>${r.tanggalMulaiKerja ? formatDate(r.tanggalMulaiKerja) : '-'} s/d ${r.tanggalSelesaiKerja ? formatDate(r.tanggalSelesaiKerja) : '-'}${r.jumlahPekerja ? ` • ${r.jumlahPekerja} pekerja` : ''}</div>
+          <div class="detail-row"><b>JSA -- Job Safety Analysis</b>${jsaTableHtml(r.jsaItems)}</div>
+          <div class="detail-row"><b>Hazard Checklist</b>${hazardReviewHtml(r.hazardChecklist)}</div>
+          ${photoGalleryHtml('Foto Lampiran', r.fotoList)}
+          ${r.hseReviewOleh ? `<div class="detail-row"><b>Direview HSE Officer</b>✅ ${escapeHtml(r.hseReviewOleh)} (${escapeHtml(r.hseReviewQrCodeId || '')}) — ${formatDate(r.tanggalHseReview)}</div>` : ''}
+          ${r.areaAuthorityOleh ? `<div class="detail-row"><b>Disetujui Area Authority</b>✅ ${escapeHtml(r.areaAuthorityOleh)} (${escapeHtml(r.areaAuthorityQrCodeId || '')}) — ${formatDate(r.tanggalAreaAuthority)}</div>` : ''}
+          ${r.penutupanDiajukanOleh ? `<div class="detail-row"><b>Penutupan Diajukan Oleh</b>✅ ${escapeHtml(r.penutupanDiajukanOleh)} (${escapeHtml(r.penutupanQrCodeId || '')}) — ${formatDate(r.tanggalPenutupanDiajukan)}${r.catatanPenutupanDiajukan ? ': ' + escapeHtml(r.catatanPenutupanDiajukan) : ''}</div>` : ''}
+          ${r.ditutupOleh ? `<div class="detail-row"><b>Ditutup Oleh HSE Officer</b>✅ ${escapeHtml(r.ditutupOleh)} (${escapeHtml(r.ditutupQrCodeId || '')}) — ${formatDate(r.tanggalDitutup)}</div>` : ''}
+          ${stageAreaHtml(r, idx)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleDetail(idx) {
+    document.getElementById('detail-' + idx).classList.toggle('open');
+  }
+
+  function handleClosingPhoto(event, idx, slotIdx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    closingPhotoSlots[`${idx}-${slotIdx}`] = file;
+    const slotEl = document.getElementById(`closing-slot-${idx}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeClosingPhoto(idx, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    delete closingPhotoSlots[`${idx}-${slotIdx}`];
+    const slotEl = document.getElementById(`closing-slot-${idx}-${slotIdx}`);
+    if (!slotEl) return;
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none'; img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  // =====================================================================================
+  // AKSI PER TAHAP
+  // =====================================================================================
+  async function hseApprove(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi HSE Officer dulu.');
+    try {
+      const { error } = await supabaseClient.rpc('ptw_hse_review', {
+        p_id: id, p_decision: 'approve', p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) { alert('Gagal approve: ' + e.message); }
+  }
+
+  async function hseReject(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi HSE Officer dulu.');
+    const catatan = document.getElementById(`reject-catatan-${idx}`).value.trim();
+    if (!catatan) return alert('Isi catatan penolakan dulu.');
+    try {
+      const { error } = await supabaseClient.rpc('ptw_hse_review', {
+        p_id: id, p_decision: 'reject', p_catatan_penolakan: catatan, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      rejectingIdx = null;
+      await loadReports();
+    } catch (e) { alert('Gagal tolak: ' + e.message); }
+  }
+
+  async function areaAuthorityApprove(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi Area Authority dulu.');
+    try {
+      const { error } = await supabaseClient.rpc('ptw_area_authority_decision', {
+        p_id: id, p_decision: 'approve', p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) { alert('Gagal approve: ' + e.message); }
+  }
+
+  async function areaAuthorityReject(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi Area Authority dulu.');
+    const catatan = document.getElementById(`reject-catatan-${idx}`).value.trim();
+    if (!catatan) return alert('Isi catatan penolakan dulu.');
+    try {
+      const { error } = await supabaseClient.rpc('ptw_area_authority_decision', {
+        p_id: id, p_decision: 'reject', p_catatan_penolakan: catatan, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      rejectingIdx = null;
+      await loadReports();
+    } catch (e) { alert('Gagal tolak: ' + e.message); }
+  }
+
+  async function requestClosing(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Identifikasi dulu.');
+    const catatan = document.getElementById(`closing-catatan-${idx}`).value.trim();
+    try {
+      const { error } = await supabaseClient.rpc('ptw_request_closing', {
+        p_id: id, p_catatan: catatan, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) { alert('Gagal ajukan penutupan: ' + e.message); }
+  }
+
+  async function closingApprove(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi HSE Officer dulu.');
+    const btn = document.getElementById(`btn-close-approve-${idx}`);
+    const filledSlots = [0, 1].map(s => closingPhotoSlots[`${idx}-${s}`]).filter(Boolean);
+    try {
+      let fotoList = [];
+      if (filledSlots.length > 0) {
+        btn.disabled = true;
+        for (let i = 0; i < filledSlots.length; i++) {
+          btn.innerText = `⏳ Mengupload foto ${i + 1}...`;
+          const fileName = `PTW_Closing_${id}_${Date.now()}_${i + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(filledSlots[i], fileName);
+          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+      btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+      const { error } = await supabaseClient.rpc('ptw_closing_decision', {
+        p_id: id, p_decision: 'approve', p_foto_list: fotoList, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) {
+      alert('Gagal approve penutupan: ' + e.message);
+      btn.disabled = false; btn.innerText = '✅ Setujui (Ditutup)';
+    }
+  }
+
+  async function closingReject(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi HSE Officer dulu.');
+    const catatan = document.getElementById(`reject-catatan-${idx}`).value.trim();
+    if (!catatan) return alert('Isi catatan dulu.');
+    try {
+      const { error } = await supabaseClient.rpc('ptw_closing_decision', {
+        p_id: id, p_decision: 'reject', p_catatan_penolakan: catatan, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      rejectingIdx = null;
+      await loadReports();
+    } catch (e) { alert('Gagal tolak: ' + e.message); }
+  }
+
+  async function reopenPtw(idx, id) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi HSE Officer dulu.');
+    if (!confirm('Buka lagi permit ini? Status bakal balik ke "Aktif".')) return;
+    try {
+      const { error } = await supabaseClient.rpc('ptw_reopen', {
+        p_id: id, p_nama: verified.nama, p_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      await loadReports();
+    } catch (e) { alert('Gagal buka lagi permit: ' + e.message); }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+
+  function drivePhotoSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+
+  // =====================================================================================
+  // MODAL VERIFIKASI IDENTITAS -- scan wajah atau PIN. requiredTag null = cuma
+  // identifikasi (gak ada gate izin), dipakai buat "ajukan penutupan" di status Aktif.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let approvalContext = null;
+  let approvalFaceModelsLoaded = false;
+  let approvalAllFaceDataCache = null;
+  let approvalFacingMode = 'user';
+
+  const approvalModalBackdrop = document.getElementById('approvalModalBackdrop');
+  const approvalModalTitle = document.getElementById('approvalModalTitle');
+  const approvalModalSub = document.getElementById('approvalModalSub');
+  const approvalChoiceScreen = document.getElementById('approvalChoiceScreen');
+  const approvalCamWrap = document.getElementById('approvalCamWrap');
+  const approvalVideo = document.getElementById('approvalVideo');
+  const approvalCanvas = document.getElementById('approvalCanvas');
+  const approvalFaceOval = document.getElementById('approvalFaceOval');
+  const btnApprovalScanFaceGo = document.getElementById('btnApprovalScanFaceGo');
+  const approvalPinForm = document.getElementById('approvalPinForm');
+  const approvalPinInput = document.getElementById('approvalPinInput');
+  const approvalModalStatus = document.getElementById('approvalModalStatus');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  function setApprovalStatus(text, kind) {
+    if (!text) { approvalModalStatus.style.display = 'none'; return; }
+    approvalModalStatus.className = 'status-msg ' + (kind || 'info');
+    approvalModalStatus.innerText = text;
+    approvalModalStatus.style.display = 'block';
+  }
+
+  function openApprovalModal(idx, id, requiredTag) {
+    approvalContext = { idx, id, requiredTag };
+    approvalModalTitle.innerText = requiredTag ? `Verifikasi: ${requiredTag}` : 'Identifikasi';
+    approvalModalSub.innerText = requiredTag
+      ? `Scan wajah atau input PIN -- khusus yang punya izin "${requiredTag}".`
+      : 'Scan wajah atau input PIN buat identifikasi siapa yang melakukan aksi ini.';
+    approvalChoiceScreen.style.display = 'block';
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+    approvalPinForm.style.display = 'none';
+    approvalPinInput.value = '';
+    setApprovalStatus('', null);
+    approvalModalBackdrop.classList.add('open');
+  }
+
+  function closeApprovalModal() {
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+  }
+
+  function stopApprovalCamera() {
+    if (approvalVideo.srcObject) { approvalVideo.srcObject.getTracks().forEach(t => t.stop()); approvalVideo.srcObject = null; }
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+  }
+
+  async function ensureApprovalFaceDataLoaded() {
+    if (approvalAllFaceDataCache) return approvalAllFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    approvalAllFaceDataCache = data || [];
+    return approvalAllFaceDataCache;
+  }
+
+  document.getElementById('btnApprovalUsePin').onclick = () => {
+    approvalChoiceScreen.style.display = 'none';
+    approvalPinForm.style.display = 'block';
+    setApprovalStatus('', null);
+  };
+
+  document.getElementById('btnApprovalPinSubmit').onclick = async () => {
+    const pin = approvalPinInput.value.trim();
+    if (!pin) return setApprovalStatus('❌ Isi PIN dulu.', 'error');
+    setApprovalStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureApprovalFaceDataLoaded();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setApprovalStatus('❌ PIN tidak dikenali.', 'error');
+      finishApproval(match);
+    } catch (e) {
+      setApprovalStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnApprovalScanFace').onclick = async () => {
+    approvalChoiceScreen.style.display = 'none';
+    setApprovalStatus('Memuat model wajah...', 'info');
+    try {
+      if (!approvalFaceModelsLoaded) {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+        approvalFaceModelsLoaded = true;
+      }
+      setApprovalStatus('Mengambil data karyawan...', 'info');
+      await ensureApprovalFaceDataLoaded();
+      if (approvalAllFaceDataCache.length === 0) {
+        setApprovalStatus('❌ Belum ada data wajah terdaftar. Pakai Input PIN.', 'error');
+        return;
+      }
+
+      approvalFacingMode = 'user';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: approvalFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      approvalVideo.srcObject = stream;
+      await approvalVideo.play();
+      approvalCanvas.width = approvalVideo.videoWidth;
+      approvalCanvas.height = approvalVideo.videoHeight;
+      approvalCamWrap.style.display = 'block';
+      approvalFaceOval.style.display = 'block';
+      btnApprovalScanFaceGo.style.display = 'block';
+      setApprovalStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+    }
+  };
+
+  btnApprovalScanFaceGo.onclick = async () => {
+    btnApprovalScanFaceGo.disabled = true;
+    setApprovalStatus('Mendeteksi wajah...', 'info');
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = approvalVideo.videoWidth || 640;
+      snapCanvas.height = approvalVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(approvalVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      const detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        setApprovalStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      const sorted = approvalAllFaceDataCache.map(p => ({
+        person: p,
+        distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+      })).sort((a, b) => a.distance - b.distance);
+
+      const best = sorted[0];
+      const secondBest = sorted[1];
+      const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+      const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+      if (!withinThreshold) {
+        setApprovalStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai PIN.`, 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+      if (isAmbiguous) {
+        setApprovalStatus('⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai PIN.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      finishApproval(best.person);
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+    }
+  };
+
+  function finishApproval(person) {
+    if (!approvalContext) return;
+    const { idx, requiredTag } = approvalContext;
+    const nama = getPersonField(person, ['nama'], '(tanpa nama)');
+    const qrCodeId = getPersonField(person, ['qrCodeId'], '');
+
+    if (requiredTag && !hasAuthorTag(person, requiredTag)) {
+      setApprovalStatus(`❌ ${nama} tidak punya izin "${requiredTag}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+      return;
+    }
+
+    pendingApproval[idx] = { nama, qrCodeId };
+
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+    btnApprovalScanFaceGo.disabled = false;
+
+    renderReports();
+    const panel = document.getElementById('detail-' + idx);
+    if (panel) panel.classList.add('open');
+  }
+</script>
+
+</body>
+</html>
