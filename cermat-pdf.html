@@ -117,6 +117,26 @@
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page { size: A4; margin: 10mm; }
   }
+
+  /* =====================================================================================
+     Preview di LAYAR (bukan hasil cetak) -- .sheet didesain selebar kertas A4 (210mm),
+     jauh lebih lebar dari layar HP, jadi tanpa ini orang harus geser ke samping buat lihat
+     kolom kanan/footer (itu yang bikin "Diperiksa/Disetujui Oleh" keliatan kepotong).
+     Print tetap A4 penuh -- @media print di atas gak kesentuh oleh rule ini.
+     ===================================================================================== */
+  @media screen and (max-width: 780px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 4vw 10mm; }
+    .doc-header { flex-wrap: wrap; row-gap: 10px; }
+    .doc-header .doc-title { text-align: left; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(3n) { border-right: 1px solid var(--border); }
+    .info-cell:nth-child(2n) { border-right: none; }
+    .two-col { grid-template-columns: 1fr; }
+    .signature-row { grid-template-columns: 1fr; gap: 22px; }
+    .signature-box { text-align: left; }
+    .signature-box .role { margin-bottom: 20px; }
+    .doc-footer { flex-direction: column; gap: 4px; }
+  }
 </style>
 </head>
 <body>
@@ -236,13 +256,13 @@
     </div>
     <div class="signature-box">
       <div class="role">Diperiksa Oleh (HSSE)</div>
-      <div class="line">&nbsp;</div>
-      <div class="sub">Nama &amp; Tanda Tangan</div>
+      <div class="line" id="fSignDiperiksa">&nbsp;</div>
+      <div class="sub" id="fSignDiperiksaSub">Nama &amp; Tanda Tangan</div>
     </div>
     <div class="signature-box">
       <div class="role">Disetujui Oleh</div>
-      <div class="line">&nbsp;</div>
-      <div class="sub">Nama &amp; Tanda Tangan</div>
+      <div class="line" id="fSignDisetujui">&nbsp;</div>
+      <div class="sub" id="fSignDisetujuiSub">Nama &amp; Tanda Tangan</div>
     </div>
   </div>
 
@@ -285,6 +305,14 @@
     if (status === 'Open') return 'badge-open';
     if (status === 'In Progress') return 'badge-progress';
     return 'badge-closed';
+  }
+
+  function fillSignatureBox(lineId, subId, nama, qrCodeId, tanggal) {
+    const lineEl = document.getElementById(lineId);
+    const subEl = document.getElementById(subId);
+    if (!nama) return; // biarin default: garis kosong + "Nama & Tanda Tangan" (tanda tangan basah manual)
+    lineEl.innerText = nama;
+    subEl.innerHTML = `&#10003; Verifikasi digital${qrCodeId ? ' — ' + escapeHtml(qrCodeId) : ''}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
   }
 
   function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
@@ -358,6 +386,13 @@
 
       document.getElementById('fSignPelapor').innerText = r.namaPelapor;
       document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId || '';
+
+      // Diperiksa/Disetujui: kalau udah diverifikasi digital (scan wajah/PIN, lihat
+      // cermat-list.html), tampilin nama + tanggal verifikasi. Kalau belum, biarin garis
+      // kosong buat tanda tangan basah manual (fallback, misal laporan lama sebelum fitur ini ada).
+      fillSignatureBox('fSignDiperiksa', 'fSignDiperiksaSub', r.diperiksaOleh, r.diperiksaQrCodeId, r.tanggalDiperiksa);
+      fillSignatureBox('fSignDisetujui', 'fSignDisetujuiSub', r.disetujuiOleh, r.disetujuiQrCodeId, r.tanggalDisetujui);
+
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 
       document.getElementById('loadingState').style.display = 'none';

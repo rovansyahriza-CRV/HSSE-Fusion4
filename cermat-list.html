@@ -6,11 +6,51 @@
 <title>Riwayat CERMAT — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .page { max-width: 900px; }
+  .approval-banner {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; background: var(--success-bg);
+    color: var(--success); border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-weight: 600;
+  }
+  .approval-gate { background: #FDF3E3; border: 1.5px dashed var(--safety-yellow); border-radius: 8px; padding: 10px; margin: 8px 0; }
+  .approval-gate .approval-gate-text { font-size: 12px; color: #8A6100; margin-bottom: 8px; font-weight: 600; }
+  .btn-approval {
+    padding: 8px 14px; border: none; border-radius: 8px; background: var(--safety-yellow); color: #4A3400;
+    font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  /* ===== Modal verifikasi Diperiksa/Disetujui (scan wajah atau PIN) ===== */
+  .approval-modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(20,24,40,0.55); z-index: 100;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .approval-modal-backdrop.open { display: flex; }
+  .approval-modal {
+    background: var(--surface); border-radius: 16px; padding: 18px; max-width: 380px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .approval-modal h3 { font-size: 15px; margin-bottom: 4px; }
+  .approval-modal .approval-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .approval-choice-buttons { display: flex; gap: 8px; margin-bottom: 4px; }
+  .approval-choice-buttons button {
+    flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg);
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .approval-pin-form { display: none; margin-top: 10px; }
+  .approval-pin-form input {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 15px; letter-spacing: 0.1em; text-align: center; margin-bottom: 10px;
+  }
+  .approval-cancel { display: block; text-align: center; margin-top: 12px; font-size: 12px; color: var(--muted); cursor: pointer; background: none; border: none; width: 100%; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
   .update-form .photo-slots { grid-template-columns: repeat(4, 1fr); max-width: 260px; margin-bottom: 10px; }
   .update-form .photo-slot { aspect-ratio: 1/1; }
   .reopen-btn {
@@ -76,11 +116,44 @@
 
 </div>
 
+<!-- ===== Modal verifikasi Diperiksa Oleh (HSSE) / Disetujui Oleh -- scan wajah atau PIN ===== -->
+<div class="approval-modal-backdrop" id="approvalModalBackdrop">
+  <div class="approval-modal">
+    <h3 id="approvalModalTitle">Verifikasi</h3>
+    <p class="approval-sub" id="approvalModalSub"></p>
+
+    <div id="approvalChoiceScreen">
+      <div class="approval-choice-buttons">
+        <button type="button" id="btnApprovalScanFace">🙂 Scan Wajah</button>
+        <button type="button" id="btnApprovalUsePin">🔢 Input PIN</button>
+      </div>
+    </div>
+
+    <div class="cam-wrap" id="approvalCamWrap">
+      <video id="approvalVideo" autoplay muted playsinline></video>
+      <canvas id="approvalCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="approvalFaceOval"></div>
+    </div>
+    <button type="button" id="btnApprovalScanFaceGo" class="btn-block btn-primary" style="display:none; margin-top:10px;">📸 Scan Wajah</button>
+
+    <form class="approval-pin-form" id="approvalPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="approvalPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnApprovalPinSubmit">Verifikasi PIN</button>
+    </form>
+
+    <div id="approvalModalStatus" class="status-msg"></div>
+
+    <button type="button" class="approval-cancel" onclick="closeApprovalModal()">Batal</button>
+  </div>
+</div>
+
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
   let currentStatusFilter = '';
   let reports = [];
   let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap renderReports()
+  let pendingApproval = {}; // { idx: { diperiksa: {nama,qrCodeId} | undefined, disetujui: {...} | undefined } }, direset tiap renderReports()
 
   document.addEventListener('DOMContentLoaded', () => loadReports());
 
@@ -119,6 +192,7 @@
 
   function renderReports() {
     followupPhotoSlots = {};
+    pendingApproval = {};
     const container = document.getElementById('reportContainer');
     if (reports.length === 0) {
       container.innerHTML = '<div class="empty-state">Belum ada laporan CERMAT.</div>';
@@ -155,15 +229,27 @@
             <button type="button" class="reopen-btn" onclick="reopenReport(${idx}, ${r.id})">🔓 Buka Lagi (reopen)</button>
           ` : `
             <div class="update-form">
+              ${r.diperiksaOleh ? `<div class="approval-banner">✅ Diperiksa (HSSE): ${escapeHtml(r.diperiksaOleh)}${r.diperiksaQrCodeId ? ' (' + escapeHtml(r.diperiksaQrCodeId) + ')' : ''} — ${formatDate(r.tanggalDiperiksa)}</div>` : ''}
               <div class="form-row">
                 <input type="text" id="pj-${idx}" placeholder="Penanggung jawab" value="${r.penanggungJawab || ''}" style="flex:1; min-width:140px;">
                 <input type="date" id="tenggat-${idx}" value="${r.tenggat || ''}">
-                <select id="status-${idx}">
+                <select id="status-${idx}" onchange="onStatusSelectChange(${idx})">
                   <option value="Open" ${r.status === 'Open' ? 'selected' : ''}>Open</option>
                   <option value="In Progress" ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                   <option value="Closed">Closed</option>
                 </select>
               </div>
+
+              <div class="approval-gate" id="gate-diperiksa-${idx}" style="display:none;">
+                <div class="approval-gate-text">🔍 Status "In Progress" perlu diverifikasi HSSE dulu (Review Cermat)</div>
+                <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'diperiksa')">Verifikasi Pemeriksa (HSSE)</button>
+              </div>
+
+              <div class="approval-gate" id="gate-disetujui-${idx}" style="display:none;">
+                <div class="approval-gate-text">✅ Status "Closed" perlu persetujuan dulu (Approve Cermat)</div>
+                <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'disetujui')">Verifikasi Penyetuju</button>
+              </div>
+
               <label style="display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Foto Tindak Lanjut (opsional, bisa sampai 2 -- buka kamera belakang)</label>
               <div class="photo-slots">
                 <div class="photo-slot" id="followup-slot-${idx}-0">
@@ -186,6 +272,27 @@
         </div>
       </div>
     `).join('');
+
+    reports.forEach((r, idx) => { if (r.status !== 'Closed') onStatusSelectChange(idx); });
+  }
+
+  // =====================================================================================
+  // GATE APPROVAL -- munculin tombol "Verifikasi Pemeriksa/Penyetuju" pas status dropdown
+  // diarahkan ke In Progress / Closed dan laporan itu belum punya Diperiksa/DisetujuiOleh
+  // (baik dari DB atau dari scan yang baru aja dilakuin di sesi render ini).
+  // =====================================================================================
+  function onStatusSelectChange(idx) {
+    const r = reports[idx];
+    const status = document.getElementById(`status-${idx}`).value;
+    const gateDiperiksa = document.getElementById(`gate-diperiksa-${idx}`);
+    const gateDisetujui = document.getElementById(`gate-disetujui-${idx}`);
+    if (!gateDiperiksa || !gateDisetujui) return;
+
+    const sudahDiperiksa = !!(r.diperiksaOleh || pendingApproval[idx]?.diperiksa);
+    const sudahDisetujui = !!(r.disetujuiOleh || pendingApproval[idx]?.disetujui);
+
+    gateDiperiksa.style.display = (status === 'In Progress' && !sudahDiperiksa) ? 'block' : 'none';
+    gateDisetujui.style.display = (status === 'Closed' && !sudahDisetujui) ? 'block' : 'none';
   }
 
   function toggleDetail(idx) {
@@ -217,11 +324,22 @@
   }
 
   async function updateStatus(idx, id) {
+    const r = reports[idx];
     const penanggungJawab = document.getElementById(`pj-${idx}`).value.trim();
     const tenggat = document.getElementById(`tenggat-${idx}`).value || null;
     const status = document.getElementById(`status-${idx}`).value;
     const catatan = document.getElementById(`catatan-${idx}`).value.trim();
     const btn = document.getElementById(`btn-update-${idx}`);
+
+    // Gerbang approval: In Progress butuh Diperiksa (HSSE), Closed butuh Disetujui.
+    // Sekali udah kesimpen di DB (r.xxxOleh) gak perlu verifikasi ulang.
+    const pending = pendingApproval[idx] || {};
+    if (status === 'In Progress' && !r.diperiksaOleh && !pending.diperiksa) {
+      return alert('Verifikasi Pemeriksa (HSSE) dulu sebelum ubah status ke "In Progress".');
+    }
+    if (status === 'Closed' && !r.disetujuiOleh && !pending.disetujui) {
+      return alert('Verifikasi Penyetuju dulu sebelum ubah status ke "Closed".');
+    }
 
     const filledSlots = [0, 1].map(s => followupPhotoSlots[`${idx}-${s}`]).filter(Boolean);
 
@@ -246,6 +364,10 @@
         p_tenggat: tenggat,
         p_catatan_closed: catatan,
         p_foto_tambahan: fotoTambahan,
+        p_diperiksa_oleh: pending.diperiksa ? pending.diperiksa.nama : null,
+        p_diperiksa_qrcode: pending.diperiksa ? pending.diperiksa.qrCodeId : null,
+        p_disetujui_oleh: pending.disetujui ? pending.disetujui.nama : null,
+        p_disetujui_qrcode: pending.disetujui ? pending.disetujui.qrCodeId : null,
       });
       if (error) throw error;
       await loadReports();
@@ -256,7 +378,7 @@
   }
 
   async function reopenReport(idx, id) {
-    if (!confirm('Buka lagi laporan ini? Status bakal balik ke "Open".')) return;
+    if (!confirm('Buka lagi laporan ini? Status bakal balik ke "Open", dan persetujuan (Disetujui Oleh) sebelumnya bakal direset -- perlu disetujui ulang pas ditutup lagi.')) return;
     try {
       const r = reports.find(x => x.id === id);
       const { error } = await supabaseClient.rpc('update_cermat_status', {
@@ -265,6 +387,8 @@
         p_penanggung_jawab: (r && r.penanggungJawab) || '',
         p_tenggat: (r && r.tenggat) || null,
         p_catatan_closed: '',
+        p_disetujui_oleh: '',
+        p_disetujui_qrcode: '',
       });
       if (error) throw error;
       await loadReports();
@@ -304,6 +428,244 @@
   function driveViewUrl(f) {
     if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
     return f.url || '#';
+  }
+
+  // =====================================================================================
+  // APPROVAL DIGITAL -- "Diperiksa Oleh (HSSE)" & "Disetujui Oleh", scan wajah atau PIN.
+  // Sama kayak identifikasi Pelapor di cermat-report.html: gak ada login/akun, siapapun
+  // yang teridentifikasi (wajah/PIN) dicek apa punya tag Author yang sesuai ("Review
+  // Cermat" buat Diperiksa, "Approve Cermat" buat Disetujui) dari data karyawan Fusion4
+  // (read-only, field digitalPin & author udah ikut di get_all_face_data()).
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+  const AUTHOR_TAG = { diperiksa: 'Review Cermat', disetujui: 'Approve Cermat' };
+  const APPROVAL_LABEL = { diperiksa: 'Diperiksa Oleh (HSSE)', disetujui: 'Disetujui Oleh' };
+
+  let approvalContext = null; // { idx, id, kind: 'diperiksa'|'disetujui' }
+  let approvalFaceModelsLoaded = false;
+  let approvalAllFaceDataCache = null;
+  let approvalFacingMode = 'user';
+
+  const approvalModalBackdrop = document.getElementById('approvalModalBackdrop');
+  const approvalModalTitle = document.getElementById('approvalModalTitle');
+  const approvalModalSub = document.getElementById('approvalModalSub');
+  const approvalChoiceScreen = document.getElementById('approvalChoiceScreen');
+  const approvalCamWrap = document.getElementById('approvalCamWrap');
+  const approvalVideo = document.getElementById('approvalVideo');
+  const approvalCanvas = document.getElementById('approvalCanvas');
+  const approvalFaceOval = document.getElementById('approvalFaceOval');
+  const btnApprovalScanFaceGo = document.getElementById('btnApprovalScanFaceGo');
+  const approvalPinForm = document.getElementById('approvalPinForm');
+  const approvalPinInput = document.getElementById('approvalPinInput');
+  const approvalModalStatus = document.getElementById('approvalModalStatus');
+
+  // Sama kayak di cermat-report.html: RPC Fusion4 balikin key lowercase, coba beberapa kemungkinan.
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  // Author bisa berupa array ('Review Cermat','Approve Cermat') atau teks digabung koma/;/|.
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  function setApprovalStatus(text, kind) {
+    if (!text) { approvalModalStatus.style.display = 'none'; return; }
+    approvalModalStatus.className = 'status-msg ' + (kind || 'info');
+    approvalModalStatus.innerText = text;
+    approvalModalStatus.style.display = 'block';
+  }
+
+  function openApprovalModal(idx, id, kind) {
+    approvalContext = { idx, id, kind };
+    approvalModalTitle.innerText = `Verifikasi: ${APPROVAL_LABEL[kind]}`;
+    approvalModalSub.innerText = kind === 'diperiksa'
+      ? 'Scan wajah atau input PIN -- khusus yang berwenang me-review CERMAT (HSSE).'
+      : 'Scan wajah atau input PIN -- khusus yang berwenang approve CERMAT.';
+    approvalChoiceScreen.style.display = 'block';
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+    approvalPinForm.style.display = 'none';
+    approvalPinInput.value = '';
+    setApprovalStatus('', null);
+    approvalModalBackdrop.classList.add('open');
+  }
+
+  function closeApprovalModal() {
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+  }
+
+  function stopApprovalCamera() {
+    if (approvalVideo.srcObject) {
+      approvalVideo.srcObject.getTracks().forEach(t => t.stop());
+      approvalVideo.srcObject = null;
+    }
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+  }
+
+  async function ensureApprovalFaceDataLoaded() {
+    if (approvalAllFaceDataCache) return approvalAllFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    approvalAllFaceDataCache = data || [];
+    return approvalAllFaceDataCache;
+  }
+
+  document.getElementById('btnApprovalUsePin').onclick = () => {
+    approvalChoiceScreen.style.display = 'none';
+    approvalPinForm.style.display = 'block';
+    setApprovalStatus('', null);
+  };
+
+  document.getElementById('btnApprovalPinSubmit').onclick = async () => {
+    const pin = approvalPinInput.value.trim();
+    if (!pin) return setApprovalStatus('❌ Isi PIN dulu.', 'error');
+    setApprovalStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureApprovalFaceDataLoaded();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setApprovalStatus('❌ PIN tidak dikenali.', 'error');
+      finishApproval(match);
+    } catch (e) {
+      setApprovalStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnApprovalScanFace').onclick = async () => {
+    approvalChoiceScreen.style.display = 'none';
+    setApprovalStatus('Memuat model wajah...', 'info');
+    try {
+      if (!approvalFaceModelsLoaded) {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+        approvalFaceModelsLoaded = true;
+      }
+      setApprovalStatus('Mengambil data karyawan...', 'info');
+      await ensureApprovalFaceDataLoaded();
+      if (approvalAllFaceDataCache.length === 0) {
+        setApprovalStatus('❌ Belum ada data wajah terdaftar. Pakai Input PIN.', 'error');
+        return;
+      }
+
+      approvalFacingMode = 'user';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: approvalFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      approvalVideo.srcObject = stream;
+      await approvalVideo.play();
+      approvalCanvas.width = approvalVideo.videoWidth;
+      approvalCanvas.height = approvalVideo.videoHeight;
+      approvalCamWrap.style.display = 'block';
+      approvalFaceOval.style.display = 'block';
+      btnApprovalScanFaceGo.style.display = 'block';
+      setApprovalStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+    }
+  };
+
+  btnApprovalScanFaceGo.onclick = async () => {
+    btnApprovalScanFaceGo.disabled = true;
+    setApprovalStatus('Mendeteksi wajah...', 'info');
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = approvalVideo.videoWidth || 640;
+      snapCanvas.height = approvalVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(approvalVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      const detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        setApprovalStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      const sorted = approvalAllFaceDataCache.map(p => ({
+        person: p,
+        distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+      })).sort((a, b) => a.distance - b.distance);
+
+      const best = sorted[0];
+      const secondBest = sorted[1];
+      const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+      const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+      if (!withinThreshold) {
+        setApprovalStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai PIN.`, 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+      if (isAmbiguous) {
+        setApprovalStatus('⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai PIN.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      finishApproval(best.person);
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+    }
+  };
+
+  function finishApproval(person) {
+    if (!approvalContext) return;
+    const { idx, kind } = approvalContext;
+    const requiredTag = AUTHOR_TAG[kind];
+    const nama = getPersonField(person, ['nama'], '(tanpa nama)');
+    const qrCodeId = getPersonField(person, ['qrCodeId'], '');
+
+    if (!hasAuthorTag(person, requiredTag)) {
+      setApprovalStatus(`❌ ${nama} tidak punya izin "${requiredTag}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+      return;
+    }
+
+    pendingApproval[idx] = pendingApproval[idx] || {};
+    pendingApproval[idx][kind] = { nama, qrCodeId };
+
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+    btnApprovalScanFaceGo.disabled = false;
+
+    onStatusSelectChange(idx);
+    const gateEl = document.getElementById(`gate-${kind}-${idx}`);
+    if (gateEl) {
+      gateEl.insertAdjacentHTML('beforebegin', `<div class="approval-banner">✅ ${APPROVAL_LABEL[kind]}: ${escapeHtml(nama)}${qrCodeId ? ' (' + escapeHtml(qrCodeId) + ')' : ''}</div>`);
+    }
   }
 </script>
 
