@@ -41,6 +41,13 @@ body {
 .header h1 { font-size: 24px; font-weight: 800; }
 .header p { font-size: 13px; color: #C7CEE8; margin-top: 6px; }
 
+.header-top { display: flex; align-items: center; gap: 14px; }
+.header-top .header-logo {
+  width: 52px; height: 52px; object-fit: contain; flex-shrink: 0;
+  background: #fff; border-radius: 12px; padding: 5px;
+}
+.header-top .eyebrow { margin-bottom: 4px; }
+
 .card {
   background: var(--surface);
   border: 1.5px solid var(--border);
