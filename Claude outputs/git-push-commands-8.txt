@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Gate Permit to Work & JSA form dengan Author tag + tambah opsi Input PIN" -m "- Identifikasi Requester di ptw-report.html sekarang cek izin Author 'Permit & JSA' sebelum boleh isi form (Scan QR, Scan Wajah, maupun Input PIN) -- form ini butuh paham detail teknis izin kerja & JSA, jadi gak sembarangan orang boleh isi" -m "- Tambah opsi 'Input PIN' di identifikasi (selain Scan QR/Wajah) supaya bisa dikerjakan nyaman di laptop tanpa kamera/QR scanner" -m "- Update index.html: catatan Author tag 'Permit & JSA' buat Requester" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

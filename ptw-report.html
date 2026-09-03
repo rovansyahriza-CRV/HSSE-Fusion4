@@ -76,11 +76,12 @@
 
   <div class="card">
     <h2 style="margin-bottom:4px;">Identifikasi Requester</h2>
-    <p style="margin-bottom:10px;">Scan QR badge atau wajah kamu -- nama diambil otomatis dari data karyawan.</p>
+    <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu. Form ini butuh detail teknis izin kerja &amp; JSA, jadi cuma yang punya izin Author <b>"Permit &amp; JSA"</b> yang bisa lanjut isi.</p>
 
     <div class="id-gate-buttons" id="idGateButtons">
       <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
       <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+      <button type="button" id="btnIdUsePin">🔢 Input PIN</button>
     </div>
 
     <div class="cam-wrap" id="idCamWrap">
@@ -92,6 +93,12 @@
     <div id="idCamStatus" class="status-msg"></div>
     <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
     <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+    <form class="id-pin-form" id="idPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="idPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnIdPinSubmit">Verifikasi PIN</button>
+      <button type="button" class="id-pin-cancel" id="btnIdPinCancel">Batal</button>
+    </form>
 
     <div class="id-result-banner" id="idResultBanner">
       <span class="id-name">✅ <span id="idName"></span></span>
@@ -393,6 +400,9 @@
   const FACE_MATCH_THRESHOLD = 0.45;
   const FACE_AMBIGUITY_MARGIN = 0.12;
   const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+  // Cuma yang punya izin Author ini yang boleh isi/ajukan Permit to Work & JSA --
+  // form ini butuh pemahaman teknis, gak sembarangan orang.
+  const REQUIRED_TAG = 'Permit & JSA';
 
   let identifiedNama = null;
   let identifiedQrCodeId = null;
@@ -410,6 +420,8 @@
   const idCamStatus = document.getElementById('idCamStatus');
   const btnIdScanFace = document.getElementById('btnIdScanFace');
   const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idPinForm = document.getElementById('idPinForm');
+  const idPinInput = document.getElementById('idPinInput');
   const idResultBanner = document.getElementById('idResultBanner');
   const idNameEl = document.getElementById('idName');
 
@@ -428,6 +440,22 @@
       }
     }
     return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  async function ensureAllFaceData() {
+    if (allFaceDataCache) return allFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    allFaceDataCache = data || [];
+    return allFaceDataCache;
   }
 
   function setIdStatus(text, kind) {
@@ -474,6 +502,42 @@
       await ensureIdCamera(idFacingMode);
     } catch (e) {
       setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnIdUsePin').onclick = () => {
+    idGateButtons.style.display = 'none';
+    idPinForm.style.display = 'block';
+    idPinInput.value = '';
+    setIdStatus('', null);
+    idPinInput.focus();
+  };
+
+  document.getElementById('btnIdPinCancel').onclick = () => {
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  };
+
+  document.getElementById('btnIdPinSubmit').onclick = async () => {
+    const pin = idPinInput.value.trim();
+    if (!pin) return setIdStatus('❌ Isi PIN dulu.', 'error');
+    setIdStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureAllFaceData();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
+      const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
+      if (!hasAuthorTag(match, REQUIRED_TAG)) {
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+      }
+      confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
+    } catch (e) {
+      setIdStatus('❌ Gagal cek PIN: ' + e.message, 'error');
     }
   };
 
@@ -532,6 +596,12 @@
         return;
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
+        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
       confirmIdentity(nama, qrId);
     } catch (e) {
       setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
@@ -561,16 +631,14 @@
 
     setIdStatus('Mengambil data karyawan...', 'info');
     try {
-      const { data, error } = await fusion4Client.rpc('get_all_face_data');
-      if (error) throw new Error(error.message);
-      allFaceDataCache = data || [];
+      await ensureAllFaceData();
     } catch (e) {
       setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
       idGateButtons.style.display = 'flex';
       return;
     }
     if (allFaceDataCache.length === 0) {
-      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code saja.', 'error');
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code atau Input PIN.', 'error');
       idGateButtons.style.display = 'flex';
       return;
     }
@@ -618,8 +686,7 @@
     }
 
     const sorted = allFaceDataCache.map(p => ({
-      qrCodeId: p.qrCodeId,
-      nama: p.nama,
+      person: p,
       distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
     })).sort((a, b) => a.distance - b.distance);
 
@@ -629,17 +696,22 @@
     const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
 
     if (!withinThreshold) {
-      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code.`, 'error');
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code / PIN.`, 'error');
       btnIdScanFace.disabled = false;
       return;
     }
     if (isAmbiguous) {
-      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code untuk kepastian.`, 'error');
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code atau PIN untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
       btnIdScanFace.disabled = false;
       return;
     }
 
-    confirmIdentity(best.nama, best.qrCodeId);
+    confirmIdentity(getPersonField(best.person, ['nama'], ''), getPersonField(best.person, ['qrCodeId'], ''));
   }
 
   function confirmIdentity(nama, qrCodeId) {
@@ -658,6 +730,8 @@
     idResultBanner.style.display = 'none';
     formBody.style.display = 'none';
     idGateButtons.style.display = 'flex';
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
     setIdStatus('', null);
   }
 

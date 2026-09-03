@@ -134,14 +134,21 @@ body {
 }
 .pdf-link:active { background: #DCE8FC; }
 
-/* ===== Identifikasi Pelapor (Scan QR / Scan Wajah) -- dipakai di semua form HSSE ===== */
-.id-gate-buttons { display: flex; gap: 10px; }
+/* ===== Identifikasi Pelapor (Scan QR / Scan Wajah / Input PIN) -- dipakai di semua form HSSE ===== */
+.id-gate-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 .id-gate-buttons button {
-  flex: 1; padding: 13px; border-radius: 12px; border: 1.5px solid var(--border);
+  flex: 1; min-width: 108px; padding: 13px; border-radius: 12px; border: 1.5px solid var(--border);
   background: var(--surface); font-weight: 700; font-size: 13.5px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
 }
 .id-gate-buttons button:active { background: var(--bg); }
+
+.id-pin-form { display: none; margin-top: 4px; }
+.id-pin-form input {
+  width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 15px; letter-spacing: 0.1em; text-align: center; margin-bottom: 10px;
+}
+.id-pin-cancel { display: block; text-align: center; margin-top: 10px; font-size: 12px; color: var(--muted); cursor: pointer; background: none; border: none; width: 100%; }
 
 .cam-wrap {
   position: relative; width: 100%; aspect-ratio: 1/1; margin: 12px auto; max-width: 320px;
