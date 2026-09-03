@@ -53,6 +53,18 @@
   .hazard-item-body { flex: 1; }
   .hazard-item-label { font-size: 13px; font-weight: 600; }
   .hazard-item input[type="text"] { margin-top: 6px; font-size: 12px; padding: 7px 10px; }
+
+  /* ===== Lampiran dokumen pendukung (foto/PDF, jumlah bebas) ===== */
+  .lampiran-item {
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1.5px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; font-size: 12.5px; background: var(--surface);
+  }
+  .lampiran-item .lampiran-icon { font-size: 17px; flex-shrink: 0; }
+  .lampiran-item .lampiran-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .lampiran-item .lampiran-remove {
+    border: none; background: #FCEAE8; color: var(--accent); width: 24px; height: 24px; border-radius: 50%;
+    font-weight: 800; font-size: 12px; cursor: pointer; flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -114,6 +126,11 @@
       <select id="selectJenisPekerjaan" onchange="onJenisPekerjaanChange()">
         <option value="">-- Memuat daftar jenis pekerjaan... --</option>
       </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtWoNo">No. WO / Work Order (opsional)</label>
+      <input type="text" id="txtWoNo" placeholder="Contoh: WO-2026-00123">
     </div>
 
     <div class="form-group">
@@ -195,6 +212,13 @@
       </div>
     </div>
 
+    <div class="form-group">
+      <label>Lampiran Dokumen Pendukung (opsional -- Surat WO, Prosedur Kerja/SOP, dst. Foto atau PDF, bisa lebih dari satu)</label>
+      <div id="lampiranList"></div>
+      <label for="inputLampiran" class="btn-add-row" style="display:block; text-align:center;">+ Tambah Lampiran (Foto / PDF)</label>
+      <input type="file" id="inputLampiran" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleLampiranPicked(event)">
+    </div>
+
     <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitPtw()">
       <span>📤 Ajukan Permit</span>
     </button>
@@ -214,6 +238,9 @@
   let hazardTemplate = []; // [{id, item}]
   let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
   let jsaRowCount = 0;
+  let lampiranFiles = []; // [{ id, file }] -- dokumen pendukung (foto/PDF), jumlah bebas (dibatasi MAX_LAMPIRAN)
+  let lampiranIdCounter = 0;
+  const MAX_LAMPIRAN = 5;
 
   const statusMsg = document.getElementById('statusMsg');
   const btnSubmit = document.getElementById('btnSubmit');
@@ -381,6 +408,49 @@
     img.src = '';
     slotEl.classList.remove('filled');
     slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  // =====================================================================================
+  // LAMPIRAN DOKUMEN PENDUKUNG -- foto ATAU PDF, jumlah bebas (dibatasi MAX_LAMPIRAN).
+  // Beda dari "Foto Lampiran" di atas (3 slot, khusus dokumentasi kondisi lapangan) --
+  // ini buat Surat WO, Prosedur Kerja/SOP, dst.
+  // =====================================================================================
+  function handleLampiranPicked(event) {
+    const files = Array.from(event.target.files || []);
+    for (const file of files) {
+      if (lampiranFiles.length >= MAX_LAMPIRAN) {
+        setStatus(`⚠️ Maksimal ${MAX_LAMPIRAN} lampiran.`, 'error');
+        break;
+      }
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isImage = file.type.startsWith('image/');
+      if (!isPdf && !isImage) {
+        setStatus(`⚠️ "${file.name}" dilewati -- cuma foto atau PDF yang bisa diupload.`, 'error');
+        continue;
+      }
+      lampiranFiles.push({ id: lampiranIdCounter++, file });
+    }
+    event.target.value = '';
+    renderLampiranList();
+  }
+
+  function removeLampiran(id) {
+    lampiranFiles = lampiranFiles.filter(l => l.id !== id);
+    renderLampiranList();
+  }
+
+  function renderLampiranList() {
+    const listEl = document.getElementById('lampiranList');
+    listEl.innerHTML = lampiranFiles.map(l => {
+      const isPdf = l.file.type === 'application/pdf' || l.file.name.toLowerCase().endsWith('.pdf');
+      return `
+        <div class="lampiran-item">
+          <span class="lampiran-icon">${isPdf ? '📄' : '🖼️'}</span>
+          <span class="lampiran-name">${escapeHtml(l.file.name)}</span>
+          <button type="button" class="lampiran-remove" onclick="removeLampiran(${l.id})">✕</button>
+        </div>
+      `;
+    }).join('');
   }
 
   function setStatus(text, kind) {
@@ -745,6 +815,7 @@
     }
 
     const jenisPekerjaan = selectJenisPekerjaan.value;
+    const woNo = document.getElementById('txtWoNo').value.trim();
     const projectId = selectProject.value;
     const lokasi = document.getElementById('txtLokasi').value.trim();
     const deskripsi = document.getElementById('txtDeskripsi').value.trim();
@@ -792,6 +863,15 @@
         id: Number(id), item: st.item, terpenuhi: st.terpenuhi, keterangan: st.keterangan || '',
       }));
 
+      let lampiranList = [];
+      if (lampiranFiles.length > 0) {
+        setStatus(`📤 Mengupload ${lampiranFiles.length} lampiran...`, 'info');
+        for (const l of lampiranFiles) {
+          const uploaded = await uploadLampiranToDrive(l.file);
+          lampiranList.push({ fileId: uploaded.fileId, url: uploaded.directUrl, fileName: uploaded.fileName, mimeType: uploaded.mimeType });
+        }
+      }
+
       setStatus('📤 Mengajukan permit...', 'info');
       const { data, error } = await supabaseClient.rpc('submit_ptw', {
         p_jenis_pekerjaan: jenisPekerjaan,
@@ -807,6 +887,8 @@
         p_tanggal_mulai: dtMulai,
         p_tanggal_selesai: dtSelesai,
         p_foto_list: fotoList,
+        p_wo_no: woNo,
+        p_lampiran_list: lampiranList,
       });
       if (error) throw error;
 
@@ -824,6 +906,7 @@
     // Identitas Requester SENGAJA tidak direset -- biar 1 orang bisa ajukan beberapa
     // permit berturut-turut tanpa scan ulang.
     selectJenisPekerjaan.value = '';
+    document.getElementById('txtWoNo').value = '';
     selectProject.value = '';
     document.getElementById('txtLokasi').value = '';
     document.getElementById('txtDeskripsi').value = '';
@@ -840,6 +923,8 @@
     hazardTemplate = [];
     hazardState = {};
     for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
+    lampiranFiles = [];
+    renderLampiranList();
   }
 </script>
 

@@ -228,6 +228,18 @@
     return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
   }
 
+  function lampiranListHtml(label, lampiranArr) {
+    if (!lampiranArr || lampiranArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${lampiranArr.length})</b><div style="margin-top:6px;">${lampiranArr.map(f => {
+      const isPdf = (f.mimeType || '').includes('pdf') || (f.fileName || '').toLowerCase().endsWith('.pdf');
+      return `<a href="${driveViewUrl(f)}" target="_blank" style="display:flex; align-items:center; gap:8px; padding:8px 10px; border:1.5px solid var(--border); border-radius:10px; margin-bottom:6px; font-size:12.5px; font-weight:600; color:var(--text); text-decoration:none;">
+        <span style="font-size:17px; flex-shrink:0;">${isPdf ? '📄' : '🖼️'}</span>
+        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(f.fileName || 'Lampiran')}</span>
+        <span style="flex-shrink:0; color:var(--muted); font-weight:700;">Buka ↗</span>
+      </a>`;
+    }).join('')}</div></div>`;
+  }
+
   function jsaTableHtml(jsaItems) {
     if (!jsaItems || jsaItems.length === 0) return '<p style="color:var(--muted); font-size:12px;">-</p>';
     return `<table class="jsa-table"><thead><tr><th>Langkah Kerja</th><th>Potensi Bahaya</th><th>Pengendalian Risiko</th></tr></thead><tbody>
@@ -393,7 +405,7 @@
         <div onclick="toggleDetail(${idx})">
           <div class="report-top">
             <div>
-              <div class="report-no">${r.noPermit}</div>
+              <div class="report-no">${r.noPermit}${r.woNo ? ' • WO: ' + escapeHtml(r.woNo) : ''}</div>
               <div class="report-title">${escapeHtml(r.jenisPekerjaan)} — ${escapeHtml(r.lokasiArea)}</div>
               <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Requester: ${escapeHtml(r.namaRequester)}${r.requesterQrCodeId ? ' ✅' : ''}</div>
             </div>
@@ -409,6 +421,7 @@
           <div class="detail-row"><b>JSA -- Job Safety Analysis</b>${jsaTableHtml(r.jsaItems)}</div>
           <div class="detail-row"><b>Hazard Checklist</b>${hazardReviewHtml(r.hazardChecklist)}</div>
           ${photoGalleryHtml('Foto Lampiran', r.fotoList)}
+          ${lampiranListHtml('Lampiran Dokumen Pendukung', r.lampiranList)}
           ${r.hseReviewOleh ? `<div class="detail-row"><b>Direview HSE Officer</b>✅ ${escapeHtml(r.hseReviewOleh)} (${escapeHtml(r.hseReviewQrCodeId || '')}) — ${formatDate(r.tanggalHseReview)}</div>` : ''}
           ${r.areaAuthorityOleh ? `<div class="detail-row"><b>Disetujui Area Authority</b>✅ ${escapeHtml(r.areaAuthorityOleh)} (${escapeHtml(r.areaAuthorityQrCodeId || '')}) — ${formatDate(r.tanggalAreaAuthority)}</div>` : ''}
           ${r.penutupanDiajukanOleh ? `<div class="detail-row"><b>Penutupan Diajukan Oleh</b>✅ ${escapeHtml(r.penutupanDiajukanOleh)} (${escapeHtml(r.penutupanQrCodeId || '')}) — ${formatDate(r.tanggalPenutupanDiajukan)}${r.catatanPenutupanDiajukan ? ': ' + escapeHtml(r.catatanPenutupanDiajukan) : ''}</div>` : ''}

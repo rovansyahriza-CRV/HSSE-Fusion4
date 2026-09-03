@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah No. WO & lampiran dokumen pendukung (foto/PDF) di Permit to Work" -m "- Kolom baru 'WoNo' (No. Work Order, opsional) & 'LampiranList' di ptwTbl -- migrasi sql/018" -m "- ptw-report.html: field No. WO setelah Jenis Pekerjaan, plus uploader Lampiran Dokumen Pendukung (Surat WO, Prosedur Kerja/SOP, dst) yang nerima foto ATAU PDF, jumlah bebas (maks 5) -- pakai uploadLampiranToDrive() yang sudah ada di driveBridge.js" -m "- ptw-list.html: No. WO ditampilin di header kartu, lampiran ditampilin sebagai daftar link yang bisa dibuka (icon beda buat PDF vs foto)" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

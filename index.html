@@ -82,7 +82,7 @@
         <span class="status-dot"></span>
         <div>
           <div class="module-name">Permit to Work &amp; JSA</div>
-          <div class="module-desc">Izin kerja + Job Safety Analysis, hazard checklist per jenis pekerjaan, approval 3 tahap (HSE → Area Authority → HSE penutupan). Khusus Author "Permit &amp; JSA" yang boleh isi (scan QR/wajah/PIN) -- biar yang isi paham detail teknisnya.</div>
+          <div class="module-desc">Izin kerja + Job Safety Analysis, hazard checklist per jenis pekerjaan, No. WO &amp; lampiran dokumen pendukung (foto/PDF), approval 3 tahap (HSE → Area Authority → HSE penutupan). Khusus Author "Permit &amp; JSA" yang boleh isi (scan QR/wajah/PIN) -- biar yang isi paham detail teknisnya.</div>
         </div>
         <span class="badge-done"><a href="ptw-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
       </div>
@@ -124,7 +124,7 @@
   <div class="card">
     <h2 style="margin-bottom:8px;">Sebelum lanjut ke modul berikutnya</h2>
     <p style="margin-bottom:8px;">Lihat README.md untuk detail lengkap:</p>
-    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>sql/017</code> di Supabase secara berurutan (kalau belum)</div>
+    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>sql/018</code> di Supabase secara berurutan (kalau belum)</div>
     <div class="note" style="margin-top:6px;">2. Ganti/tambah data project asli di tabel "projectTbl" (masih ada 1 baris contoh placeholder)</div>
     <div class="note" style="margin-top:6px;">3. Cek isi checklist draft di "inspeksiChecklistTemplateTbl" &amp; "ptwHazardChecklistTemplateTbl" -- edit/tambah item lewat Table Editor Supabase kalau perlu disesuaikan sama form HSE PT BIMA yang asli</div>
     <div class="note" style="margin-top:6px;">4. Kasih Author tag <b>"Permit &amp; JSA"</b> ke Requester yang boleh isi/ajukan form Permit to Work (butuh paham detail izin kerja &amp; JSA -- bisa diverifikasi via Scan QR, Scan Wajah, atau Input PIN, jadi tetap bisa dikerjakan pakai laptop tanpa kamera), <b>"Leader Toolbox Meeting"</b> ke orang yang boleh mimpin sesi TBM, <b>"Review Permit to Work"</b> ke HSE Officer yang review/approve penutupan permit, dan <b>"Approve Permit to Work"</b> ke Area Authority -- lewat Table Editor "karyawanTbl" di Supabase Fusion4 (kolom "Author")</div>
