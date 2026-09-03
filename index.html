@@ -62,13 +62,21 @@
         </div>
         <span class="badge-done"><a href="incident-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
       </div>
-      <div class="module-item">
+      <div class="module-item done">
         <span class="status-dot"></span>
         <div>
           <div class="module-name">Inspeksi &amp; Observasi Lapangan</div>
-          <div class="module-desc">Safety patrol, checklist APD, kondisi alat/area kerja.</div>
+          <div class="module-desc">Checklist per kunjungan (Inspeksi kondisi area/alat, atau Observasi perilaku pekerja) + skor otomatis. Temuan "Tidak Sesuai" auto jadi laporan CERMAT.</div>
         </div>
-        <span class="badge-todo">Belum digarap</span>
+        <span class="badge-done"><a href="inspeksi-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat Inspeksi &amp; Observasi</div>
+          <div class="module-desc">Daftar semua checklist, filter Jenis, lihat skor &amp; link ke CERMAT hasil auto-generate.</div>
+        </div>
+        <span class="badge-done"><a href="inspeksi-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
       </div>
       <div class="module-item">
         <span class="status-dot"></span>
@@ -92,9 +100,9 @@
   <div class="card">
     <h2 style="margin-bottom:8px;">Sebelum lanjut ke modul berikutnya</h2>
     <p style="margin-bottom:8px;">Lihat README.md untuk detail lengkap:</p>
-    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>005</code> di Supabase secara berurutan (kalau belum)</div>
+    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>sql/014</code> di Supabase secara berurutan (kalau belum)</div>
     <div class="note" style="margin-top:6px;">2. Ganti/tambah data project asli di tabel "projectTbl" (masih ada 1 baris contoh placeholder)</div>
-    <div class="note" style="margin-top:6px;">3. Modul mana yang jadi prioritas berikutnya setelah Incident/Accident</div>
+    <div class="note" style="margin-top:6px;">3. Cek isi checklist draft di "inspeksiChecklistTemplateTbl" -- edit/tambah item lewat Table Editor Supabase kalau perlu disesuaikan sama form HSE PT BIMA yang asli</div>
   </div>
 
 </div>

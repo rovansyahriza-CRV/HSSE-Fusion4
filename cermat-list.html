@@ -377,7 +377,7 @@
             <div>
               <div class="report-no">${r.noLaporan}</div>
               <div class="report-title">${r.jenisTemuan} — ${r.lokasiArea}</div>
-              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}${r.sourceInspeksiNoLaporan ? ' • 🔍 Dari Inspeksi ' + escapeHtml(r.sourceInspeksiNoLaporan) : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <div style="display:flex; gap:6px;">

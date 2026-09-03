@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspeksi &amp; Observasi Lapangan — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .sifat-toggle { display: flex; gap: 10px; margin-bottom: 14px; }
+  .sifat-btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface); font-weight: 700; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .sifat-btn.active-inspeksi { background: #E8F4FD; border-color: #1E88E5; color: #1E88E5; }
+  .sifat-btn.active-observasi { background: #F1EAFB; border-color: #7B4FC9; color: #7B4FC9; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  select, input, textarea {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 13.5px; background: var(--surface); color: var(--text);
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  #formBody { display: none; }
+  #checklistArea { display: none; }
+
+  /* ===== Checklist per item ===== */
+  .checklist-kategori { font-size: 12px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1.5px solid var(--border); }
+  .checklist-kategori:first-child { margin-top: 0; }
+  .checklist-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-item-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .hasil-toggle { display: flex; gap: 6px; }
+  .hasil-btn {
+    flex: 1; padding: 9px 4px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--surface); font-weight: 700; font-size: 11.5px; cursor: pointer; color: var(--muted);
+  }
+  .hasil-btn.active-sesuai { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .hasil-btn.active-tidak { background: #FCEAE8; border-color: var(--accent); color: var(--accent); }
+  .hasil-btn.active-na { background: var(--bg); border-color: #9CA8C9; color: var(--muted); }
+  .checklist-extra { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .checklist-extra textarea { min-height: 50px; font-size: 12.5px; }
+  .checklist-extra input[type="file"] { font-size: 11.5px; }
+  .checklist-photo-preview { max-width: 120px; border-radius: 8px; margin-top: 4px; display: none; }
+
+  .score-preview {
+    display: none; background: var(--bg); border-radius: 12px; padding: 14px; margin: 14px 0;
+    text-align: center;
+  }
+  .score-preview .score-num { font-size: 30px; font-weight: 800; }
+  .score-preview .score-num.good { color: var(--success); }
+  .score-preview .score-num.warn { color: var(--safety-yellow); }
+  .score-preview .score-num.bad { color: var(--accent); }
+  .score-preview .score-detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .warning-box {
+    background: #FDF3E3; color: #8A6100; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page" style="max-width:480px;">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Inspeksi &amp; Observasi Lapangan</h1>
+      </div>
+    </div>
+    <p>Checklist patroli HSE lapangan -- pilih Inspeksi (kondisi area/alat) atau Observasi (perilaku pekerja). Ada item "Tidak Sesuai" otomatis jadi laporan CERMAT.</p>
+  </div>
+
+  <div id="statusMsg" class="status-msg"></div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Identifikasi Inspektor / Observer</h2>
+    <p style="margin-bottom:10px;">Scan QR badge atau wajah kamu -- nama diambil otomatis dari data karyawan, biar checklist ini terverifikasi siapa yang melakukan.</p>
+
+    <div class="id-gate-buttons" id="idGateButtons">
+      <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
+      <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+    </div>
+
+    <div class="cam-wrap" id="idCamWrap">
+      <video id="idVideo" autoplay muted playsinline></video>
+      <canvas id="idCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="idFaceOval"></div>
+      <div class="cam-qr-box" id="idQrBox"></div>
+    </div>
+    <div id="idCamStatus" class="status-msg"></div>
+    <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
+    <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+    <div class="id-result-banner" id="idResultBanner">
+      <span class="id-name">✅ <span id="idName"></span></span>
+      <button type="button" onclick="resetIdentification()">Ganti</button>
+    </div>
+  </div>
+
+  <div id="formBody">
+
+  <div class="card">
+    <div class="form-group">
+      <label>Jenis</label>
+      <div class="sifat-toggle">
+        <button type="button" id="btnInspeksi" class="sifat-btn" onclick="setJenis('Inspeksi')">🔧 Inspeksi</button>
+        <button type="button" id="btnObservasi" class="sifat-btn" onclick="setJenis('Observasi')">👀 Observasi</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="selectProject">Project / Kontrak</label>
+      <select id="selectProject">
+        <option value="">-- Memuat daftar project... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtLokasi">Lokasi / Area Kerja</label>
+      <input type="text" id="txtLokasi" placeholder="Contoh: Area Wellpad-3, dekat separator">
+    </div>
+  </div>
+
+  <div class="card" id="checklistArea">
+    <h2 style="margin-bottom:10px;" id="checklistTitle">Checklist</h2>
+    <div id="checklistBody">Memuat checklist...</div>
+
+    <div class="score-preview" id="scorePreview">
+      <div class="score-num" id="scoreNum">-</div>
+      <div class="score-detail" id="scoreDetail"></div>
+    </div>
+  </div>
+
+  <div class="card" id="umumArea" style="display:none;">
+    <div class="form-group">
+      <label for="txtCatatanUmum">Catatan Umum (opsional)</label>
+      <textarea id="txtCatatanUmum" placeholder="Catatan tambahan soal kunjungan ini..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Foto Umum Lokasi (opsional, bisa sampai 3)</label>
+      <div class="photo-slots">
+        <div class="photo-slot" id="slot0">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 0)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(0, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot1">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 1)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(1, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot2">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 2)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(2, event)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitInspeksi()">
+      <span>📤 Kirim Laporan</span>
+    </button>
+  </div>
+
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+
+  let selectedJenis = '';
+  let photoSlots = [null, null, null];
+  let projectList = [];
+  let checklistTemplate = []; // [{id, kategori, item}]
+  let checklistState = {}; // { itemId: { kategori, item, hasil, keterangan, fotoFile } }
+
+  const statusMsg = document.getElementById('statusMsg');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const selectProject = document.getElementById('selectProject');
+  const formBody = document.getElementById('formBody');
+  const checklistArea = document.getElementById('checklistArea');
+  const checklistBody = document.getElementById('checklistBody');
+  const umumArea = document.getElementById('umumArea');
+  const scorePreview = document.getElementById('scorePreview');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadProjects();
+  });
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+      if (projectList.length === 0) {
+        selectProject.innerHTML = '<option value="">Belum ada project aktif -- hubungi admin</option>';
+        return;
+      }
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+      setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');
+    }
+  }
+
+  async function setJenis(jenis) {
+    selectedJenis = jenis;
+    document.getElementById('btnInspeksi').className = 'sifat-btn' + (jenis === 'Inspeksi' ? ' active-inspeksi' : '');
+    document.getElementById('btnObservasi').className = 'sifat-btn' + (jenis === 'Observasi' ? ' active-observasi' : '');
+
+    checklistArea.style.display = 'block';
+    checklistBody.innerHTML = 'Memuat checklist...';
+    umumArea.style.display = 'none';
+    scorePreview.style.display = 'none';
+    checklistState = {};
+
+    document.getElementById('checklistTitle').innerText = jenis === 'Observasi' ? '📋 Checklist Observasi' : '📋 Checklist Inspeksi';
+
+    try {
+      const { data, error } = await supabaseClient.rpc('get_inspeksi_checklist_template', { p_jenis: jenis });
+      if (error) throw error;
+      checklistTemplate = data || [];
+      if (checklistTemplate.length === 0) {
+        checklistBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis ini -- hubungi admin.</p>';
+        return;
+      }
+      checklistTemplate.forEach(it => {
+        checklistState[it.id] = { kategori: it.kategori, item: it.item, hasil: '', keterangan: '', fotoFile: null };
+      });
+      renderChecklist();
+      umumArea.style.display = 'block';
+    } catch (e) {
+      checklistBody.innerHTML = '';
+      setStatus('❌ Gagal memuat checklist: ' + e.message, 'error');
+    }
+  }
+
+  function renderChecklist() {
+    let html = '';
+    let currentKategori = null;
+    checklistTemplate.forEach(it => {
+      if (it.kategori !== currentKategori) {
+        html += `<div class="checklist-kategori">${escapeHtml(it.kategori)}</div>`;
+        currentKategori = it.kategori;
+      }
+      const st = checklistState[it.id];
+      html += `
+        <div class="checklist-item">
+          <div class="checklist-item-label">${escapeHtml(it.item)}</div>
+          <div class="hasil-toggle" id="toggle-${it.id}">
+            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'Sesuai')">✅ Sesuai</button>
+            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'Tidak Sesuai')">⚠️ Tidak Sesuai</button>
+            <button type="button" class="hasil-btn" onclick="setHasil(${it.id}, 'N/A')">➖ N/A</button>
+          </div>
+          <div class="checklist-extra" id="extra-${it.id}" style="display:none;">
+            <textarea placeholder="Keterangan temuan (wajib diisi kalau Tidak Sesuai)..." oninput="setKeterangan(${it.id}, this.value)"></textarea>
+            <input type="file" accept="image/*" capture="environment" id="foto-input-${it.id}" onchange="handleItemPhoto(event, ${it.id})">
+            <img class="checklist-photo-preview" id="foto-preview-${it.id}">
+          </div>
+        </div>`;
+    });
+    checklistBody.innerHTML = html;
+  }
+
+  function setHasil(itemId, hasil) {
+    checklistState[itemId].hasil = hasil;
+    const toggleEl = document.getElementById('toggle-' + itemId);
+    const btns = toggleEl.querySelectorAll('.hasil-btn');
+    btns[0].className = 'hasil-btn' + (hasil === 'Sesuai' ? ' active-sesuai' : '');
+    btns[1].className = 'hasil-btn' + (hasil === 'Tidak Sesuai' ? ' active-tidak' : '');
+    btns[2].className = 'hasil-btn' + (hasil === 'N/A' ? ' active-na' : '');
+
+    const extraEl = document.getElementById('extra-' + itemId);
+    extraEl.style.display = (hasil === 'Tidak Sesuai') ? 'flex' : 'none';
+
+    updateScorePreview();
+  }
+
+  function setKeterangan(itemId, val) {
+    checklistState[itemId].keterangan = val;
+  }
+
+  function handleItemPhoto(event, itemId) {
+    const file = event.target.files[0];
+    if (!file) return;
+    checklistState[itemId].fotoFile = file;
+    const img = document.getElementById('foto-preview-' + itemId);
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+  }
+
+  function updateScorePreview() {
+    const items = Object.values(checklistState);
+    const sesuai = items.filter(i => i.hasil === 'Sesuai').length;
+    const tidak = items.filter(i => i.hasil === 'Tidak Sesuai').length;
+    const na = items.filter(i => i.hasil === 'N/A').length;
+    const answered = sesuai + tidak + na;
+    if (answered === 0) { scorePreview.style.display = 'none'; return; }
+
+    scorePreview.style.display = 'block';
+    const denom = sesuai + tidak;
+    const scoreNumEl = document.getElementById('scoreNum');
+    if (denom === 0) {
+      scoreNumEl.innerText = '-';
+      scoreNumEl.className = 'score-num';
+    } else {
+      const skor = Math.round((sesuai / denom) * 100);
+      scoreNumEl.innerText = skor + '%';
+      scoreNumEl.className = 'score-num ' + (skor >= 90 ? 'good' : skor >= 70 ? 'warn' : 'bad');
+    }
+    document.getElementById('scoreDetail').innerText =
+      `${sesuai} Sesuai • ${tidak} Tidak Sesuai • ${na} N/A (${answered}/${items.length} item terisi)`;
+  }
+
+  function handlePhotoSlot(event, idx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    photoSlots[idx] = file;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removePhotoSlot(idx, evt) {
+    if (evt) evt.stopPropagation();
+    photoSlots[idx] = null;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function setStatus(text, kind) {
+    statusMsg.className = 'status-msg ' + (kind || 'info');
+    statusMsg.innerText = text;
+    statusMsg.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // =====================================================================================
+  // IDENTIFIKASI INSPEKTOR/OBSERVER -- sama persis dengan pola di cermat-report.html /
+  // incident-report.html: Scan QR Code atau Scan Wajah, dicocokkan ke database karyawan
+  // Fusion4 (read-only).
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let identifiedNama = null;
+  let identifiedQrCodeId = null;
+  let idFacingMode = "environment";
+  let idQrScanning = false;
+  let idFaceModelsLoaded = false;
+  let allFaceDataCache = null;
+
+  const idGateButtons = document.getElementById('idGateButtons');
+  const idCamWrap = document.getElementById('idCamWrap');
+  const idVideo = document.getElementById('idVideo');
+  const idCanvas = document.getElementById('idCanvas');
+  const idFaceOval = document.getElementById('idFaceOval');
+  const idQrBox = document.getElementById('idQrBox');
+  const idCamStatus = document.getElementById('idCamStatus');
+  const btnIdScanFace = document.getElementById('btnIdScanFace');
+  const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idResultBanner = document.getElementById('idResultBanner');
+  const idNameEl = document.getElementById('idName');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function setIdStatus(text, kind) {
+    if (!text) { idCamStatus.style.display = 'none'; return; }
+    idCamStatus.className = 'status-msg ' + (kind || 'info');
+    idCamStatus.innerText = text;
+    idCamStatus.style.display = 'block';
+  }
+
+  async function ensureIdCamera(facingMode) {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    idVideo.srcObject = stream;
+    await idVideo.play();
+    idCanvas.width = idVideo.videoWidth;
+    idCanvas.height = idVideo.videoHeight;
+    idCamWrap.style.display = 'block';
+  }
+
+  function stopIdCamera() {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    idQrScanning = false;
+    idCamWrap.style.display = 'none';
+    idFaceOval.style.display = 'none';
+    idQrBox.style.display = 'none';
+    btnIdScanFace.style.display = 'none';
+    btnIdSwitchCam.style.display = 'none';
+  }
+
+  document.getElementById('btnIdScanQr').onclick = startIdQr;
+  document.getElementById('btnIdScanFaceStart').onclick = startIdFace;
+  btnIdScanFace.onclick = doIdFaceScan;
+  btnIdSwitchCam.onclick = async () => {
+    idFacingMode = idFacingMode === 'user' ? 'environment' : 'user';
+    try {
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  async function startIdQr() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Menyiapkan kamera...', 'info');
+    try {
+      idFacingMode = 'environment';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    idQrBox.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Arahkan QR badge ke kamera...', 'info');
+    idQrScanning = true;
+    idQrLoop();
+  }
+
+  async function idQrLoop() {
+    const ctx = idCanvas.getContext('2d', { willReadFrequently: true });
+    while (idQrScanning) {
+      if (idVideo.readyState === idVideo.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(idVideo, 0, 0, idCanvas.width, idCanvas.height);
+        const imageData = ctx.getImageData(0, 0, idCanvas.width, idCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          idQrScanning = false;
+          await handleQrScanned(code.data.trim());
+          return;
+        }
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
+  async function handleQrScanned(rawData) {
+    let extractedId = rawData;
+    try {
+      const url = new URL(rawData);
+      const paramId = url.searchParams.get('QrCodeId') || url.searchParams.get('qrCodeId') || url.searchParams.get('qrcodeid');
+      if (paramId) extractedId = paramId;
+    } catch (e) { /* bukan URL, pakai apa adanya */ }
+    const qrId = extractedId.trim().toUpperCase();
+
+    setIdStatus('✅ QR terbaca: ' + qrId + ' -- mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qrId });
+      if (error) throw new Error(error.message);
+      if (!data || data.status === 'NOT_FOUND' || data.status === 'REJECTED' || !data.person) {
+        setIdStatus('❌ ' + (data && data.message ? data.message : 'QR tidak dikenali') + '. Coba lagi.', 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      confirmIdentity(nama, qrId);
+    } catch (e) {
+      setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
+      stopIdCamera();
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  async function loadFaceModelsOnce() {
+    if (idFaceModelsLoaded) return;
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    idFaceModelsLoaded = true;
+  }
+
+  async function startIdFace() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Memuat model wajah...', 'info');
+    try {
+      await loadFaceModelsOnce();
+    } catch (e) {
+      setIdStatus('❌ Gagal memuat model wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    setIdStatus('Mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_face_data');
+      if (error) throw new Error(error.message);
+      allFaceDataCache = data || [];
+    } catch (e) {
+      setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    if (allFaceDataCache.length === 0) {
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code saja.', 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    try {
+      idFacingMode = 'user';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    idFaceOval.style.display = 'block';
+    btnIdScanFace.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+  }
+
+  async function doIdFaceScan() {
+    btnIdScanFace.disabled = true;
+    setIdStatus('Mendeteksi wajah...', 'info');
+
+    let detection;
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = idVideo.videoWidth || 640;
+      snapCanvas.height = idVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    } catch (e) {
+      setIdStatus('❌ ' + e.message, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    if (!detection) {
+      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    const sorted = allFaceDataCache.map(p => ({
+      qrCodeId: p.qrCodeId,
+      nama: p.nama,
+      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+    })).sort((a, b) => a.distance - b.distance);
+
+    const best = sorted[0];
+    const secondBest = sorted[1];
+    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+    if (!withinThreshold) {
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (isAmbiguous) {
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    confirmIdentity(best.nama, best.qrCodeId);
+  }
+
+  function confirmIdentity(nama, qrCodeId) {
+    identifiedNama = nama;
+    identifiedQrCodeId = qrCodeId;
+    stopIdCamera();
+    setIdStatus('', null);
+    idNameEl.innerText = `${nama} (${qrCodeId})`;
+    idResultBanner.style.display = 'flex';
+    formBody.style.display = 'block';
+  }
+
+  function resetIdentification() {
+    identifiedNama = null;
+    identifiedQrCodeId = null;
+    idResultBanner.style.display = 'none';
+    formBody.style.display = 'none';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  }
+
+  // =====================================================================================
+  // SUBMIT LAPORAN
+  // =====================================================================================
+  async function submitInspeksi() {
+    if (!identifiedQrCodeId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return setStatus('❌ Identifikasi Inspektor/Observer dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
+    }
+    if (!selectedJenis) return setStatus('❌ Pilih Jenis (Inspeksi/Observasi) dulu.', 'error');
+
+    const projectId = selectProject.value;
+    const lokasi = document.getElementById('txtLokasi').value.trim();
+    const catatanUmum = document.getElementById('txtCatatanUmum').value.trim();
+
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    if (!lokasi) return setStatus('❌ Lokasi/area kerja wajib diisi.', 'error');
+
+    const items = Object.entries(checklistState);
+    const belumDiisi = items.filter(([id, st]) => !st.hasil);
+    if (belumDiisi.length > 0) {
+      window.scrollTo({ top: checklistArea.offsetTop - 20, behavior: 'smooth' });
+      return setStatus(`❌ Masih ada ${belumDiisi.length} item checklist yang belum diisi.`, 'error');
+    }
+    const tanpaKeterangan = items.filter(([id, st]) => st.hasil === 'Tidak Sesuai' && !st.keterangan.trim());
+    if (tanpaKeterangan.length > 0) {
+      return setStatus('❌ Item "Tidak Sesuai" wajib diisi keterangannya (biar jelas pas jadi laporan CERMAT).', 'error');
+    }
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
+
+    try {
+      // Upload foto per-item (kalau ada) dulu.
+      const checklistPayload = [];
+      let uploadedCount = 0;
+      const totalFotoItem = items.filter(([id, st]) => st.fotoFile).length;
+      for (const [id, st] of items) {
+        let foto = null;
+        if (st.fotoFile) {
+          uploadedCount++;
+          setStatus(`📤 Mengupload foto item ${uploadedCount}/${totalFotoItem}...`, 'info');
+          const fileName = `INSPEKSI_${Date.now()}_item${id}.jpg`;
+          const uploaded = await uploadPhotoToDrive(st.fotoFile, fileName);
+          foto = { url: uploaded.directUrl, fileId: uploaded.fileId };
+        }
+        checklistPayload.push({
+          id: Number(id),
+          kategori: st.kategori,
+          item: st.item,
+          hasil: st.hasil,
+          keterangan: st.keterangan || '',
+          foto,
+        });
+      }
+
+      // Upload foto umum lokasi (kalau ada).
+      let fotoUmumList = [];
+      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+      if (filledSlots.length > 0) {
+        setStatus(`📤 Mengupload ${filledSlots.length} foto umum...`, 'info');
+        for (const slot of filledSlots) {
+          const fileName = `INSPEKSI_UMUM_${Date.now()}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoUmumList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      setStatus('📤 Menyimpan laporan...', 'info');
+      const { data, error } = await supabaseClient.rpc('submit_inspeksi_report', {
+        p_jenis: selectedJenis,
+        p_project_id: projectId,
+        p_nama_inspektor: identifiedNama,
+        p_lokasi_area: lokasi,
+        p_checklist_items: checklistPayload,
+        p_inspektor_qrcode: identifiedQrCodeId,
+        p_catatan_umum: catatanUmum,
+        p_foto_umum_list: fotoUmumList,
+      });
+      if (error) throw error;
+
+      let msg = `✅ Laporan berhasil dikirim! No. Laporan: ${data.noLaporan}`;
+      if (data.cermatNoLaporan) {
+        msg += ` -- ${data.jumlahTidakSesuai} temuan "Tidak Sesuai" otomatis jadi Laporan CERMAT No. ${data.cermatNoLaporan} buat ditindaklanjuti.`;
+      }
+      setStatus(msg, 'success');
+      resetForm();
+    } catch (e) {
+      setStatus('❌ Gagal mengirim laporan: ' + e.message, 'error');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>📤 Kirim Laporan</span>';
+    }
+  }
+
+  function resetForm() {
+    // Identitas Inspektor SENGAJA tidak direset -- biar 1 orang bisa isi beberapa
+    // checklist berturut-turut tanpa scan ulang. Pakai tombol "Ganti" kalau perlu ganti orang.
+    selectedJenis = '';
+    document.getElementById('btnInspeksi').className = 'sifat-btn';
+    document.getElementById('btnObservasi').className = 'sifat-btn';
+    checklistArea.style.display = 'none';
+    checklistBody.innerHTML = '';
+    umumArea.style.display = 'none';
+    scorePreview.style.display = 'none';
+    checklistTemplate = [];
+    checklistState = {};
+    selectProject.value = '';
+    document.getElementById('txtLokasi').value = '';
+    document.getElementById('txtCatatanUmum').value = '';
+    for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
+  }
+</script>
+
+</body>
+</html>

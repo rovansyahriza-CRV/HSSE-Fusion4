@@ -1,0 +1,7 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git add -A
+
+git commit -m "Tambah modul Inspeksi & Observasi Lapangan" -m "- Tambah sql/014_inspeksi_schema.sql (tabel checklist template + inspeksiTbl, RPC submit/list/detail)" -m "- Tambah inspeksi-report.html (form isi checklist Inspeksi/Observasi + skor otomatis)" -m "- Tambah inspeksi-list.html (riwayat checklist, link ke CERMAT hasil auto-generate)" -m "- Temuan 'Tidak Sesuai' otomatis jadi 1 laporan CERMAT gabungan (submit_inspeksi_report memanggil submit_cermat_report)" -m "- Update cermat-list.html: tampilkan badge asal 'Dari Inspeksi ...' kalau laporan CERMAT hasil auto-generate" -m "- Update index.html: modul Inspeksi & Observasi Lapangan jadi status selesai" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+
+git push

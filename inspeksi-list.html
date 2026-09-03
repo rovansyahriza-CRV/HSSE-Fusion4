@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat Inspeksi &amp; Observasi — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  .jenis-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .jenis-badge.inspeksi { background: #E8F4FD; color: #1E88E5; }
+  .jenis-badge.observasi { background: #F1EAFB; color: #7B4FC9; }
+  .skor-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+  .skor-badge.good { background: var(--success-bg); color: var(--success); }
+  .skor-badge.warn { background: #FDF3E3; color: #8A6100; }
+  .skor-badge.bad { background: #FCEAE8; color: var(--accent); }
+  .skor-badge.none { background: var(--bg); color: var(--muted); }
+
+  .cermat-link-box {
+    display: block; background: #FCEAE8; border-radius: 10px; padding: 10px 12px; font-size: 12.5px;
+    font-weight: 700; color: var(--accent); text-decoration: none; margin-top: 4px;
+  }
+
+  .checklist-kategori { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 14px 0 6px; }
+  .checklist-review-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .checklist-review-item:last-child { border-bottom: none; }
+  .checklist-review-hasil { flex-shrink: 0; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .checklist-review-hasil.sesuai { background: var(--success-bg); color: var(--success); }
+  .checklist-review-hasil.tidak { background: #FCEAE8; color: var(--accent); }
+  .checklist-review-hasil.na { background: var(--bg); color: var(--muted); }
+  .checklist-review-keterangan { font-size: 12px; color: var(--muted); margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat Inspeksi &amp; Observasi Lapangan</h1>
+      </div>
+    </div>
+    <p>Checklist per kunjungan lapangan + skor kepatuhan otomatis. Temuan "Tidak Sesuai" langsung tersambung ke Laporan CERMAT.</p>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-jenis="" onclick="filterByJenis('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-jenis="Inspeksi" onclick="filterByJenis('Inspeksi', this)">🔧 Inspeksi</button>
+    <button type="button" class="filter-btn" data-jenis="Observasi" onclick="filterByJenis('Observasi', this)">👀 Observasi</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentJenisFilter = '';
+  let reports = [];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadReports();
+  });
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_inspeksi_reports', {
+        p_jenis: currentJenisFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByJenis(jenis, btnEl) {
+    currentJenisFilter = jenis;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function skorBadgeHtml(r) {
+    if (r.skorPersen === null || r.skorPersen === undefined) {
+      return `<span class="skor-badge none">- %</span>`;
+    }
+    const skor = Number(r.skorPersen);
+    const cls = skor >= 90 ? 'good' : skor >= 70 ? 'warn' : 'bad';
+    return `<span class="skor-badge ${cls}">${skor}%</span>`;
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function checklistReviewHtml(items) {
+    if (!items || items.length === 0) return '';
+    let html = '';
+    let currentKategori = null;
+    items.forEach(it => {
+      if (it.kategori !== currentKategori) {
+        html += `<div class="checklist-kategori">${escapeHtml(it.kategori)}</div>`;
+        currentKategori = it.kategori;
+      }
+      const hasilClass = it.hasil === 'Sesuai' ? 'sesuai' : it.hasil === 'Tidak Sesuai' ? 'tidak' : 'na';
+      const hasilIcon = it.hasil === 'Sesuai' ? '✅' : it.hasil === 'Tidak Sesuai' ? '⚠️' : '➖';
+      html += `<div class="checklist-review-item">
+        <div>
+          <div>${escapeHtml(it.item)}</div>
+          ${it.keterangan ? `<div class="checklist-review-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
+          ${it.foto ? `<a href="${driveViewUrl(it.foto)}" target="_blank"><img class="detail-photo" style="max-width:100px;" src="${drivePhotoSrc(it.foto)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(it.foto)}';"></a>` : ''}
+        </div>
+        <span class="checklist-review-hasil ${hasilClass}">${hasilIcon} ${escapeHtml(it.hasil)}</span>
+      </div>`;
+    });
+    return html;
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada laporan Inspeksi/Observasi.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noLaporan}</div>
+              <div class="report-title">${escapeHtml(r.lokasiArea)}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Oleh: ${escapeHtml(r.namaInspektor)}${r.inspektorQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <div style="display:flex; gap:6px;">
+                <span class="jenis-badge ${r.jenis.toLowerCase()}">${r.jenis === 'Observasi' ? '👀' : '🔧'} ${r.jenis}</span>
+                ${skorBadgeHtml(r)}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Ringkasan</b>${r.jumlahSesuai} Sesuai • ${r.jumlahTidakSesuai} Tidak Sesuai • ${r.jumlahNA} N/A</div>
+          ${r.cermatNoLaporan ? `<a href="cermat-list.html" target="_blank" class="cermat-link-box" onclick="event.stopPropagation()">⚠️ ${r.jumlahTidakSesuai} temuan otomatis jadi Laporan CERMAT No. ${escapeHtml(r.cermatNoLaporan)} -- klik buat buka Riwayat CERMAT</a>` : ''}
+          <div style="margin-top:10px;">${checklistReviewHtml(r.checklistItems)}</div>
+          ${r.catatanUmum ? `<div class="detail-row" style="margin-top:10px;"><b>Catatan Umum</b>${escapeHtml(r.catatanUmum)}</div>` : ''}
+          ${photoGalleryHtml('Foto Umum Lokasi', r.fotoUmumList)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function drivePhotoSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (!f) return '#';
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+</script>
+
+</body>
+</html>
