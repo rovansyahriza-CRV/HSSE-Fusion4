@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git status
+git log --oneline -5

@@ -1,0 +1,7 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+
+git add -A
+
+git commit -m "Tambah laporan cetak PDF per transaksi Incident/Accident + fitur Lampiran bebas" -m "- Tambah incident-pdf.html (laporan cetak per laporan, nyambung ke get_incident_report_by_id RPC)" -m "- Tombol 'Lihat PDF' dipasang di tiap kartu laporan incident-list.html" -m "- Tambah fitur Lampiran bebas (upload dokumen apa aja ke Google Drive) di form investigasi" -m "- Tambah folder kategori 'lampiran' di Drive Bridge (AppsScript-Code.gs)" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+
+git push

@@ -38,6 +38,7 @@ const SCRIPT_TOKEN = 'GANTI_DENGAN_TOKEN_RAHASIA_SENDIRI';
 const CATEGORY_FOLDERS = {
   photos: 'HSSE-Photos',
   reports: 'HSSE-Reports',
+  lampiran: 'HSSE-Lampiran',
 };
 
 function doPost(e) {

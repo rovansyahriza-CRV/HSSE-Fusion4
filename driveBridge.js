@@ -97,6 +97,17 @@ async function uploadPhotoToDrive(file, fileName) {
   return uploadToDrive("photos", fileName, "image/jpeg", compressed);
 }
 
+// Shortcut: upload dokumen lampiran APA AJA (PDF, Word, foto, dst) ke folder "lampiran"
+// TANPA dikompres -- beda dari uploadPhotoToDrive yang khusus foto. Nama file asli
+// (file.name) disisipkan biar gampang dikenali pas dibuka lagi dari link Drive.
+async function uploadLampiranToDrive(file) {
+  const safeName = file.name || `Lampiran_${Date.now()}`;
+  const fileName = `${Date.now()}_${safeName}`;
+  const mimeType = file.type || "application/octet-stream";
+  const result = await uploadToDrive("lampiran", fileName, mimeType, file);
+  return { ...result, fileName: safeName, mimeType };
+}
+
 // Blob -> data URL (dipakai buat nempel foto langsung ke PDF pas generate, tanpa perlu
 // fetch balik ke Drive).
 function blobToDataUrl(blob) {

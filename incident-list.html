@@ -191,6 +191,7 @@
   let currentStatusFilter = '';
   let reports = [];
   let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap loadReports()
+  let lampiranFiles = {}; // { idx: File[] } -- lampiran bebas (dokumen apa aja), direset tiap loadReports()
   let pendingApproval = {}; // { idx: {nama, qrCodeId} } -- identitas yg lolos cek Author utk tahap kartu ini
   let rejectingIdx = null; // idx kartu yang lagi nunjukin form catatan penolakan (Review -> reject)
 
@@ -247,6 +248,13 @@
     return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
   }
 
+  // Lampiran bebas (PDF/Word/foto/dst) -- ditampilkan sebagai daftar link, bukan galeri
+  // foto, karena filenya belum tentu gambar.
+  function lampiranListHtml(lampiranArr) {
+    if (!lampiranArr || lampiranArr.length === 0) return '';
+    return `<div class="detail-row"><b>Lampiran (${lampiranArr.length})</b><div style="display:flex; flex-direction:column; gap:4px; margin-top:6px;">${lampiranArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="font-size:12.5px; color:var(--navy); text-decoration:underline; word-break:break-all;">📎 ${escapeHtml(f.fileName || 'Lampiran')}</a>`).join('')}</div></div>`;
+  }
+
   // =====================================================================================
   // Render box verifikasi + isi laporan tahap saat ini -- verifikasi + isi form + submit
   // digabung jadi SATU aksi (persis pola CERMAT), tiap tahap butuh Author beda:
@@ -281,7 +289,39 @@
           <button type="button" class="slot-remove" onclick="removeFollowupPhoto(${idx}, 1, event)">✕</button>
         </div>
       </div>
+
+      <label class="mini-label">Lampiran Tambahan (opsional -- dokumen apa aja: PDF, Word, foto, dst)</label>
+      <input type="file" id="lampiran-input-${idx}" multiple onchange="handleLampiranPicked(event, ${idx})" style="width:100%; margin-bottom:6px;">
+      <div id="lampiran-preview-${idx}" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
     </div>`;
+  }
+
+  // Render daftar file yang baru dipilih (belum diupload) buat satu kartu -- dipanggil
+  // tiap kali input file lampiran berubah, biar orangnya bisa lihat & hapus sebelum submit.
+  function renderLampiranPreview(idx) {
+    const box = document.getElementById(`lampiran-preview-${idx}`);
+    if (!box) return;
+    const files = lampiranFiles[idx] || [];
+    box.innerHTML = files.map((f, i) => `
+      <div style="display:flex; align-items:center; gap:6px; font-size:12px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 8px;">
+        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${escapeHtml(f.name)}</span>
+        <button type="button" onclick="removeLampiranFile(${idx}, ${i})" style="border:none; background:transparent; color:var(--accent); font-weight:700; cursor:pointer;">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function handleLampiranPicked(event, idx) {
+    const picked = Array.from(event.target.files || []);
+    if (picked.length === 0) return;
+    lampiranFiles[idx] = [...(lampiranFiles[idx] || []), ...picked];
+    event.target.value = ''; // biar bisa milih file yang sama lagi / nambah lagi
+    renderLampiranPreview(idx);
+  }
+
+  function removeLampiranFile(idx, fileIdx) {
+    if (!lampiranFiles[idx]) return;
+    lampiranFiles[idx].splice(fileIdx, 1);
+    renderLampiranPreview(idx);
   }
 
   function stageAreaHtml(r, idx) {
@@ -365,6 +405,7 @@
 
   function renderReports() {
     followupPhotoSlots = {};
+    lampiranFiles = {};
     const container = document.getElementById('reportContainer');
     if (reports.length === 0) {
       container.innerHTML = '<div class="empty-state">Belum ada laporan Incident/Accident.</div>';
@@ -381,8 +422,11 @@
               <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
-              <span class="klas-badge ${KLAS_CLASS[r.klasifikasi] || ''}">${r.klasifikasi}</span>
-              <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+              <div style="display:flex; gap:6px;">
+                <span class="klas-badge ${KLAS_CLASS[r.klasifikasi] || ''}">${r.klasifikasi}</span>
+                <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
+              </div>
+              <a href="incident-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
             </div>
           </div>
         </div>
@@ -395,6 +439,7 @@
           ${r.akarMasalah ? `<div class="detail-row"><b>Akar Masalah</b>${escapeHtml(r.akarMasalah)}</div>` : ''}
           ${r.tindakanKorektif ? `<div class="detail-row"><b>Tindakan Korektif</b>${escapeHtml(r.tindakanKorektif)}</div>` : ''}
           ${photoGalleryHtml('Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList)}
+          ${lampiranListHtml(r.lampiranList)}
           ${r.investigasiOleh ? `<div class="detail-row"><b>Investigasi Oleh</b>✅ ${escapeHtml(r.investigasiOleh)} (${escapeHtml(r.investigasiQrCodeId || '')}) — ${formatDate(r.tanggalInvestigasi)}</div>` : ''}
           ${r.reviewOleh ? `<div class="detail-row"><b>Direview Oleh</b>✅ ${escapeHtml(r.reviewOleh)} (${escapeHtml(r.reviewQrCodeId || '')}) — ${formatDate(r.tanggalReview)}</div>` : ''}
           ${r.lessonLearned ? `<div class="detail-row"><b>Lesson Learned</b>${escapeHtml(r.lessonLearned)}</div>` : ''}
@@ -456,6 +501,7 @@
     const btn = document.getElementById(`btn-update-${idx}`);
 
     const filledSlots = [0, 1].map(s => followupPhotoSlots[`${idx}-${s}`]).filter(Boolean);
+    const pickedLampiran = lampiranFiles[idx] || [];
 
     try {
       let fotoTambahan = [];
@@ -469,6 +515,16 @@
         }
       }
 
+      let lampiranTambahan = [];
+      if (pickedLampiran.length > 0) {
+        btn.disabled = true;
+        for (let i = 0; i < pickedLampiran.length; i++) {
+          btn.innerText = `⏳ Mengupload lampiran ${i + 1}/${pickedLampiran.length}...`;
+          const uploaded = await uploadLampiranToDrive(pickedLampiran[i]);
+          lampiranTambahan.push({ url: uploaded.directUrl, fileId: uploaded.fileId, fileName: uploaded.fileName, mimeType: uploaded.mimeType });
+        }
+      }
+
       btn.disabled = true;
       btn.innerText = '⏳ Mengirim...';
       const { error } = await supabaseClient.rpc('incident_submit_investigation', {
@@ -479,6 +535,7 @@
         p_tindakan_korektif: tindakanKorektif,
         p_hari_kerja_hilang: hariKerjaHilang,
         p_foto_tambahan: fotoTambahan,
+        p_lampiran: lampiranTambahan,
         p_nama: verified.nama,
         p_qrcode: verified.qrCodeId,
       });

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Laporan Investigasi — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  .sheet {
+    max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 14px;
+  }
+  .doc-header .brand img { width: 76px; height: 76px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 19px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .no-laporan { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text); margin-top: 3px; font-weight: 700; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+  }
+  .info-cell { padding: 8px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .badge-open { background: #FCEAE8; color: var(--accent); }
+  .badge-investigasi { background: #FDF3E3; color: var(--safety-yellow); }
+  .badge-review { background: #E8F4FD; color: #1E88E5; }
+  .badge-closed { background: var(--success-bg); color: var(--success); }
+  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
+
+  .klas-badge.klas-nearmiss { background: #E8F4FD; color: #1E88E5; }
+  .klas-badge.klas-fac { background: var(--success-bg); color: var(--success); }
+  .klas-badge.klas-mtc { background: #FDF3E3; color: var(--safety-yellow); }
+  .klas-badge.klas-rwc { background: #FDE9D8; color: #C56A15; }
+  .klas-badge.klas-lti { background: #FCEAE8; color: var(--accent); }
+  .klas-badge.klas-fatality { background: #2A1010; color: #fff; }
+  .klas-badge.klas-properti { background: #EFEFF4; color: #5B5F6B; }
+  .klas-badge.klas-lingkungan { background: #E4F5E9; color: #1E7A46; }
+  .klas-badge.klas-security { background: #F0E9FB; color: #6A3FBF; }
+
+  .section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1.5px solid var(--navy);
+  }
+  .section-body { font-size: 11px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .photo-grid { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .photo-grid img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; }
+
+  .lampiran-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .lampiran-list a { color: var(--navy); text-decoration: underline; font-size: 11px; word-break: break-all; }
+
+  .lesson-box {
+    border: 1.5px solid var(--safety-yellow); background: #FFFBF2; border-radius: 8px; padding: 12px 14px;
+  }
+  .lesson-box .section-title { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; color: #8A6100; }
+  .lesson-box .section-body { font-size: 11.5px; font-weight: 600; color: #4A3400; }
+
+  .status-box { border: 1.5px solid var(--border); border-radius: 8px; padding: 12px 14px; background: #FAFBFD; }
+  .status-box .status-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .status-box .status-top .status-label { font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.06em; }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .status-grid .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .status-grid .value { font-size: 10.5px; font-weight: 700; }
+  .closing-note { font-size: 10px; background: var(--success-bg); color: var(--success); border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
+  .closing-note b { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .rejection-note { font-size: 10px; background: #FDF3E3; color: #8A6100; border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
+  .rejection-note b { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 8.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9px; font-weight: 700; }
+  .signature-box .sub { font-size: 7.5px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 6mm 8mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4; margin: 10mm; }
+  }
+
+  @media screen and (max-width: 780px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 4vw 10mm; }
+    .doc-header { flex-wrap: wrap; row-gap: 10px; }
+    .doc-header .doc-title { text-align: left; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(3n) { border-right: 1px solid var(--border); }
+    .info-cell:nth-child(2n) { border-right: none; }
+    .two-col { grid-template-columns: 1fr; }
+    .signature-row { grid-template-columns: 1fr 1fr; gap: 20px; }
+    .doc-footer { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="incident-list.html">⬅ Kembali ke Riwayat</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, dan aktifkan opsi "Background graphics" biar warna badge-nya ikut kecetak.</div>
+
+<div id="loadingState" class="loading">Memuat laporan...</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan Investigasi Incident/Accident</h1>
+      <div class="no-laporan" id="fNoLaporan"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Tanggal &amp; Waktu</div>
+      <div class="value" id="fTanggal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Project / Kontrak</div>
+      <div class="value" id="fProject"></div>
+      <div class="value small" id="fKontrak"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Pelapor</div>
+      <div class="value" id="fPelapor"></div>
+      <div class="value small" id="fQrCodeId"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Klasifikasi</div>
+      <div class="value" id="fKlasifikasi"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Lokasi / Area Kerja</div>
+      <div class="value" id="fLokasi"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Hari Kerja Hilang</div>
+      <div class="value" id="fHariKerjaHilang"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kronologi Kejadian</div>
+    <div class="section-body" id="fKronologi"></div>
+  </div>
+
+  <div class="section two-col" id="korbanTindakanSection">
+    <div id="korbanCol" style="display:none;">
+      <div class="section-title">Korban / Pihak Terlibat</div>
+      <div class="section-body" id="fKorban"></div>
+    </div>
+    <div>
+      <div class="section-title">Tindakan Langsung</div>
+      <div class="section-body" id="fTindakan"></div>
+    </div>
+  </div>
+
+  <div class="section" id="fotoKejadianSection">
+    <div class="section-title" id="fotoKejadianTitle">Foto Bukti Kejadian</div>
+    <div class="photo-grid" id="fotoKejadianGrid"></div>
+  </div>
+
+  <div class="section two-col">
+    <div>
+      <div class="section-title">Akar Masalah</div>
+      <div class="section-body" id="fAkarMasalah"></div>
+    </div>
+    <div>
+      <div class="section-title">Tindakan Korektif</div>
+      <div class="section-body" id="fTindakanKorektif"></div>
+    </div>
+  </div>
+
+  <div class="section" id="fotoTindakLanjutSection">
+    <div class="section-title" id="fotoTindakLanjutTitle">Foto Tindak Lanjut / Bukti Perbaikan</div>
+    <div class="photo-grid" id="fotoTindakLanjutGrid"></div>
+  </div>
+
+  <div class="section" id="lampiranSection">
+    <div class="section-title" id="lampiranTitle">Lampiran</div>
+    <div class="lampiran-list" id="lampiranList"></div>
+  </div>
+
+  <div class="section lesson-box" id="lessonSection">
+    <div class="section-title">Lesson Learned</div>
+    <div class="section-body" id="fLessonLearned"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Status Tindak Lanjut &amp; Penutupan</div>
+    <div class="status-box">
+      <div class="status-top">
+        <div class="status-label">Status Saat Ini</div>
+        <span class="badge" id="fStatusBadge"></span>
+      </div>
+      <div class="status-grid">
+        <div>
+          <div class="label">Penanggung Jawab</div>
+          <div class="value" id="fPenanggungJawab"></div>
+        </div>
+        <div>
+          <div class="label">Tenggat</div>
+          <div class="value" id="fTenggat"></div>
+        </div>
+        <div>
+          <div class="label">Tanggal Ditutup</div>
+          <div class="value" id="fTanggalClosed"></div>
+        </div>
+      </div>
+      <div class="closing-note" id="fCatatanClosedBox" style="display:none;">
+        <b>Catatan Penutupan</b>
+        <span id="fCatatanClosed"></span>
+      </div>
+      <div class="rejection-note" id="fCatatanPenolakanBox" style="display:none;">
+        <b>Dikembalikan Reviewer</b>
+        <span id="fCatatanPenolakan"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dibuat Oleh (Pelapor)</div>
+      <div class="line" id="fSignPelapor">&nbsp;</div>
+      <div class="sub" id="fSignQrCodeId">&nbsp;</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Investigasi Oleh</div>
+      <div class="line" id="fSignInvestigasi">&nbsp;</div>
+      <div class="sub" id="fSignInvestigasiSub">Nama &amp; Tanda Tangan</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Direview Oleh</div>
+      <div class="line" id="fSignReview">&nbsp;</div>
+      <div class="sub" id="fSignReviewSub">Nama &amp; Tanda Tangan</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Disetujui &amp; Ditutup Oleh</div>
+      <div class="line" id="fSignApproved">&nbsp;</div>
+      <div class="sub" id="fSignApprovedSub">Nama &amp; Tanda Tangan</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const KLAS_CLASS = {
+    'Near Miss': 'klas-nearmiss',
+    'First Aid Case': 'klas-fac',
+    'Medical Treatment Case': 'klas-mtc',
+    'Restricted Work Case': 'klas-rwc',
+    'Lost Time Injury': 'klas-lti',
+    'Fatality': 'klas-fatality',
+    'Kerusakan Properti': 'klas-properti',
+    'Lingkungan': 'klas-lingkungan',
+    'Keamanan/Security': 'klas-security',
+  };
+
+  function driveThumbSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w800`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function formatDateOnly(str) {
+    if (!str) return '-';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+  function statusBadgeClass(status) {
+    if (status === 'Open') return 'badge-open';
+    if (status === 'Investigasi') return 'badge-investigasi';
+    if (status === 'Review') return 'badge-review';
+    return 'badge-closed';
+  }
+
+  function fillSignatureBox(lineId, subId, nama, qrCodeId, tanggal) {
+    const lineEl = document.getElementById(lineId);
+    const subEl = document.getElementById(subId);
+    if (!nama) return; // biarin default: garis kosong + "Nama & Tanda Tangan" (belum lewat tahap ini)
+    lineEl.innerText = nama;
+    subEl.innerHTML = `&#10003; Verifikasi digital${qrCodeId ? ' — ' + escapeHtml(qrCodeId) : ''}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
+  }
+
+  function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = '';
+    titleEl.innerText = `${titleText} (${fotoArr.length})`;
+    gridEl.innerHTML = fotoArr.map(f =>
+      `<img src="${driveThumbSrc(f)}" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';">`
+    ).join('');
+  }
+
+  async function loadReport() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Id laporan tidak ditemukan di URL.';
+      return;
+    }
+
+    try {
+      const { data: r, error } = await supabaseClient.rpc('get_incident_report_by_id', { p_id: id });
+      if (error) throw error;
+      if (!r) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorState').innerText = '❌ Laporan tidak ditemukan.';
+        return;
+      }
+
+      document.title = `${r.noLaporan} — HSSE-Fusion4`;
+      document.getElementById('fNoLaporan').innerText = r.noLaporan;
+      document.getElementById('fTanggal').innerText = formatDate(r.tanggalWaktu);
+      document.getElementById('fProject').innerText = r.namaProject;
+      document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
+      document.getElementById('fPelapor').innerHTML = escapeHtml(r.namaPelapor) +
+        (r.pelaporQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
+      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId ? `QrCodeId: ${r.pelaporQrCodeId}` : '';
+      document.getElementById('fKlasifikasi').innerHTML = `<span class="badge klas-badge ${KLAS_CLASS[r.klasifikasi] || ''}">${escapeHtml(r.klasifikasi)}</span>`;
+      document.getElementById('fLokasi').innerText = r.lokasiArea;
+      document.getElementById('fHariKerjaHilang').innerText = r.hariKerjaHilang != null ? `${r.hariKerjaHilang} hari` : '—';
+      document.getElementById('fKronologi').innerText = r.kronologi;
+      document.getElementById('fTindakan').innerText = r.tindakanLangsung || '-';
+      document.getElementById('fAkarMasalah').innerText = r.akarMasalah || '-';
+      document.getElementById('fTindakanKorektif').innerText = r.tindakanKorektif || '-';
+
+      // Korban cuma ditampilkan kalau memang diisi (klasifikasi tanpa korban -- misal
+      // Near Miss/Lingkungan -- gak akan punya field ini).
+      if (r.namaKorban) {
+        document.getElementById('korbanCol').style.display = '';
+        document.getElementById('fKorban').innerText = r.namaKorban +
+          (r.jabatanPerusahaanKorban ? ' — ' + r.jabatanPerusahaanKorban : '');
+      }
+
+      const statusBadge = document.getElementById('fStatusBadge');
+      statusBadge.innerText = r.status;
+      statusBadge.className = 'badge ' + statusBadgeClass(r.status);
+
+      document.getElementById('fPenanggungJawab').innerText = r.penanggungJawab || '—';
+      document.getElementById('fTenggat').innerText = r.tenggat ? formatDateOnly(r.tenggat) : '—';
+      document.getElementById('fTanggalClosed').innerText = r.tanggalClosed ? formatDate(r.tanggalClosed) : '—';
+
+      if (r.catatanClosed) {
+        document.getElementById('fCatatanClosedBox').style.display = 'block';
+        document.getElementById('fCatatanClosed').innerText = r.catatanClosed;
+      }
+      if (r.catatanPenolakan) {
+        document.getElementById('fCatatanPenolakanBox').style.display = 'block';
+        document.getElementById('fCatatanPenolakan').innerText = r.catatanPenolakan;
+      }
+
+      renderPhotoGrid(
+        document.getElementById('fotoKejadianGrid'), document.getElementById('fotoKejadianSection'),
+        document.getElementById('fotoKejadianTitle'), 'Foto Bukti Kejadian', r.fotoList
+      );
+      renderPhotoGrid(
+        document.getElementById('fotoTindakLanjutGrid'), document.getElementById('fotoTindakLanjutSection'),
+        document.getElementById('fotoTindakLanjutTitle'), 'Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList
+      );
+
+      // Lampiran -- daftar link, bukan galeri foto (filenya belum tentu gambar).
+      if (r.lampiranList && r.lampiranList.length > 0) {
+        document.getElementById('lampiranSection').style.display = '';
+        document.getElementById('lampiranTitle').innerText = `Lampiran (${r.lampiranList.length})`;
+        document.getElementById('lampiranList').innerHTML = r.lampiranList.map(f =>
+          `<a href="${driveViewUrl(f)}" target="_blank">📎 ${escapeHtml(f.fileName || 'Lampiran')}</a>`
+        ).join('');
+      } else {
+        document.getElementById('lampiranSection').style.display = 'none';
+      }
+
+      // Lesson Learned baru ada setelah tahap Review dilewati.
+      if (r.lessonLearned) {
+        document.getElementById('lessonSection').style.display = '';
+        document.getElementById('fLessonLearned').innerText = r.lessonLearned;
+      } else {
+        document.getElementById('lessonSection').style.display = 'none';
+      }
+
+      document.getElementById('fSignPelapor').innerText = r.namaPelapor;
+      document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId || '';
+
+      fillSignatureBox('fSignInvestigasi', 'fSignInvestigasiSub', r.investigasiOleh, r.investigasiQrCodeId, r.tanggalInvestigasi);
+      fillSignatureBox('fSignReview', 'fSignReviewSub', r.reviewOleh, r.reviewQrCodeId, r.tanggalReview);
+      fillSignatureBox('fSignApproved', 'fSignApprovedSub', r.approvedOleh, r.approvedQrCodeId, r.tanggalApproved);
+
+      document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('sheet').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Gagal memuat laporan: ' + e.message;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+
+</body>
+</html>
