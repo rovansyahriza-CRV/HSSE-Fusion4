@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah barcode beneran buat TTD Digital di PDF HSE Meeting" -m "- hse-meeting-pdf.html: TTD Digital sekarang render barcode Code128 asli (pakai jsbarcode@3.12.3) buat tiap peserta di tabel Daftar Peserta dan buat pemimpin rapat di kotak tanda tangan -- sebelumnya cuma teks kode doang. Kalau library barcode-nya gagal load, teks kodenya tetap kebaca (gak ke-block)." -m "- sql/025_fix_get_all_face_data_kualifikasi.sql: fix bug Jabatan selalu kosong buat peserta yang absen pakai Scan Wajah/Input PIN -- ternyata get_all_face_data() di Fusion4 gak pernah balikin field kualifikasi (beda kasus sama Scan QR Code yang udah dibenerin di migrasi 021). Migrasi ini dijalankan di project Supabase FUSION4, bukan HSSE-Fusion4." -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

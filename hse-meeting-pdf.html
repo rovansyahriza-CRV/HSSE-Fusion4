@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cetak Notulen HSE Meeting — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.3/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
@@ -95,6 +96,10 @@
   .peserta-table th, .peserta-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
   .peserta-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 800; }
   .peserta-table tr:last-child td { border-bottom: none; }
+  .peserta-table td.ttd-digital { font-family: 'Courier New', monospace; font-size: 8px; color: var(--navy-dark); font-weight: 700; white-space: nowrap; }
+  .ttd-barcode { display: block; height: 22px; }
+  .ttd-digital-code { display: block; margin-top: 1px; }
+  .ttd-digital-fallback { font-family: 'Courier New', monospace; font-size: 8px; }
 
   /* ===== Tindak Lanjut ===== */
   .tindak-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
@@ -110,6 +115,7 @@
   .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
   .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
   .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+  .signature-box .sub.ttd-digital-sub { font-family: 'Courier New', monospace; font-weight: 700; color: var(--navy-dark); word-break: break-all; }
 
   .doc-footer {
     margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -225,7 +231,8 @@
     <div class="signature-box">
       <div class="role">Dipimpin Oleh</div>
       <div class="line" id="fSignPemimpin">&nbsp;</div>
-      <div class="sub" id="fSignQrCodeId">&nbsp;</div>
+      <svg id="fSignBarcode" class="ttd-barcode" style="margin: 4px auto 0;"></svg>
+      <div class="sub ttd-digital-sub" id="fSignQrCodeId">&nbsp;</div>
     </div>
     <div class="signature-box">
       <div class="role">Mengetahui (HSE / Management)</div>
@@ -299,15 +306,44 @@
     `).join('');
   }
 
-  function renderPeserta(items) {
+  function renderPeserta(items, noMeeting) {
     const body = document.getElementById('fPesertaBody');
     document.getElementById('fJumlahPeserta').innerText = items ? items.length + ' orang' : '0 orang';
     if (!items || items.length === 0) { body.innerHTML = '-'; return; }
     const sorted = [...items].sort((a, b) => new Date(a.jamHadir || 0) - new Date(b.jamHadir || 0));
+    // TTD Digital -- bukti tanda tangan digital tiap peserta yang udah verifikasi diri
+    // sendiri (Scan QR/Wajah/PIN) pas absen: barcode + kode teks-nya, formatnya
+    // QrCodeId&NoMeeting biar unik per orang DAN per dokumen (gak bisa dipakai ulang
+    // buat notulen lain).
     body.innerHTML = `<table class="peserta-table">
-      <thead><tr><th style="width:28px;">No</th><th>Nama</th><th>Jabatan</th><th style="width:60px;">Jam Hadir</th></tr></thead>
-      <tbody>${sorted.map((p, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama)}</td><td>${escapeHtml(p.jabatan) || '-'}</td><td>${p.jamHadir ? formatJamOnly(p.jamHadir) : '-'}</td></tr>`).join('')}</tbody>
+      <thead><tr><th style="width:22px;">No</th><th>Nama</th><th>Jabatan</th><th style="width:50px;">Jam Hadir</th><th style="width:130px;">TTD Digital</th></tr></thead>
+      <tbody>${sorted.map((p, i) => {
+        const code = p.qrCodeId ? `${p.qrCodeId}&${noMeeting}` : '';
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(p.nama)}</td>
+          <td>${escapeHtml(p.jabatan) || '-'}</td>
+          <td>${p.jamHadir ? formatJamOnly(p.jamHadir) : '-'}</td>
+          <td class="ttd-digital">${code ? `<svg class="ttd-barcode" data-code="${escapeHtml(code)}"></svg><span class="ttd-digital-code">${escapeHtml(code)}</span>` : '-'}</td>
+        </tr>`;
+      }).join('')}</tbody>
     </table>`;
+    renderBarcodes();
+  }
+
+  // Render tiap <svg class="ttd-barcode" data-code="..."> jadi barcode Code128 beneran.
+  // Kalau library-nya gagal load/generate (misal CDN lagi bermasalah), jangan sampai
+  // nge-block tampilan lain -- teks kode di bawahnya (ttd-digital-code) tetap kebaca.
+  function renderBarcodes() {
+    document.querySelectorAll('.ttd-barcode[data-code]').forEach(svg => {
+      const code = svg.getAttribute('data-code');
+      try {
+        if (typeof JsBarcode === 'undefined') throw new Error('Library JsBarcode belum termuat');
+        JsBarcode(svg, code, { format: 'CODE128', width: 1, height: 20, margin: 2, displayValue: false });
+      } catch (e) {
+        console.error('Gagal generate barcode:', e);
+      }
+    });
   }
 
   function tindakRowsHtml(items) {
@@ -372,7 +408,7 @@
       document.getElementById('fLokasi').innerText = r.lokasiRapat || '-';
 
       renderAgenda(r.agendaList);
-      renderPeserta(r.pesertaList);
+      renderPeserta(r.pesertaList, r.noMeeting);
 
       const anyNestedTindak = (r.agendaList || []).some(a => a.tindakLanjutList && a.tindakLanjutList.length > 0);
       if (!anyNestedTindak && (r.tindakLanjutList || []).length > 0) {
@@ -391,7 +427,20 @@
       );
 
       document.getElementById('fSignPemimpin').innerText = r.namaPemimpin;
-      document.getElementById('fSignQrCodeId').innerText = r.pemimpinQrCodeId || '';
+      // TTD Digital pemimpin rapat -- QrCodeId&NoMeeting, sama formatnya (barcode +
+      // teks) kayak TTD Digital tiap peserta di tabel Daftar Peserta.
+      if (r.pemimpinQrCodeId) {
+        const leaderCode = `${r.pemimpinQrCodeId}&${r.noMeeting}`;
+        document.getElementById('fSignQrCodeId').innerText = `TTD Digital: ${leaderCode}`;
+        try {
+          if (typeof JsBarcode === 'undefined') throw new Error('Library JsBarcode belum termuat');
+          JsBarcode('#fSignBarcode', leaderCode, { format: 'CODE128', width: 1.2, height: 28, margin: 4, displayValue: false });
+        } catch (e) {
+          console.error('Gagal generate barcode pemimpin:', e);
+        }
+      } else {
+        document.getElementById('fSignQrCodeId').innerText = '';
+      }
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

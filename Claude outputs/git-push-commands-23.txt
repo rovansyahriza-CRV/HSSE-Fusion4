@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah TTD Digital (QrCodeId&NoMeeting) di PDF Notulen HSE Meeting" -m "- hse-meeting-pdf.html: tabel Daftar Peserta nambah kolom 'TTD Digital' -- tiap peserta yang udah verifikasi diri sendiri (Scan QR/Wajah/PIN) pas absen dapet kode tanda tangan sendiri, formatnya QrCodeId&NoMeeting (unik per orang & per dokumen)." -m "- Kotak tanda tangan 'Dipimpin Oleh' juga nampilin TTD Digital pemimpin rapat dengan format yang sama." -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push
