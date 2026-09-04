@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sesi HSE Meeting — Layar Absen — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
@@ -52,6 +52,10 @@
   .qr-frame canvas { display: block; }
   .qr-hint { margin-top: 16px; font-size: 15px; font-weight: 700; text-align: center; }
   .qr-link { margin-top: 8px; font-size: 12px; color: #9CA8C9; text-align: center; word-break: break-all; }
+  .qr-fallback-msg {
+    display: none; margin-top: 12px; text-align: center; font-size: 12.5px; font-weight: 700;
+    color: var(--safety-yellow); background: rgba(245,166,35,0.12); border-radius: 10px; padding: 10px 14px;
+  }
 
   .counter-row { text-align: center; margin-bottom: 18px; }
   .counter-row .num { font-size: 56px; font-weight: 800; color: var(--safety-yellow); line-height: 1; }
@@ -104,6 +108,7 @@
           <div class="qr-frame"><canvas id="qrCanvas"></canvas></div>
           <div class="qr-hint">📱 Scan QR ini pakai HP buat absen hadir</div>
           <div class="qr-link" id="qrLinkText"></div>
+          <div class="qr-fallback-msg" id="qrFallbackMsg">⚠️ Gambar QR gagal dimuat (kemungkinan jaringan/CDN). Peserta bisa buka link di atas langsung lewat browser HP.</div>
         </div>
 
         <div id="finishedBanner" class="finished-banner" style="display:none;">✅ Sesi sudah Selesai -- absen ditutup.</div>
@@ -169,11 +174,16 @@
     const checkinUrl = SITE_BASE_URL + 'hse-meeting-checkin.html?id=' + sessionId;
     document.getElementById('qrLinkText').innerText = checkinUrl;
     try {
+      if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
       QRCode.toCanvas(document.getElementById('qrCanvas'), checkinUrl, { width: 320, margin: 1 }, (err) => {
-        if (err) console.error('Gagal generate QR:', err);
+        if (err) {
+          console.error('Gagal generate QR:', err);
+          document.getElementById('qrFallbackMsg').style.display = 'block';
+        }
       });
     } catch (e) {
       console.error('Gagal generate QR:', e);
+      document.getElementById('qrFallbackMsg').style.display = 'block';
     }
     qrRendered = true;
   }

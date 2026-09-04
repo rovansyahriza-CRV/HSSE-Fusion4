@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Fix QR code absen HSE Meeting gak muncul (versi CDN qrcode salah)" -m "- Ketauan root cause: cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js 404 -- mulai versi 1.5.2 npm package 'qrcode' udah gak nyertain file build/ hasil bundle-nya. Turunin ke versi 1.5.1 yang masih ada file build-nya (dicek langsung, kembaliin JS valid)." -m "- hse-meeting-report.html & hse-meeting-session.html: tambah pesan peringatan yang keliatan di halaman (bukan cuma console.error) kalau QR gagal digenerate lagi ke depannya -- biar ketauan sendiri tanpa perlu nanya lagi, dan peserta tetap bisa pakai link manual buat absen." -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

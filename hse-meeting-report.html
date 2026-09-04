@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="driveBridge.js"></script>
@@ -91,6 +91,10 @@
   .attendee-row:last-child { border-bottom: none; }
   .attendee-row .jam { color: var(--muted); font-size: 11px; flex-shrink: 0; }
   .attendee-empty { text-align: center; color: var(--muted); font-size: 12.5px; padding: 16px; }
+  .qr-fallback-msg {
+    display: none; text-align: center; font-size: 11.5px; color: var(--accent); font-weight: 700;
+    background: #FCEAE8; border-radius: 8px; padding: 8px 10px; margin-top: 8px;
+  }
 </style>
 </head>
 <body>
@@ -188,6 +192,7 @@
 
     <div class="qr-box">
       <canvas id="qrCanvas"></canvas>
+      <div class="qr-fallback-msg" id="qrFallbackMsg">⚠️ Gambar QR gagal dimuat (kemungkinan jaringan/CDN). Pakai link di bawah buat share manual ke peserta.</div>
       <div class="qr-link-row">
         <input type="text" id="qrLinkText" readonly>
         <button type="button" onclick="copyCheckinLink()">📋 Copy</button>
@@ -386,11 +391,16 @@
     // lagi jelek), jangan sampai nge-block link check-in & polling peserta di bawah ini.
     // Link-nya masih bisa di-copy manual atau dibuka lewat tombol layar besar.
     try {
+      if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
       QRCode.toCanvas(document.getElementById('qrCanvas'), checkinUrl, { width: 220, margin: 1 }, (err) => {
-        if (err) console.error('Gagal generate QR:', err);
+        if (err) {
+          console.error('Gagal generate QR:', err);
+          document.getElementById('qrFallbackMsg').style.display = 'block';
+        }
       });
     } catch (e) {
       console.error('Gagal generate QR:', e);
+      document.getElementById('qrFallbackMsg').style.display = 'block';
     }
 
     document.getElementById('linkSessionDisplay').href = 'hse-meeting-session.html?id=' + currentSessionId;
