@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah 9 Jenis Pekerjaan baru + ubah Jenis Pekerjaan jadi combobox pencarian (dynamic filter)" -m "- sql/020_ptw_jenis_pekerjaan_tambahan.sql: tambah Hazard Checklist + contoh JSA buat 9 Jenis Pekerjaan baru (Pengelasan & Pemotongan, Scaffolding, Sandblasting & Painting/Coating, Line Breaking, Radiography/NDT, Pressure Test, Bekerja di Atas Air/Marine Work, Bahan Kimia Berbahaya, Mobilisasi Kendaraan/Alat Berat) -- total jadi 16 Jenis Pekerjaan" -m "- ptw-report.html: dropdown Jenis Pekerjaan diganti jadi combobox yang bisa diketik buat nyaring (dynamic filter) -- lebih enak dicari operator sekarang listnya udah 16 item, support klik & keyboard (panah atas/bawah, Enter, Escape), ada tombol clear (x)" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

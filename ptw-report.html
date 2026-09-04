@@ -31,6 +31,29 @@
   #formBody { display: none; }
   #hazardArea, #jsaArea { display: none; }
 
+  /* ===== Jenis Pekerjaan -- combobox bisa dicari (dynamic filter) ===== */
+  .searchable-select { position: relative; }
+  .searchable-select input[type="text"] { padding-right: 34px; }
+  .searchable-select input[type="text"]:disabled { background: var(--bg); color: var(--muted); }
+  .searchable-select-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border: none; background: var(--bg); border-radius: 999px;
+    color: var(--muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .searchable-select-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    max-height: 260px; overflow-y: auto; box-shadow: 0 8px 24px rgba(20,25,50,0.14);
+  }
+  .searchable-select-dropdown.open { display: block; }
+  .searchable-select-option {
+    padding: 11px 14px; font-size: 13.5px; cursor: pointer; border-bottom: 1px solid var(--border);
+  }
+  .searchable-select-option:last-child { border-bottom: none; }
+  .searchable-select-option:hover, .searchable-select-option.highlight { background: var(--bg); }
+  .searchable-select-option.selected { background: #EEF2FC; font-weight: 700; color: var(--navy-dark); }
+  .searchable-select-empty { padding: 14px; font-size: 12.5px; color: var(--muted); text-align: center; }
+
   /* ===== JSA table (dinamis, tambah baris) ===== */
   .jsa-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative; }
   .jsa-row-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
@@ -122,10 +145,13 @@
 
   <div class="card">
     <div class="form-group">
-      <label for="selectJenisPekerjaan">Jenis Pekerjaan</label>
-      <select id="selectJenisPekerjaan" onchange="onJenisPekerjaanChange()">
-        <option value="">-- Memuat daftar jenis pekerjaan... --</option>
-      </select>
+      <label for="jenisPekerjaanInput">Jenis Pekerjaan</label>
+      <div class="searchable-select" id="jenisPekerjaanBox">
+        <input type="text" id="jenisPekerjaanInput" placeholder="Memuat daftar jenis pekerjaan..." autocomplete="off" disabled
+          oninput="onJenisPekerjaanSearch()" onfocus="openJenisPekerjaanDropdown()" onkeydown="onJenisPekerjaanKeydown(event)">
+        <button type="button" class="searchable-select-clear" id="btnClearJenis" onclick="clearJenisPekerjaan()" style="display:none;">✕</button>
+        <div class="searchable-select-dropdown" id="jenisPekerjaanDropdown"></div>
+      </div>
     </div>
 
     <div class="form-group">
@@ -235,6 +261,9 @@
   let photoSlots = [null, null, null];
   let projectList = [];
   let jenisPekerjaanList = [];
+  let selectedJenisPekerjaan = '';
+  let jenisPekerjaanFiltered = [];
+  let jenisPekerjaanHighlight = -1;
   let hazardTemplate = []; // [{id, item}]
   let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
   let jsaRowCount = 0;
@@ -246,7 +275,10 @@
   const statusMsg = document.getElementById('statusMsg');
   const btnSubmit = document.getElementById('btnSubmit');
   const selectProject = document.getElementById('selectProject');
-  const selectJenisPekerjaan = document.getElementById('selectJenisPekerjaan');
+  const jenisPekerjaanBox = document.getElementById('jenisPekerjaanBox');
+  const jenisPekerjaanInput = document.getElementById('jenisPekerjaanInput');
+  const jenisPekerjaanDropdown = document.getElementById('jenisPekerjaanDropdown');
+  const btnClearJenis = document.getElementById('btnClearJenis');
   const formBody = document.getElementById('formBody');
   const jsaArea = document.getElementById('jsaArea');
   const jsaRows = document.getElementById('jsaRows');
@@ -283,19 +315,103 @@
       if (error) throw error;
       jenisPekerjaanList = data || [];
       if (jenisPekerjaanList.length === 0) {
-        selectJenisPekerjaan.innerHTML = '<option value="">Belum ada jenis pekerjaan -- hubungi admin</option>';
+        jenisPekerjaanInput.placeholder = 'Belum ada jenis pekerjaan -- hubungi admin';
         return;
       }
-      selectJenisPekerjaan.innerHTML = '<option value="">-- Pilih Jenis Pekerjaan --</option>' +
-        jenisPekerjaanList.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join('');
+      jenisPekerjaanInput.placeholder = 'Cari / pilih Jenis Pekerjaan...';
+      jenisPekerjaanInput.disabled = false;
     } catch (e) {
-      selectJenisPekerjaan.innerHTML = '<option value="">Gagal memuat jenis pekerjaan</option>';
+      jenisPekerjaanInput.placeholder = 'Gagal memuat jenis pekerjaan';
       setStatus('❌ Gagal memuat jenis pekerjaan: ' + e.message, 'error');
     }
   }
 
+  // ===== Jenis Pekerjaan -- combobox pencarian (dynamic filter) =====
+  // Daftar Jenis Pekerjaan makin banyak (16+), jadi dropdown biasa diganti input
+  // yang bisa diketik buat nyaring list-nya -- lebih enak dicari operator di lapangan.
+  function renderJenisPekerjaanOptions(filterText) {
+    const filter = (filterText || '').trim().toLowerCase();
+    jenisPekerjaanFiltered = filter ? jenisPekerjaanList.filter(j => j.toLowerCase().includes(filter)) : jenisPekerjaanList;
+    jenisPekerjaanHighlight = jenisPekerjaanFiltered.length > 0 ? 0 : -1;
+    renderJenisPekerjaanDropdown();
+  }
+
+  function renderJenisPekerjaanDropdown() {
+    if (jenisPekerjaanFiltered.length === 0) {
+      jenisPekerjaanDropdown.innerHTML = '<div class="searchable-select-empty">Gak ketemu -- coba kata kunci lain.</div>';
+      return;
+    }
+    jenisPekerjaanDropdown.innerHTML = jenisPekerjaanFiltered.map((j, i) => `
+      <div class="searchable-select-option${j === selectedJenisPekerjaan ? ' selected' : ''}${i === jenisPekerjaanHighlight ? ' highlight' : ''}"
+        data-jenis="${escapeHtml(j)}">${escapeHtml(j)}</div>
+    `).join('');
+  }
+
+  jenisPekerjaanDropdown.addEventListener('click', (e) => {
+    const opt = e.target.closest('.searchable-select-option[data-jenis]');
+    if (!opt) return;
+    pickJenisPekerjaan(opt.dataset.jenis);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (jenisPekerjaanBox.contains(e.target)) return;
+    jenisPekerjaanDropdown.classList.remove('open');
+    jenisPekerjaanInput.value = selectedJenisPekerjaan; // buang ketikan yang belum dipilih
+  });
+
+  function openJenisPekerjaanDropdown() {
+    if (jenisPekerjaanList.length === 0) return;
+    renderJenisPekerjaanOptions('');
+    jenisPekerjaanDropdown.classList.add('open');
+  }
+
+  function onJenisPekerjaanSearch() {
+    renderJenisPekerjaanOptions(jenisPekerjaanInput.value);
+    jenisPekerjaanDropdown.classList.add('open');
+  }
+
+  function onJenisPekerjaanKeydown(e) {
+    if (!jenisPekerjaanDropdown.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (jenisPekerjaanFiltered.length === 0) return;
+      jenisPekerjaanHighlight = (jenisPekerjaanHighlight + 1) % jenisPekerjaanFiltered.length;
+      renderJenisPekerjaanDropdown();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (jenisPekerjaanFiltered.length === 0) return;
+      jenisPekerjaanHighlight = (jenisPekerjaanHighlight - 1 + jenisPekerjaanFiltered.length) % jenisPekerjaanFiltered.length;
+      renderJenisPekerjaanDropdown();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (jenisPekerjaanHighlight >= 0 && jenisPekerjaanFiltered[jenisPekerjaanHighlight]) {
+        pickJenisPekerjaan(jenisPekerjaanFiltered[jenisPekerjaanHighlight]);
+      }
+    } else if (e.key === 'Escape') {
+      jenisPekerjaanDropdown.classList.remove('open');
+      jenisPekerjaanInput.value = selectedJenisPekerjaan;
+      jenisPekerjaanInput.blur();
+    }
+  }
+
+  function pickJenisPekerjaan(jenis) {
+    selectedJenisPekerjaan = jenis;
+    jenisPekerjaanInput.value = jenis;
+    btnClearJenis.style.display = 'flex';
+    jenisPekerjaanDropdown.classList.remove('open');
+    onJenisPekerjaanChange();
+  }
+
+  function clearJenisPekerjaan() {
+    selectedJenisPekerjaan = '';
+    jenisPekerjaanInput.value = '';
+    btnClearJenis.style.display = 'none';
+    jenisPekerjaanInput.focus();
+    onJenisPekerjaanChange();
+  }
+
   async function onJenisPekerjaanChange() {
-    const jenis = selectJenisPekerjaan.value;
+    const jenis = selectedJenisPekerjaan;
     if (!jenis) {
       hazardArea.style.display = 'none';
       jsaArea.style.display = 'none';
@@ -849,7 +965,7 @@
       return setStatus('❌ Identifikasi Requester dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
     }
 
-    const jenisPekerjaan = selectJenisPekerjaan.value;
+    const jenisPekerjaan = selectedJenisPekerjaan;
     const woNo = document.getElementById('txtWoNo').value.trim();
     const projectId = selectProject.value;
     const lokasi = document.getElementById('txtLokasi').value.trim();
@@ -940,7 +1056,10 @@
   function resetForm() {
     // Identitas Requester SENGAJA tidak direset -- biar 1 orang bisa ajukan beberapa
     // permit berturut-turut tanpa scan ulang.
-    selectJenisPekerjaan.value = '';
+    selectedJenisPekerjaan = '';
+    jenisPekerjaanInput.value = '';
+    btnClearJenis.style.display = 'none';
+    jenisPekerjaanDropdown.classList.remove('open');
     document.getElementById('txtWoNo').value = '';
     selectProject.value = '';
     document.getElementById('txtLokasi').value = '';
