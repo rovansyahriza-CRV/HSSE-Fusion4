@@ -57,6 +57,10 @@
     background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
   }
   .empty-hint { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 0; }
+  .carried-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; color: var(--navy);
+    background: #EEF2FC; padding: 2px 8px; border-radius: 999px; margin-bottom: 8px;
+  }
 
   /* ===== Sesi berlangsung -- QR absen + peserta live ===== */
   .session-banner {
@@ -287,6 +291,7 @@
   let tindakRowCount = 0;
   let currentSessionId = null;
   let currentNoMeeting = null;
+  let currentProjectId = null;
   let pollTimer = null;
   // Diisi dari ?resume=<id> di URL -- dipakai buat lanjut/tutup notulen sesi yang
   // udah dibuka sebelumnya (misal leader sempat tutup tab), lewat link di hse-meeting-list.html.
@@ -374,6 +379,7 @@
 
       currentSessionId = data.id;
       currentNoMeeting = data.noMeeting;
+      currentProjectId = projectId;
       setStatus('', null);
       renderSessionLive(lokasi);
       startPolling();
@@ -493,8 +499,24 @@
     fotoCard.style.display = 'block';
 
     if (agendaRows.children.length === 0) addAgendaRow();
+    if (tindakRows.children.length === 0) await loadCarriedTindakLanjut();
     renderTindakEmptyHint();
     notulenCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Tindak Lanjut berstatus Open (atau yang baru aja Selesai, 1x lagi) dari rapat
+  // sebelumnya di project yang sama -- otomatis diisikan ke sini biar gak ketinggalan
+  // ke-track sampai beneran kelar. Leader tetap bisa ubah/hapus/tambah manual.
+  async function loadCarriedTindakLanjut() {
+    if (!currentProjectId) return;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_carried_tindak_lanjut', { p_project_id: currentProjectId });
+      if (error) throw error;
+      (data || []).forEach(item => addTindakRow(item));
+    } catch (e) {
+      // Non-blocking -- leader masih bisa isi Tindak Lanjut manual kalau ini gagal.
+      console.error('Gagal memuat tindak lanjut dari rapat sebelumnya:', e.message);
+    }
   }
 
   function renderPesertaSummary(list) {
@@ -558,13 +580,23 @@
     tindakEmptyHint.style.display = tindakRows.children.length === 0 ? 'block' : 'none';
   }
 
+  function generateTindakId() {
+    return 'TL' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
   function addTindakRow(prefill) {
     const rowId = tindakRowCount++;
     const div = document.createElement('div');
     div.className = 'dyn-row';
     div.id = `tindak-row-${rowId}`;
+    // id & closedCarryCount dipertahankan tiap kali item ini kebawa dari rapat
+    // sebelumnya (get_carried_tindak_lanjut) -- gak ditampilkan, cuma buat nge-track
+    // biar item yang statusnya Selesai cuma nampang 1x lagi di rapat sesudahnya.
+    div.dataset.itemId = (prefill && prefill.id) ? prefill.id : generateTindakId();
+    div.dataset.closedCarryCount = (prefill && prefill.closedCarryCount) ? String(prefill.closedCarryCount) : '0';
     div.innerHTML = `
       <div class="dyn-row-label">Tindak Lanjut ${tindakRows.children.length + 1}</div>
+      ${prefill && prefill.carried ? '<span class="carried-badge">↺ Dari rapat sebelumnya</span>' : ''}
       <button type="button" class="btn-remove-row" onclick="removeTindakRow(${rowId})">✕</button>
       <span class="dyn-mini-label">Item / Tindak Lanjut</span>
       <textarea id="tindak-item-${rowId}" placeholder="Contoh: Perbaikan pagar pengaman di area X"></textarea>
@@ -607,11 +639,16 @@
   function collectTindakItems() {
     return Array.from(tindakRows.children).map(row => {
       const rowId = row.id.replace('tindak-row-', '');
+      const status = document.getElementById(`tindak-status-${rowId}`).value;
       return {
+        id: row.dataset.itemId,
         item: document.getElementById(`tindak-item-${rowId}`).value.trim(),
         pic: document.getElementById(`tindak-pic-${rowId}`).value.trim(),
         deadline: document.getElementById(`tindak-deadline-${rowId}`).value || '',
-        status: document.getElementById(`tindak-status-${rowId}`).value,
+        status: status,
+        // Cuma relevan buat item Selesai -- penanda udah berapa kali nampang ulang
+        // di rapat sesudah statusnya ditutup (lihat get_carried_tindak_lanjut).
+        closedCarryCount: status === 'Selesai' ? parseInt(row.dataset.closedCarryCount || '0', 10) : 0,
       };
     });
   }
@@ -1001,6 +1038,7 @@
 
       currentSessionId = data.id;
       currentNoMeeting = data.noMeeting;
+      currentProjectId = data.projectId;
       tipeMeeting = data.tipeMeeting;
 
       if (data.status !== 'Berlangsung') {
@@ -1092,6 +1130,7 @@
     // berikutnya tanpa scan ulang.
     currentSessionId = null;
     currentNoMeeting = null;
+    currentProjectId = null;
     resumeSessionId = null;
     stopPolling();
     document.getElementById('startSessionCard').style.display = 'block';
