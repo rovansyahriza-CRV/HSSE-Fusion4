@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absen HSE Meeting — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  #idArea, #resultArea { display: none; }
+  .meeting-brief {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); color: #fff;
+    border-radius: 14px; padding: 16px 18px; margin-bottom: 14px;
+  }
+  .meeting-brief .no-meeting { font-family: monospace; font-size: 11px; color: var(--safety-yellow); font-weight: 700; }
+  .meeting-brief .judul { font-size: 16px; font-weight: 800; margin-top: 3px; }
+  .meeting-brief .meta { font-size: 12px; color: #C7CEE8; margin-top: 6px; line-height: 1.6; }
+
+  .result-card { text-align: center; padding: 20px 10px; }
+  .result-icon { font-size: 48px; margin-bottom: 10px; }
+  .result-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .result-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .result-card.success .result-title { color: var(--success); }
+  .result-card.warn .result-title { color: #8A6100; }
+
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="page" style="max-width:480px;">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Absen HSE Meeting</h1>
+      </div>
+    </div>
+    <p>Verifikasi diri kamu sendiri (Scan QR badge, Wajah, atau PIN) buat tercatat hadir -- boleh pakai HP siapa aja, yang penting identitasnya kamu sendiri.</p>
+  </div>
+
+  <div id="statusMsg" class="status-msg"></div>
+  <div id="loadingState" class="card" style="text-align:center; color:var(--muted);">Memuat info sesi...</div>
+
+  <div id="idArea">
+    <div class="meeting-brief">
+      <div class="no-meeting" id="fNoMeeting"></div>
+      <div class="judul" id="fJudul"></div>
+      <div class="meta">
+        <div id="fProject"></div>
+        <div id="fLokasi"></div>
+        <div id="fTanggal"></div>
+        <div>👥 <span id="fJumlahPeserta"></span> peserta udah absen</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:4px;">Verifikasi Diri Kamu</h2>
+      <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu sendiri.</p>
+
+      <div class="id-gate-buttons" id="idGateButtons">
+        <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
+        <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+        <button type="button" id="btnIdUsePin">🔢 Input PIN</button>
+      </div>
+
+      <div class="cam-wrap" id="idCamWrap">
+        <video id="idVideo" autoplay muted playsinline></video>
+        <canvas id="idCanvas" style="display:none;"></canvas>
+        <div class="cam-face-oval" id="idFaceOval"></div>
+        <div class="cam-qr-box" id="idQrBox"></div>
+      </div>
+      <div id="idCamStatus" class="status-msg"></div>
+      <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
+      <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+      <form class="id-pin-form" id="idPinForm" onsubmit="return false;">
+        <input type="password" inputmode="numeric" id="idPinInput" placeholder="Masukkan PIN">
+        <button type="button" class="btn-block btn-primary" id="btnIdPinSubmit">Verifikasi PIN</button>
+        <button type="button" class="id-pin-cancel" id="btnIdPinCancel">Batal</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="resultArea" class="card">
+    <div class="result-card" id="resultCard">
+      <div class="result-icon" id="resultIcon">✅</div>
+      <div class="result-title" id="resultTitle"></div>
+      <div class="result-sub" id="resultSub"></div>
+      <button type="button" class="btn-block btn-primary" onclick="resetCheckin()">🔁 Absen Peserta Lain (Gantian HP)</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+
+  const statusMsg = document.getElementById('statusMsg');
+  const loadingState = document.getElementById('loadingState');
+  const idArea = document.getElementById('idArea');
+  const resultArea = document.getElementById('resultArea');
+
+  let sessionId = null;
+
+  function setStatus(text, kind) {
+    if (!text) { statusMsg.style.display = 'none'; return; }
+    statusMsg.className = 'status-msg ' + (kind || 'info');
+    statusMsg.innerText = text;
+    statusMsg.style.display = 'block';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(window.location.search);
+    sessionId = params.get('id');
+    if (!sessionId) {
+      loadingState.innerText = '❌ Id sesi tidak ditemukan di link. Pastikan buka link dari QR yang benar.';
+      return;
+    }
+    await loadMeetingInfo();
+  });
+
+  async function loadMeetingInfo() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_meeting_checkin_info', { p_id: sessionId });
+      if (error) throw error;
+      if (!data || !data.found) {
+        showLoadingMessage('❌ Sesi HSE Meeting tidak ditemukan. Cek lagi link/QR-nya.');
+        return;
+      }
+      if (data.status !== 'Berlangsung') {
+        showLoadingMessage(`⚠️ Sesi "${data.noMeeting}" sudah Selesai -- absen udah ditutup.`);
+        return;
+      }
+
+      document.getElementById('fNoMeeting').innerText = data.noMeeting;
+      document.getElementById('fJudul').innerText = `HSE Meeting ${data.tipeMeeting}`;
+      document.getElementById('fProject').innerText = '🏗️ ' + data.namaProject;
+      document.getElementById('fLokasi').innerText = data.lokasiRapat ? '📍 ' + data.lokasiRapat : '';
+      document.getElementById('fTanggal').innerText = '🗓️ ' + formatDate(data.tanggalRapat);
+      document.getElementById('fJumlahPeserta').innerText = data.jumlahPeserta;
+
+      loadingState.style.display = 'none';
+      resultArea.style.display = 'none';
+      idArea.style.display = 'block';
+    } catch (e) {
+      showLoadingMessage('❌ Gagal memuat info sesi: ' + e.message);
+    }
+  }
+
+  // Dipakai buat kasih tau kondisi akhir (sesi gak ketemu / udah Selesai / error) --
+  // selalu pastikan loadingState-nya KEBUKA lagi, karena bisa dipanggil ulang dari
+  // resetCheckin() setelah sebelumnya sempat ditutup pas absen sukses.
+  function showLoadingMessage(text) {
+    loadingState.innerText = text;
+    loadingState.style.display = 'block';
+    idArea.style.display = 'none';
+    resultArea.style.display = 'none';
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // =====================================================================================
+  // IDENTIFIKASI PESERTA -- pola sama kayak form lain di HSSE-Fusion4, TAPI TANPA cek
+  // Author tag -- siapa aja yang berhasil verifikasi diri boleh tercatat hadir.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let idFacingMode = "environment";
+  let idQrScanning = false;
+  let idFaceModelsLoaded = false;
+  let allFaceDataCache = null;
+  let isSubmittingCheckin = false;
+
+  const idGateButtons = document.getElementById('idGateButtons');
+  const idCamWrap = document.getElementById('idCamWrap');
+  const idVideo = document.getElementById('idVideo');
+  const idCanvas = document.getElementById('idCanvas');
+  const idFaceOval = document.getElementById('idFaceOval');
+  const idQrBox = document.getElementById('idQrBox');
+  const idCamStatus = document.getElementById('idCamStatus');
+  const btnIdScanFace = document.getElementById('btnIdScanFace');
+  const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idPinForm = document.getElementById('idPinForm');
+  const idPinInput = document.getElementById('idPinInput');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  async function ensureAllFaceData() {
+    if (allFaceDataCache) return allFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    allFaceDataCache = data || [];
+    return allFaceDataCache;
+  }
+
+  function setIdStatus(text, kind) {
+    if (!text) { idCamStatus.style.display = 'none'; return; }
+    idCamStatus.className = 'status-msg ' + (kind || 'info');
+    idCamStatus.innerText = text;
+    idCamStatus.style.display = 'block';
+  }
+
+  async function ensureIdCamera(facingMode) {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    idVideo.srcObject = stream;
+    await idVideo.play();
+    idCanvas.width = idVideo.videoWidth;
+    idCanvas.height = idVideo.videoHeight;
+    idCamWrap.style.display = 'block';
+  }
+
+  function stopIdCamera() {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    idQrScanning = false;
+    idCamWrap.style.display = 'none';
+    idFaceOval.style.display = 'none';
+    idQrBox.style.display = 'none';
+    btnIdScanFace.style.display = 'none';
+    btnIdSwitchCam.style.display = 'none';
+  }
+
+  document.getElementById('btnIdScanQr').onclick = startIdQr;
+  document.getElementById('btnIdScanFaceStart').onclick = startIdFace;
+  btnIdScanFace.onclick = doIdFaceScan;
+  btnIdSwitchCam.onclick = async () => {
+    idFacingMode = idFacingMode === 'user' ? 'environment' : 'user';
+    try {
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnIdUsePin').onclick = () => {
+    idGateButtons.style.display = 'none';
+    idPinForm.style.display = 'block';
+    idPinInput.value = '';
+    setIdStatus('', null);
+    idPinInput.focus();
+  };
+
+  document.getElementById('btnIdPinCancel').onclick = () => {
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  };
+
+  document.getElementById('btnIdPinSubmit').onclick = async () => {
+    const pin = idPinInput.value.trim();
+    if (!pin) return setIdStatus('❌ Isi PIN dulu.', 'error');
+    setIdStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureAllFaceData();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
+      doCheckin(getPersonField(match, ['nama'], '(tanpa nama)'), getPersonField(match, ['qrCodeId'], ''), getPersonField(match, ['kualifikasi'], ''));
+    } catch (e) {
+      setIdStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  async function startIdQr() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Menyiapkan kamera...', 'info');
+    try {
+      idFacingMode = 'environment';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    idQrBox.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Arahkan QR badge kamu ke kamera...', 'info');
+    idQrScanning = true;
+    idQrLoop();
+  }
+
+  async function idQrLoop() {
+    const ctx = idCanvas.getContext('2d', { willReadFrequently: true });
+    while (idQrScanning) {
+      if (idVideo.readyState === idVideo.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(idVideo, 0, 0, idCanvas.width, idCanvas.height);
+        const imageData = ctx.getImageData(0, 0, idCanvas.width, idCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          idQrScanning = false;
+          await handleQrScanned(code.data.trim());
+          return;
+        }
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
+  async function handleQrScanned(rawData) {
+    let extractedId = rawData;
+    try {
+      const url = new URL(rawData);
+      const paramId = url.searchParams.get('QrCodeId') || url.searchParams.get('qrCodeId') || url.searchParams.get('qrcodeid');
+      if (paramId) extractedId = paramId;
+    } catch (e) { /* bukan URL, pakai apa adanya */ }
+    const qrId = extractedId.trim().toUpperCase();
+
+    setIdStatus('✅ QR terbaca: ' + qrId + ' -- mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qrId });
+      if (error) throw new Error(error.message);
+      if (!data || data.status === 'NOT_FOUND' || data.status === 'REJECTED' || !data.person) {
+        setIdStatus('❌ ' + (data && data.message ? data.message : 'QR tidak dikenali') + '. Coba lagi.', 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      const jabatan = getPersonField(data.person, ['kualifikasi'], '');
+      stopIdCamera();
+      doCheckin(nama, qrId, jabatan);
+    } catch (e) {
+      setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
+      stopIdCamera();
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  async function loadFaceModelsOnce() {
+    if (idFaceModelsLoaded) return;
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    idFaceModelsLoaded = true;
+  }
+
+  async function startIdFace() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Memuat model wajah...', 'info');
+    try {
+      await loadFaceModelsOnce();
+    } catch (e) {
+      setIdStatus('❌ Gagal memuat model wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    setIdStatus('Mengambil data karyawan...', 'info');
+    try {
+      await ensureAllFaceData();
+    } catch (e) {
+      setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    if (allFaceDataCache.length === 0) {
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code atau Input PIN.', 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    try {
+      idFacingMode = 'user';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    idFaceOval.style.display = 'block';
+    btnIdScanFace.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+  }
+
+  async function doIdFaceScan() {
+    btnIdScanFace.disabled = true;
+    setIdStatus('Mendeteksi wajah...', 'info');
+
+    let detection;
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = idVideo.videoWidth || 640;
+      snapCanvas.height = idVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    } catch (e) {
+      setIdStatus('❌ ' + e.message, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    if (!detection) {
+      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    const sorted = allFaceDataCache.map(p => ({
+      person: p,
+      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+    })).sort((a, b) => a.distance - b.distance);
+
+    const best = sorted[0];
+    const secondBest = sorted[1];
+    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+    if (!withinThreshold) {
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code / PIN.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (isAmbiguous) {
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code atau PIN untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    stopIdCamera();
+    doCheckin(getPersonField(best.person, ['nama'], ''), getPersonField(best.person, ['qrCodeId'], ''), getPersonField(best.person, ['kualifikasi'], ''));
+  }
+
+  // =====================================================================================
+  // KIRIM CHECK-IN KE SERVER
+  // =====================================================================================
+  async function doCheckin(nama, qrCodeId, jabatan) {
+    if (isSubmittingCheckin) return;
+    isSubmittingCheckin = true;
+    setIdStatus('Mencatat kehadiran...', 'info');
+    try {
+      const { data, error } = await supabaseClient.rpc('checkin_hse_meeting', {
+        p_id: sessionId, p_nama: nama, p_qrcode: qrCodeId, p_jabatan: jabatan || '',
+      });
+      if (error) throw error;
+
+      if (data.duplicate) {
+        showResult('warn', '⚠️', 'Udah Tercatat Hadir', `${escapeHtml(nama)} udah absen jam ${formatJam(data.jamHadir)} tadi.`);
+      } else if (data.success) {
+        showResult('success', '✅', 'Berhasil Absen!', `${escapeHtml(nama)} tercatat hadir. Makasih!`);
+      } else {
+        showResult('warn', '❌', 'Gagal Absen', data.message || 'Sesi ini mungkin udah ditutup.');
+      }
+    } catch (e) {
+      showResult('warn', '❌', 'Gagal Absen', e.message);
+    } finally {
+      isSubmittingCheckin = false;
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  function formatJam(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function showResult(kind, icon, title, sub) {
+    setIdStatus('', null);
+    idArea.style.display = 'none';
+    resultArea.style.display = 'block';
+    const resultCard = document.getElementById('resultCard');
+    resultCard.className = 'result-card ' + kind;
+    document.getElementById('resultIcon').innerText = icon;
+    document.getElementById('resultTitle').innerText = title;
+    document.getElementById('resultSub').innerHTML = sub;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetCheckin() {
+    resultArea.style.display = 'none';
+    idArea.style.display = 'block';
+    idGateButtons.style.display = 'flex';
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    setIdStatus('', null);
+    loadMeetingInfo(); // refresh counter peserta biar update
+  }
+</script>
+
+</body>
+</html>

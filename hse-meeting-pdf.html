@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Notulen HSE Meeting — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  /* ===== Toolbar (gak ikut kecetak) ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  /* ===== Lembar notulen (dicetak) ===== */
+  .sheet {
+    max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 14px;
+  }
+  .doc-header .brand img { width: 76px; height: 76px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 19px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .no-laporan { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text); margin-top: 3px; font-weight: 700; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+  }
+  .info-cell { padding: 8px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .info-cell:nth-last-child(-n+3) { border-bottom: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .badge-mingguan { background: #E8F4FD; color: #1E88E5; }
+  .badge-bulanan { background: #F1EAFB; color: #7B4FC9; }
+  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
+  .badge-berlangsung { background: #FDF3E3; color: #8A6100; margin-left: 6px; }
+  .badge-selesai-status { background: var(--success-bg); color: var(--success); margin-left: 6px; }
+
+  .section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1.5px solid var(--navy);
+  }
+  .section-body { font-size: 11px; }
+
+  .photo-grid { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .photo-grid img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; }
+
+  /* ===== Agenda ===== */
+  .agenda-row { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
+  .agenda-row:last-child { border-bottom: none; }
+  .agenda-row .topik { font-weight: 700; }
+  .agenda-row .pembahasan { color: var(--muted); margin-top: 2px; }
+
+  /* ===== Peserta ===== */
+  .peserta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .peserta-table th, .peserta-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  .peserta-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 800; }
+  .peserta-table tr:last-child td { border-bottom: none; }
+
+  /* ===== Tindak Lanjut ===== */
+  .tindak-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+    padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
+  .tindak-row:last-child { border-bottom: none; }
+  .tindak-row-meta { font-size: 9.5px; color: var(--muted); margin-top: 2px; }
+  .status-pill { flex-shrink: 0; font-size: 8.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .status-pill.open { background: #FDF3E3; color: #8A6100; }
+  .status-pill.selesai { background: var(--success-bg); color: var(--success); }
+
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 24px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+  .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 6mm 8mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4; margin: 10mm; }
+  }
+
+  @media screen and (max-width: 780px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 4vw 10mm; }
+    .doc-header { flex-wrap: wrap; row-gap: 10px; }
+    .doc-header .doc-title { text-align: left; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(3n) { border-right: 1px solid var(--border); }
+    .info-cell:nth-child(2n) { border-right: none; }
+    .info-cell:nth-last-child(-n+3) { border-bottom: 1px solid var(--border); }
+    .info-cell:nth-last-child(-n+2) { border-bottom: none; }
+    .signature-row { grid-template-columns: 1fr; gap: 22px; }
+    .signature-box { text-align: left; }
+    .signature-box .role { margin-bottom: 20px; }
+    .doc-footer { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="hse-meeting-list.html">⬅ Kembali ke Riwayat</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, dan aktifkan opsi "Background graphics" biar warna badge-nya ikut kecetak.</div>
+
+<div id="loadingState" class="loading">Memuat notulen...</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Notulen HSE Meeting</h1>
+      <div class="no-laporan" id="fNoMeeting"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Tanggal &amp; Waktu Rapat</div>
+      <div class="value" id="fTanggal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Project / Kontrak</div>
+      <div class="value" id="fProject"></div>
+      <div class="value small" id="fKontrak"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Pemimpin Rapat</div>
+      <div class="value" id="fPemimpin"></div>
+      <div class="value small" id="fQrCodeId"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Tipe Meeting</div>
+      <div class="value" id="fTipe"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Lokasi Rapat</div>
+      <div class="value" id="fLokasi"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Jumlah Peserta</div>
+      <div class="value" id="fJumlahPeserta"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Agenda &amp; Pembahasan</div>
+    <div class="section-body" id="fAgendaBody">-</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Daftar Peserta</div>
+    <div class="section-body" id="fPesertaBody">-</div>
+  </div>
+
+  <div class="section" id="tindakSection">
+    <div class="section-title">Tindak Lanjut / Action Item</div>
+    <div class="section-body" id="fTindakBody">-</div>
+  </div>
+
+  <div class="section" id="catatanSection" style="display:none;">
+    <div class="section-title">Catatan Tambahan</div>
+    <div class="section-body" id="fCatatan"></div>
+  </div>
+
+  <div class="section" id="fotoSection" style="display:none;">
+    <div class="section-title" id="fotoTitle">Foto Dokumentasi</div>
+    <div class="photo-grid" id="fotoGrid"></div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dipimpin Oleh</div>
+      <div class="line" id="fSignPemimpin">&nbsp;</div>
+      <div class="sub" id="fSignQrCodeId">&nbsp;</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Mengetahui (HSE / Management)</div>
+      <div class="line">&nbsp;</div>
+      <div class="sub">Nama &amp; Tanda Tangan</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function driveThumbSrc(f) {
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w800`;
+    return f.url || '';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  function formatJamOnly(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+
+  function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = '';
+    if (titleEl) titleEl.innerText = `${titleText} (${fotoArr.length})`;
+    gridEl.innerHTML = fotoArr.map(f =>
+      `<img src="${driveThumbSrc(f)}" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';">`
+    ).join('');
+  }
+
+  function renderAgenda(items) {
+    const body = document.getElementById('fAgendaBody');
+    if (!items || items.length === 0) { body.innerHTML = '-'; return; }
+    body.innerHTML = items.map(it => `
+      <div class="agenda-row">
+        <div class="topik">${escapeHtml(it.topik)}</div>
+        ${it.pembahasan ? `<div class="pembahasan">${escapeHtml(it.pembahasan)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderPeserta(items) {
+    const body = document.getElementById('fPesertaBody');
+    document.getElementById('fJumlahPeserta').innerText = items ? items.length + ' orang' : '0 orang';
+    if (!items || items.length === 0) { body.innerHTML = '-'; return; }
+    const sorted = [...items].sort((a, b) => new Date(a.jamHadir || 0) - new Date(b.jamHadir || 0));
+    body.innerHTML = `<table class="peserta-table">
+      <thead><tr><th style="width:28px;">No</th><th>Nama</th><th>Jabatan</th><th style="width:60px;">Jam Hadir</th></tr></thead>
+      <tbody>${sorted.map((p, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(p.nama)}</td><td>${escapeHtml(p.jabatan) || '-'}</td><td>${p.jamHadir ? formatJamOnly(p.jamHadir) : '-'}</td></tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  function renderTindak(items) {
+    const body = document.getElementById('fTindakBody');
+    if (!items || items.length === 0) {
+      body.innerHTML = '<span style="color:var(--muted);">Tidak ada tindak lanjut dari rapat ini.</span>';
+      return;
+    }
+    body.innerHTML = items.map(it => {
+      const isSelesai = it.status === 'Selesai';
+      return `
+      <div class="tindak-row">
+        <div>
+          <div>${escapeHtml(it.item)}</div>
+          <div class="tindak-row-meta">${it.pic ? 'PIC: ' + escapeHtml(it.pic) : 'PIC: -'}${it.deadline ? ' &nbsp;•&nbsp; Deadline: ' + formatDateOnly(it.deadline) : ''}</div>
+        </div>
+        <span class="status-pill ${isSelesai ? 'selesai' : 'open'}">${isSelesai ? '✅ Selesai' : '⏳ Open'}</span>
+      </div>
+    `;
+    }).join('');
+  }
+
+  async function loadReport() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Id notulen tidak ditemukan di URL.';
+      return;
+    }
+
+    try {
+      const { data: r, error } = await supabaseClient.rpc('get_hse_meeting_by_id', { p_id: id });
+      if (error) throw error;
+      if (!r) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorState').innerText = '❌ Notulen tidak ditemukan.';
+        return;
+      }
+
+      document.title = `${r.noMeeting} — HSSE-Fusion4`;
+      document.getElementById('fNoMeeting').innerText = r.noMeeting;
+      document.getElementById('fTanggal').innerText = formatDate(r.tanggalRapat);
+      document.getElementById('fProject').innerText = r.namaProject;
+      document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
+      document.getElementById('fPemimpin').innerHTML = escapeHtml(r.namaPemimpin) +
+        (r.pemimpinQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
+      document.getElementById('fQrCodeId').innerText = r.pemimpinQrCodeId ? `QrCodeId: ${r.pemimpinQrCodeId}` : '';
+      const statusBadge = r.status === 'Berlangsung'
+        ? '<span class="badge badge-berlangsung">🔴 Berlangsung</span>'
+        : '<span class="badge badge-selesai-status">✅ Selesai</span>';
+      document.getElementById('fTipe').innerHTML = `<span class="badge ${r.tipeMeeting === 'Bulanan' ? 'badge-bulanan' : 'badge-mingguan'}">${r.tipeMeeting === 'Bulanan' ? '🗓️' : '📅'} ${r.tipeMeeting}</span> ${statusBadge}`;
+      document.getElementById('fLokasi').innerText = r.lokasiRapat || '-';
+
+      renderAgenda(r.agendaList);
+      renderPeserta(r.pesertaList);
+      renderTindak(r.tindakLanjutList);
+
+      if (r.catatanTambahan) {
+        document.getElementById('catatanSection').style.display = 'block';
+        document.getElementById('fCatatan').innerText = r.catatanTambahan;
+      }
+
+      renderPhotoGrid(
+        document.getElementById('fotoGrid'), document.getElementById('fotoSection'),
+        document.getElementById('fotoTitle'), 'Foto Dokumentasi', r.fotoList
+      );
+
+      document.getElementById('fSignPemimpin').innerText = r.namaPemimpin;
+      document.getElementById('fSignQrCodeId').innerText = r.pemimpinQrCodeId || '';
+
+      document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('sheet').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Gagal memuat notulen: ' + e.message;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+
+</body>
+</html>

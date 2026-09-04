@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat HSE Meeting — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  .tipe-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .tipe-badge.mingguan { background: #E8F4FD; color: #1E88E5; }
+  .tipe-badge.bulanan { background: #F1EAFB; color: #7B4FC9; }
+
+  .status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .status-badge.berlangsung { background: #FDF3E3; color: #8A6100; }
+  .status-badge.selesai { background: var(--success-bg); color: var(--success); }
+
+  .section-title { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 14px 0 6px; }
+  .agenda-review-item { padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .agenda-review-item:last-child { border-bottom: none; }
+  .agenda-review-topik { font-weight: 700; }
+  .agenda-review-pembahasan { color: var(--muted); margin-top: 3px; }
+
+  .peserta-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .peserta-chip {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+    font-size: 12px; font-weight: 600;
+  }
+  .peserta-chip .jabatan { color: var(--muted); font-weight: 500; }
+
+  .tindak-review-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .tindak-review-item:last-child { border-bottom: none; }
+  .tindak-review-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .tindak-status-badge { flex-shrink: 0; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .tindak-status-badge.open { background: #FDF3E3; color: #8A6100; }
+  .tindak-status-badge.selesai { background: var(--success-bg); color: var(--success); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat HSE Meeting</h1>
+      </div>
+    </div>
+    <p>Notulen HSE Weekly &amp; Monthly Meeting -- agenda, peserta, dan tindak lanjut per rapat.</p>
+    <a href="alur-hse-meeting.pdf" target="_blank" class="pdf-link" style="margin-top:10px;">📄 Lihat Alur Proses (PDF)</a>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-tipe="" onclick="filterByTipe('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-tipe="Mingguan" onclick="filterByTipe('Mingguan', this)">📅 Mingguan</button>
+    <button type="button" class="filter-btn" data-tipe="Bulanan" onclick="filterByTipe('Bulanan', this)">🗓️ Bulanan</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentTipeFilter = '';
+  let reports = [];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadReports();
+  });
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_meeting_list', {
+        p_tipe_meeting: currentTipeFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByTipe(tipe, btnEl) {
+    currentTipeFilter = tipe;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function agendaReviewHtml(items) {
+    if (!items || items.length === 0) return '<div class="empty-state" style="padding:10px 0;">Belum ada agenda.</div>';
+    return items.map(it => `
+      <div class="agenda-review-item">
+        <div class="agenda-review-topik">${escapeHtml(it.topik)}</div>
+        ${it.pembahasan ? `<div class="agenda-review-pembahasan">${escapeHtml(it.pembahasan)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function pesertaChipsHtml(items) {
+    if (!items || items.length === 0) return '<div class="empty-state" style="padding:10px 0;">Belum ada peserta.</div>';
+    const sorted = [...items].sort((a, b) => new Date(a.jamHadir || 0) - new Date(b.jamHadir || 0));
+    return `<div class="peserta-chip-list">${sorted.map(p => `
+      <span class="peserta-chip">${escapeHtml(p.nama)}${p.jabatan ? ` <span class="jabatan">-- ${escapeHtml(p.jabatan)}</span>` : ''}${p.jamHadir ? ` <span class="jabatan">(${formatJam(p.jamHadir)})</span>` : ''}</span>
+    `).join('')}</div>`;
+  }
+
+  function tindakReviewHtml(items) {
+    if (!items || items.length === 0) return '<div class="empty-state" style="padding:10px 0;">Tidak ada tindak lanjut.</div>';
+    return items.map(it => {
+      const isSelesai = it.status === 'Selesai';
+      return `
+      <div class="tindak-review-item">
+        <div>
+          <div>${escapeHtml(it.item)}</div>
+          <div class="tindak-review-meta">${it.pic ? 'PIC: ' + escapeHtml(it.pic) : 'PIC: -'}${it.deadline ? ' • Deadline: ' + formatDateOnly(it.deadline) : ''}</div>
+        </div>
+        <span class="tindak-status-badge ${isSelesai ? 'selesai' : 'open'}">${isSelesai ? '✅ Selesai' : '⏳ Open'}</span>
+      </div>
+    `;
+    }).join('');
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada notulen HSE Meeting.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => {
+      const jumlahOpen = (r.tindakLanjutList || []).filter(t => t.status !== 'Selesai').length;
+      const ringkasan = `${(r.agendaList || []).length} Agenda • ${(r.pesertaList || []).length} Peserta • ${(r.tindakLanjutList || []).length} Tindak Lanjut${jumlahOpen > 0 ? ` (${jumlahOpen} Open)` : ''}`;
+      return `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noMeeting}</div>
+              <div class="report-title">${escapeHtml(r.lokasiRapat) || '(Lokasi tidak diisi)'}</div>
+              <div class="report-meta">${formatDate(r.tanggalRapat)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Pemimpin: ${escapeHtml(r.namaPemimpin)}${r.pemimpinQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <div style="display:flex; gap:6px;">
+                <span class="tipe-badge ${r.tipeMeeting.toLowerCase()}">${r.tipeMeeting === 'Bulanan' ? '🗓️' : '📅'} ${r.tipeMeeting}</span>
+                <span class="status-badge ${(r.status || 'Selesai').toLowerCase()}">${r.status === 'Berlangsung' ? '🔴 Berlangsung' : '✅ Selesai'}</span>
+              </div>
+              ${r.status === 'Berlangsung' ? `<a href="hse-meeting-session.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📺 Layar Absen</a>` : ''}
+              <a href="hse-meeting-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Ringkasan</b>${ringkasan}</div>
+          <div class="section-title">Agenda &amp; Pembahasan</div>
+          ${agendaReviewHtml(r.agendaList)}
+          <div class="section-title">Peserta</div>
+          ${pesertaChipsHtml(r.pesertaList)}
+          <div class="section-title">Tindak Lanjut</div>
+          ${tindakReviewHtml(r.tindakLanjutList)}
+          ${r.catatanTambahan ? `<div class="detail-row" style="margin-top:10px;"><b>Catatan Tambahan</b>${escapeHtml(r.catatanTambahan)}</div>` : ''}
+          ${photoGalleryHtml('Foto Dokumentasi', r.fotoList)}
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatJam(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function drivePhotoSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (!f) return '#';
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+</script>
+
+</body>
+</html>

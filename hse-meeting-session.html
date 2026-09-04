@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesi HSE Meeting — Layar Absen — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+    --surface: #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+    color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 28px;
+  }
+  .wrap { width: 100%; max-width: 1200px; }
+
+  .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+  .top-bar img { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; background: #fff; padding: 4px; }
+  .top-bar .eyebrow { font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--safety-yellow); font-weight: 800; }
+  .top-bar h1 { font-size: 26px; font-weight: 800; margin-top: 2px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.14); border-radius: 22px; padding: 28px; }
+
+  .no-meeting { font-family: monospace; font-size: 13px; color: var(--safety-yellow); font-weight: 700; }
+  .meeting-title { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .meeting-meta { font-size: 14px; color: #C7CEE8; margin-top: 8px; line-height: 1.7; }
+  .meeting-meta b { color: #fff; }
+
+  .qr-wrap { display: flex; flex-direction: column; align-items: center; margin-top: 24px; }
+  .qr-frame { background: #fff; padding: 18px; border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+  .qr-frame canvas { display: block; }
+  .qr-hint { margin-top: 16px; font-size: 15px; font-weight: 700; text-align: center; }
+  .qr-link { margin-top: 8px; font-size: 12px; color: #9CA8C9; text-align: center; word-break: break-all; }
+
+  .counter-row { text-align: center; margin-bottom: 18px; }
+  .counter-row .num { font-size: 56px; font-weight: 800; color: var(--safety-yellow); line-height: 1; }
+  .counter-row .label { font-size: 14px; color: #C7CEE8; margin-top: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .attendee-scroll { max-height: 420px; overflow-y: auto; }
+  .attendee-row {
+    display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;
+    background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 8px; font-size: 15px; font-weight: 600;
+  }
+  .attendee-row .jam { font-size: 12.5px; color: #9CA8C9; font-weight: 500; flex-shrink: 0; margin-left: 10px; }
+  .attendee-row .jabatan { color: #9CA8C9; font-weight: 500; font-size: 13px; }
+  .attendee-empty { text-align: center; color: #9CA8C9; font-size: 14px; padding: 40px 10px; }
+
+  .finished-banner {
+    background: var(--success-bg); color: var(--success); border-radius: 16px; padding: 24px; text-align: center;
+    font-size: 17px; font-weight: 800; margin-top: 24px;
+  }
+
+  .loading, .error-state { text-align: center; padding: 80px 20px; font-size: 15px; color: #C7CEE8; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div id="loadingState" class="loading">Memuat sesi...</div>
+  <div id="errorState" class="error-state" style="display:none;"></div>
+
+  <div id="mainContent" style="display:none;">
+    <div class="top-bar">
+      <img src="logo-bima.png" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Absen HSE Meeting</h1>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="no-meeting" id="fNoMeeting"></div>
+        <div class="meeting-title" id="fJudul"></div>
+        <div class="meeting-meta">
+          <div><b id="fProject"></b></div>
+          <div id="fLokasi"></div>
+          <div id="fTanggal"></div>
+        </div>
+
+        <div id="qrSection" class="qr-wrap">
+          <div class="qr-frame"><canvas id="qrCanvas"></canvas></div>
+          <div class="qr-hint">📱 Scan QR ini pakai HP buat absen hadir</div>
+          <div class="qr-link" id="qrLinkText"></div>
+        </div>
+
+        <div id="finishedBanner" class="finished-banner" style="display:none;">✅ Sesi sudah Selesai -- absen ditutup.</div>
+      </div>
+
+      <div class="panel">
+        <div class="counter-row">
+          <div class="num" id="attendeeCount">0</div>
+          <div class="label">Peserta Hadir</div>
+        </div>
+        <div class="attendee-scroll" id="attendeeList">
+          <div class="attendee-empty">Belum ada peserta yang scan.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SITE_BASE_URL = 'https://rovansyahriza-crv.github.io/HSSE-Fusion4/';
+
+  let sessionId = null;
+  let pollTimer = null;
+  let qrRendered = false;
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatJam(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderAttendeeList(list) {
+    document.getElementById('attendeeCount').innerText = list.length;
+    const listEl = document.getElementById('attendeeList');
+    if (!list || list.length === 0) {
+      listEl.innerHTML = '<div class="attendee-empty">Belum ada peserta yang scan.</div>';
+      return;
+    }
+    const sorted = [...list].sort((a, b) => new Date(b.jamHadir) - new Date(a.jamHadir));
+    listEl.innerHTML = sorted.map(p => `
+      <div class="attendee-row">
+        <span>${escapeHtml(p.nama)}${p.jabatan ? ' <span class="jabatan">-- ' + escapeHtml(p.jabatan) + '</span>' : ''}</span>
+        <span class="jam">${formatJam(p.jamHadir)}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderQrOnce() {
+    if (qrRendered) return;
+    const checkinUrl = SITE_BASE_URL + 'hse-meeting-checkin.html?id=' + sessionId;
+    document.getElementById('qrLinkText').innerText = checkinUrl;
+    try {
+      QRCode.toCanvas(document.getElementById('qrCanvas'), checkinUrl, { width: 320, margin: 1 }, (err) => {
+        if (err) console.error('Gagal generate QR:', err);
+      });
+    } catch (e) {
+      console.error('Gagal generate QR:', e);
+    }
+    qrRendered = true;
+  }
+
+  async function refresh() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_meeting_by_id', { p_id: sessionId });
+      if (error) throw error;
+      if (!data) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorState').innerText = '❌ Sesi HSE Meeting tidak ditemukan.';
+        stopPolling();
+        return;
+      }
+
+      document.title = `${data.noMeeting} — Layar Absen — HSSE-Fusion4`;
+      document.getElementById('fNoMeeting').innerText = data.noMeeting;
+      document.getElementById('fJudul').innerText = `HSE Meeting ${data.tipeMeeting}`;
+      document.getElementById('fProject').innerText = `${data.namaProject} (${data.noKontrak})`;
+      document.getElementById('fLokasi').innerText = data.lokasiRapat ? '📍 ' + data.lokasiRapat : '';
+      document.getElementById('fTanggal').innerText = '🗓️ ' + formatDate(data.tanggalRapat);
+
+      renderAttendeeList(data.pesertaList || []);
+
+      if (data.status === 'Berlangsung') {
+        renderQrOnce();
+        document.getElementById('qrSection').style.display = 'flex';
+        document.getElementById('finishedBanner').style.display = 'none';
+      } else {
+        document.getElementById('qrSection').style.display = 'none';
+        document.getElementById('finishedBanner').style.display = 'block';
+        stopPolling();
+      }
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Gagal memuat sesi: ' + e.message;
+    }
+  }
+
+  function stopPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    sessionId = params.get('id');
+    if (!sessionId) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').innerText = '❌ Id sesi tidak ditemukan di URL.';
+      return;
+    }
+    refresh();
+    pollTimer = setInterval(refresh, 4000);
+  });
+</script>
+
+</body>
+</html>
