@@ -31,8 +31,9 @@
   #formBody { display: none; }
   #hazardArea, #jsaArea { display: none; }
 
-  /* ===== Jenis Pekerjaan -- combobox bisa dicari (dynamic filter) ===== */
+  /* ===== Jenis Pekerjaan -- combobox multi-pilih bisa dicari (dynamic filter) ===== */
   .searchable-select { position: relative; }
+  .searchable-select-input-row { position: relative; }
   .searchable-select input[type="text"] { padding-right: 34px; }
   .searchable-select input[type="text"]:disabled { background: var(--bg); color: var(--muted); }
   .searchable-select-clear {
@@ -40,6 +41,21 @@
     width: 24px; height: 24px; border: none; background: var(--bg); border-radius: 999px;
     color: var(--muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
+  .jenis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .jenis-chips:empty { display: none; }
+  .jenis-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: #EEF2FC; color: var(--navy-dark);
+    border: 1px solid #CFD9F5; border-radius: 999px; padding: 5px 8px 5px 12px; font-size: 12.5px; font-weight: 700;
+  }
+  .jenis-chip button {
+    border: none; background: rgba(45,60,115,0.14); color: var(--navy-dark); width: 18px; height: 18px; border-radius: 50%;
+    font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .hazard-group-title {
+    font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase; letter-spacing: 0.04em;
+    margin: 14px 0 4px; padding-top: 10px; border-top: 1px dashed var(--border);
+  }
+  .hazard-group-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
   .searchable-select-dropdown {
     display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
     background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
@@ -145,11 +161,14 @@
 
   <div class="card">
     <div class="form-group">
-      <label for="jenisPekerjaanInput">Jenis Pekerjaan</label>
+      <label for="jenisPekerjaanInput">Jenis Pekerjaan (bisa pilih lebih dari satu)</label>
       <div class="searchable-select" id="jenisPekerjaanBox">
-        <input type="text" id="jenisPekerjaanInput" placeholder="Memuat daftar jenis pekerjaan..." autocomplete="off" disabled
-          oninput="onJenisPekerjaanSearch()" onfocus="openJenisPekerjaanDropdown()" onkeydown="onJenisPekerjaanKeydown(event)">
-        <button type="button" class="searchable-select-clear" id="btnClearJenis" onclick="clearJenisPekerjaan()" style="display:none;">✕</button>
+        <div class="jenis-chips" id="jenisChips"></div>
+        <div class="searchable-select-input-row">
+          <input type="text" id="jenisPekerjaanInput" placeholder="Memuat daftar jenis pekerjaan..." autocomplete="off" disabled
+            oninput="onJenisPekerjaanSearch()" onfocus="openJenisPekerjaanDropdown()" onkeydown="onJenisPekerjaanKeydown(event)">
+          <button type="button" class="searchable-select-clear" id="btnClearJenis" onclick="clearAllJenisPekerjaan()" style="display:none;" title="Hapus semua pilihan">✕</button>
+        </div>
         <div class="searchable-select-dropdown" id="jenisPekerjaanDropdown"></div>
       </div>
     </div>
@@ -261,10 +280,10 @@
   let photoSlots = [null, null, null];
   let projectList = [];
   let jenisPekerjaanList = [];
-  let selectedJenisPekerjaan = '';
+  let selectedJenisList = []; // bisa lebih dari 1 Jenis Pekerjaan per permit
   let jenisPekerjaanFiltered = [];
   let jenisPekerjaanHighlight = -1;
-  let hazardTemplate = []; // [{id, item}]
+  let hazardTemplate = []; // [{id, item, jenis}]
   let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
   let jsaRowCount = 0;
   let jsaTemplate = []; // [{langkah, bahaya, pengendalian}] -- contoh generik per Jenis Pekerjaan
@@ -278,6 +297,7 @@
   const jenisPekerjaanBox = document.getElementById('jenisPekerjaanBox');
   const jenisPekerjaanInput = document.getElementById('jenisPekerjaanInput');
   const jenisPekerjaanDropdown = document.getElementById('jenisPekerjaanDropdown');
+  const jenisChips = document.getElementById('jenisChips');
   const btnClearJenis = document.getElementById('btnClearJenis');
   const formBody = document.getElementById('formBody');
   const jsaArea = document.getElementById('jsaArea');
@@ -326,23 +346,29 @@
     }
   }
 
-  // ===== Jenis Pekerjaan -- combobox pencarian (dynamic filter) =====
-  // Daftar Jenis Pekerjaan makin banyak (16+), jadi dropdown biasa diganti input
-  // yang bisa diketik buat nyaring list-nya -- lebih enak dicari operator di lapangan.
+  // ===== Jenis Pekerjaan -- combobox multi-pilih + pencarian (dynamic filter) =====
+  // Daftar Jenis Pekerjaan makin banyak (16+), jadi dropdown biasa diganti input yang
+  // bisa diketik buat nyaring list-nya. Bisa pilih lebih dari satu (kerjaan gabungan,
+  // misal ngelas di atas scaffolding yang di ketinggian) -- Hazard Checklist & contoh
+  // JSA dari SEMUA jenis yang dipilih otomatis digabung jadi satu form.
   function renderJenisPekerjaanOptions(filterText) {
     const filter = (filterText || '').trim().toLowerCase();
-    jenisPekerjaanFiltered = filter ? jenisPekerjaanList.filter(j => j.toLowerCase().includes(filter)) : jenisPekerjaanList;
+    const available = jenisPekerjaanList.filter(j => !selectedJenisList.includes(j));
+    jenisPekerjaanFiltered = filter ? available.filter(j => j.toLowerCase().includes(filter)) : available;
     jenisPekerjaanHighlight = jenisPekerjaanFiltered.length > 0 ? 0 : -1;
     renderJenisPekerjaanDropdown();
   }
 
   function renderJenisPekerjaanDropdown() {
     if (jenisPekerjaanFiltered.length === 0) {
-      jenisPekerjaanDropdown.innerHTML = '<div class="searchable-select-empty">Gak ketemu -- coba kata kunci lain.</div>';
+      const msg = jenisPekerjaanList.length > 0 && jenisPekerjaanList.length === selectedJenisList.length
+        ? 'Semua Jenis Pekerjaan udah dipilih.'
+        : 'Gak ketemu -- coba kata kunci lain.';
+      jenisPekerjaanDropdown.innerHTML = `<div class="searchable-select-empty">${msg}</div>`;
       return;
     }
     jenisPekerjaanDropdown.innerHTML = jenisPekerjaanFiltered.map((j, i) => `
-      <div class="searchable-select-option${j === selectedJenisPekerjaan ? ' selected' : ''}${i === jenisPekerjaanHighlight ? ' highlight' : ''}"
+      <div class="searchable-select-option${i === jenisPekerjaanHighlight ? ' highlight' : ''}"
         data-jenis="${escapeHtml(j)}">${escapeHtml(j)}</div>
     `).join('');
   }
@@ -350,18 +376,24 @@
   jenisPekerjaanDropdown.addEventListener('click', (e) => {
     const opt = e.target.closest('.searchable-select-option[data-jenis]');
     if (!opt) return;
-    pickJenisPekerjaan(opt.dataset.jenis);
+    addJenisPekerjaan(opt.dataset.jenis);
+  });
+
+  jenisChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-remove-jenis]');
+    if (!btn) return;
+    removeJenisPekerjaan(btn.dataset.removeJenis);
   });
 
   document.addEventListener('click', (e) => {
     if (jenisPekerjaanBox.contains(e.target)) return;
     jenisPekerjaanDropdown.classList.remove('open');
-    jenisPekerjaanInput.value = selectedJenisPekerjaan; // buang ketikan yang belum dipilih
+    jenisPekerjaanInput.value = ''; // buang ketikan yang belum dipilih
   });
 
   function openJenisPekerjaanDropdown() {
     if (jenisPekerjaanList.length === 0) return;
-    renderJenisPekerjaanOptions('');
+    renderJenisPekerjaanOptions(jenisPekerjaanInput.value);
     jenisPekerjaanDropdown.classList.add('open');
   }
 
@@ -371,6 +403,10 @@
   }
 
   function onJenisPekerjaanKeydown(e) {
+    if (e.key === 'Backspace' && jenisPekerjaanInput.value === '' && selectedJenisList.length > 0) {
+      removeJenisPekerjaan(selectedJenisList[selectedJenisList.length - 1]);
+      return;
+    }
     if (!jenisPekerjaanDropdown.classList.contains('open')) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -385,56 +421,78 @@
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (jenisPekerjaanHighlight >= 0 && jenisPekerjaanFiltered[jenisPekerjaanHighlight]) {
-        pickJenisPekerjaan(jenisPekerjaanFiltered[jenisPekerjaanHighlight]);
+        addJenisPekerjaan(jenisPekerjaanFiltered[jenisPekerjaanHighlight]);
       }
     } else if (e.key === 'Escape') {
       jenisPekerjaanDropdown.classList.remove('open');
-      jenisPekerjaanInput.value = selectedJenisPekerjaan;
+      jenisPekerjaanInput.value = '';
       jenisPekerjaanInput.blur();
     }
   }
 
-  function pickJenisPekerjaan(jenis) {
-    selectedJenisPekerjaan = jenis;
-    jenisPekerjaanInput.value = jenis;
-    btnClearJenis.style.display = 'flex';
-    jenisPekerjaanDropdown.classList.remove('open');
-    onJenisPekerjaanChange();
+  function renderJenisPekerjaanChips() {
+    jenisChips.innerHTML = selectedJenisList.map(j => `
+      <span class="jenis-chip">${escapeHtml(j)}<button type="button" data-remove-jenis="${escapeHtml(j)}">✕</button></span>
+    `).join('');
+    btnClearJenis.style.display = selectedJenisList.length > 0 ? 'flex' : 'none';
   }
 
-  function clearJenisPekerjaan() {
-    selectedJenisPekerjaan = '';
+  function addJenisPekerjaan(jenis) {
+    if (!selectedJenisList.includes(jenis)) selectedJenisList.push(jenis);
     jenisPekerjaanInput.value = '';
-    btnClearJenis.style.display = 'none';
+    renderJenisPekerjaanChips();
+    renderJenisPekerjaanOptions(''); // refresh sisa opsi yang belum dipilih, dropdown tetap kebuka biar enak nambah lagi
     jenisPekerjaanInput.focus();
     onJenisPekerjaanChange();
   }
 
+  function removeJenisPekerjaan(jenis) {
+    selectedJenisList = selectedJenisList.filter(j => j !== jenis);
+    renderJenisPekerjaanChips();
+    onJenisPekerjaanChange();
+  }
+
+  function clearAllJenisPekerjaan() {
+    selectedJenisList = [];
+    jenisPekerjaanInput.value = '';
+    renderJenisPekerjaanChips();
+    onJenisPekerjaanChange();
+  }
+
   async function onJenisPekerjaanChange() {
-    const jenis = selectedJenisPekerjaan;
-    if (!jenis) {
+    if (selectedJenisList.length === 0) {
       hazardArea.style.display = 'none';
       jsaArea.style.display = 'none';
       fotoArea.style.display = 'none';
       return;
     }
+    const gabungan = selectedJenisList.join(', ');
     jsaArea.style.display = 'block';
     hazardArea.style.display = 'block';
     hazardBody.innerHTML = 'Memuat checklist...';
-    document.getElementById('hazardTitle').innerText = `Hazard Checklist -- ${jenis}`;
+    document.getElementById('hazardTitle').innerText = `Hazard Checklist -- ${gabungan}`;
     hazardState = {};
 
-    await Promise.all([loadJsaTemplate(jenis), loadHazardTemplate(jenis)]);
+    await Promise.all([loadJsaTemplate(selectedJenisList), loadHazardTemplate(selectedJenisList)]);
     fotoArea.style.display = 'block';
   }
 
-  async function loadHazardTemplate(jenis) {
+  // Ambil Hazard Checklist buat SETIAP Jenis Pekerjaan yang dipilih, lalu digabung jadi
+  // 1 checklist (dikelompokkan per jenis biar jelas asalnya). Id item unik se-tabel jadi
+  // aman digabung tanpa bentrok.
+  async function loadHazardTemplate(jenisArr) {
     try {
-      const { data, error } = await supabaseClient.rpc('get_ptw_hazard_checklist_template', { p_jenis_pekerjaan: jenis });
-      if (error) throw error;
-      hazardTemplate = data || [];
+      const results = await Promise.all(jenisArr.map(j =>
+        supabaseClient.rpc('get_ptw_hazard_checklist_template', { p_jenis_pekerjaan: j })
+          .then(r => ({ jenis: j, data: r.data, error: r.error }))
+      ));
+      hazardTemplate = [];
+      results.forEach(r => {
+        if (r.error) throw r.error;
+        (r.data || []).forEach(it => hazardTemplate.push({ id: it.id, item: it.item, jenis: r.jenis }));
+      });
       if (hazardTemplate.length === 0) {
-        hazardBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis ini -- hubungi admin.</p>';
+        hazardBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis pekerjaan yang dipilih -- hubungi admin.</p>';
         return;
       }
       hazardTemplate.forEach(it => {
@@ -447,41 +505,55 @@
     }
   }
 
-  // JSA -- ambil contoh generik (Langkah Kerja / Bahaya / Pengendalian) sesuai Jenis Pekerjaan,
-  // dari tabel master "ptwJsaTemplateTbl" (bisa diedit/ditambah lewat Table Editor Supabase).
+  // JSA -- ambil contoh generik (Langkah Kerja / Bahaya / Pengendalian) buat SETIAP Jenis
+  // Pekerjaan yang dipilih, dari tabel master "ptwJsaTemplateTbl" (bisa diedit/ditambah
+  // lewat Table Editor Supabase), digabung jadi satu daftar baris JSA.
   // Tetap bisa diedit/ditambah/dihapus manual di form -- cuma titik awal biar gak dari nol.
-  async function loadJsaTemplate(jenis) {
-    document.getElementById('jsaTitle').innerText = `JSA -- Job Safety Analysis -- ${jenis}`;
+  async function loadJsaTemplate(jenisArr) {
+    const gabungan = jenisArr.join(', ');
+    document.getElementById('jsaTitle').innerText = `JSA -- Job Safety Analysis -- ${gabungan}`;
     jsaRows.innerHTML = '';
     jsaRowCount = 0;
     jsaTemplate = [];
     try {
-      const { data, error } = await supabaseClient.rpc('get_ptw_jsa_template', { p_jenis_pekerjaan: jenis });
-      if (error) throw error;
-      jsaTemplate = data || [];
+      const results = await Promise.all(jenisArr.map(j =>
+        supabaseClient.rpc('get_ptw_jsa_template', { p_jenis_pekerjaan: j })
+          .then(r => ({ data: r.data, error: r.error }))
+      ));
+      results.forEach(r => {
+        if (r.error) throw r.error;
+        jsaTemplate.push(...(r.data || []));
+      });
       if (jsaTemplate.length > 0) {
         jsaTemplate.forEach(it => addJsaRow(it));
-        document.getElementById('jsaHint').innerHTML = `Contoh langkah kerja umum buat <b>${escapeHtml(jenis)}</b> udah keisi otomatis -- edit, tambah, atau hapus baris sesuai kondisi kerja yang sebenarnya.`;
+        document.getElementById('jsaHint').innerHTML = `Contoh langkah kerja umum buat <b>${escapeHtml(gabungan)}</b> udah keisi otomatis -- edit, tambah, atau hapus baris sesuai kondisi kerja yang sebenarnya.`;
         return;
       }
     } catch (e) {
       setStatus('❌ Gagal memuat contoh JSA: ' + e.message, 'error');
     }
-    // Belum ada template buat jenis ini (atau gagal ambil) -- mulai dari 1 baris kosong seperti biasa.
+    // Belum ada template buat jenis-jenis ini (atau gagal ambil) -- mulai dari 1 baris kosong seperti biasa.
     document.getElementById('jsaHint').innerText = 'Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.';
     addJsaRow();
   }
 
   function renderHazardChecklist() {
-    hazardBody.innerHTML = hazardTemplate.map(it => `
+    let lastJenis = null;
+    hazardBody.innerHTML = hazardTemplate.map(it => {
+      let header = '';
+      if (it.jenis !== lastJenis) {
+        header = `<div class="hazard-group-title">${escapeHtml(it.jenis)}</div>`;
+        lastJenis = it.jenis;
+      }
+      return `${header}
       <div class="hazard-item">
         <input type="checkbox" id="hazard-check-${it.id}" onchange="setHazardTerpenuhi(${it.id}, this.checked)">
         <div class="hazard-item-body">
           <label class="hazard-item-label" for="hazard-check-${it.id}">${escapeHtml(it.item)}</label>
           <input type="text" placeholder="Keterangan (opsional)" oninput="setHazardKeterangan(${it.id}, this.value)">
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   function setHazardTerpenuhi(itemId, checked) {
@@ -965,7 +1037,7 @@
       return setStatus('❌ Identifikasi Requester dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
     }
 
-    const jenisPekerjaan = selectedJenisPekerjaan;
+    const jenisPekerjaan = selectedJenisList.join(', '); // gabungan kalau lebih dari 1 dipilih
     const woNo = document.getElementById('txtWoNo').value.trim();
     const projectId = selectProject.value;
     const lokasi = document.getElementById('txtLokasi').value.trim();
@@ -976,7 +1048,7 @@
     const dtMulai = document.getElementById('dtMulai').value || null;
     const dtSelesai = document.getElementById('dtSelesai').value || null;
 
-    if (!jenisPekerjaan) return setStatus('❌ Pilih jenis pekerjaan dulu.', 'error');
+    if (selectedJenisList.length === 0) return setStatus('❌ Pilih minimal 1 jenis pekerjaan dulu.', 'error');
     if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
     if (!lokasi) return setStatus('❌ Lokasi/area kerja wajib diisi.', 'error');
     if (!deskripsi) return setStatus('❌ Deskripsi pekerjaan wajib diisi.', 'error');
@@ -1056,9 +1128,9 @@
   function resetForm() {
     // Identitas Requester SENGAJA tidak direset -- biar 1 orang bisa ajukan beberapa
     // permit berturut-turut tanpa scan ulang.
-    selectedJenisPekerjaan = '';
+    selectedJenisList = [];
     jenisPekerjaanInput.value = '';
-    btnClearJenis.style.display = 'none';
+    renderJenisPekerjaanChips();
     jenisPekerjaanDropdown.classList.remove('open');
     document.getElementById('txtWoNo').value = '';
     selectProject.value = '';
