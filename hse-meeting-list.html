@@ -185,6 +185,7 @@
                 <span class="status-badge ${(r.status || 'Selesai').toLowerCase()}">${r.status === 'Berlangsung' ? '🔴 Berlangsung' : '✅ Selesai'}</span>
               </div>
               ${r.status === 'Berlangsung' ? `<a href="hse-meeting-session.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📺 Layar Absen</a>` : ''}
+              ${r.status === 'Berlangsung' ? `<a href="hse-meeting-report.html?resume=${r.id}" class="pdf-link" onclick="event.stopPropagation()">✍️ Lanjut / Tutup Notulen</a>` : ''}
               <a href="hse-meeting-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
             </div>
           </div>

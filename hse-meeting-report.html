@@ -150,7 +150,7 @@
 
   <div id="formBody">
 
-  <div class="card">
+  <div class="card" id="startSessionCard">
     <div class="form-group">
       <label>Tipe Meeting</label>
       <div class="tipe-toggle">
@@ -288,6 +288,9 @@
   let currentSessionId = null;
   let currentNoMeeting = null;
   let pollTimer = null;
+  // Diisi dari ?resume=<id> di URL -- dipakai buat lanjut/tutup notulen sesi yang
+  // udah dibuka sebelumnya (misal leader sempat tutup tab), lewat link di hse-meeting-list.html.
+  let resumeSessionId = null;
 
   const statusMsg = document.getElementById('statusMsg');
   const btnStartSession = document.getElementById('btnStartSession');
@@ -305,6 +308,11 @@
   const tindakEmptyHint = document.getElementById('tindakEmptyHint');
 
   document.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(window.location.search);
+    resumeSessionId = params.get('resume');
+    if (resumeSessionId) {
+      document.querySelector('.header p').innerText = 'Melanjutkan sesi yang masih Berlangsung -- identifikasi dulu buat masuk.';
+    }
     setDefaultTanggalRapat();
     await loadProjects();
   });
@@ -968,6 +976,45 @@
     idNameEl.innerText = `${nama} (${qrCodeId})`;
     idResultBanner.style.display = 'flex';
     formBody.style.display = 'block';
+    if (resumeSessionId) {
+      loadResumedSession();
+    }
+  }
+
+  // =====================================================================================
+  // LANJUT / TUTUP SESI LAMA -- dibuka lewat link "✍️ Lanjut / Tutup Notulen" di
+  // hse-meeting-list.html (?resume=<id>), buat kasus leader udah buka sesi tapi
+  // tutup tab / pindah HP sebelum sempat isi & selesaikan notulennya.
+  // =====================================================================================
+  async function loadResumedSession() {
+    document.getElementById('startSessionCard').style.display = 'none';
+    btnStartSession.style.display = 'none';
+    setStatus('⏳ Memuat sesi yang sedang berlangsung...', 'info');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_meeting_by_id', { p_id: resumeSessionId });
+      if (error) throw error;
+      if (!data) {
+        setStatus('❌ Sesi HSE Meeting tidak ditemukan. Mungkin sudah dihapus.', 'error');
+        document.getElementById('startSessionCard').style.display = 'block';
+        return;
+      }
+
+      currentSessionId = data.id;
+      currentNoMeeting = data.noMeeting;
+      tipeMeeting = data.tipeMeeting;
+
+      if (data.status !== 'Berlangsung') {
+        setStatus(`ℹ️ Sesi ${data.noMeeting} ini sudah Selesai -- notulen sudah dikirim sebelumnya. Cek di Riwayat HSE Meeting.`, 'info');
+        return;
+      }
+
+      setStatus('', null);
+      renderSessionLive(data.lokasiRapat);
+      startPolling();
+    } catch (e) {
+      setStatus('❌ Gagal memuat sesi: ' + e.message, 'error');
+      document.getElementById('startSessionCard').style.display = 'block';
+    }
   }
 
   function resetIdentification() {
@@ -1045,7 +1092,9 @@
     // berikutnya tanpa scan ulang.
     currentSessionId = null;
     currentNoMeeting = null;
+    resumeSessionId = null;
     stopPolling();
+    document.getElementById('startSessionCard').style.display = 'block';
 
     pickTipeMeeting('Mingguan');
     selectProject.value = '';
