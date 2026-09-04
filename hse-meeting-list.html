@@ -58,6 +58,8 @@
   .tindak-status-badge { flex-shrink: 0; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .tindak-status-badge.open { background: #FDF3E3; color: #8A6100; }
   .tindak-status-badge.selesai { background: var(--success-bg); color: var(--success); }
+
+  .tindak-inline-wrap { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--border); }
 </style>
 </head>
 <body>
@@ -127,6 +129,7 @@
       <div class="agenda-review-item">
         <div class="agenda-review-topik">${escapeHtml(it.topik)}</div>
         ${it.pembahasan ? `<div class="agenda-review-pembahasan">${escapeHtml(it.pembahasan)}</div>` : ''}
+        ${(it.tindakLanjutList && it.tindakLanjutList.length > 0) ? `<div class="tindak-inline-wrap">${tindakReviewHtml(it.tindakLanjutList)}</div>` : ''}
       </div>
     `).join('');
   }
@@ -192,12 +195,13 @@
         </div>
         <div class="detail-panel" id="detail-${idx}">
           <div class="detail-row"><b>Ringkasan</b>${ringkasan}</div>
-          <div class="section-title">Agenda &amp; Pembahasan</div>
+          <div class="section-title">Agenda, Pembahasan &amp; Tindak Lanjut</div>
           ${agendaReviewHtml(r.agendaList)}
           <div class="section-title">Peserta</div>
           ${pesertaChipsHtml(r.pesertaList)}
+          ${!(r.agendaList || []).some(a => a.tindakLanjutList && a.tindakLanjutList.length > 0) && (r.tindakLanjutList || []).length > 0 ? `
           <div class="section-title">Tindak Lanjut</div>
-          ${tindakReviewHtml(r.tindakLanjutList)}
+          ${tindakReviewHtml(r.tindakLanjutList)}` : ''}
           ${r.catatanTambahan ? `<div class="detail-row" style="margin-top:10px;"><b>Catatan Tambahan</b>${escapeHtml(r.catatanTambahan)}</div>` : ''}
           ${photoGalleryHtml('Foto Dokumentasi', r.fotoList)}
         </div>

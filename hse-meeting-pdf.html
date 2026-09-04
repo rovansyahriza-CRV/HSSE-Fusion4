@@ -88,6 +88,7 @@
   .agenda-row:last-child { border-bottom: none; }
   .agenda-row .topik { font-weight: 700; }
   .agenda-row .pembahasan { color: var(--muted); margin-top: 2px; }
+  .agenda-row .tindak-inline-wrap { margin-top: 5px; padding-left: 8px; border-left: 2px solid var(--border); }
 
   /* ===== Peserta ===== */
   .peserta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
@@ -196,7 +197,7 @@
   </div>
 
   <div class="section">
-    <div class="section-title">Agenda &amp; Pembahasan</div>
+    <div class="section-title">Agenda, Pembahasan &amp; Tindak Lanjut</div>
     <div class="section-body" id="fAgendaBody">-</div>
   </div>
 
@@ -205,7 +206,7 @@
     <div class="section-body" id="fPesertaBody">-</div>
   </div>
 
-  <div class="section" id="tindakSection">
+  <div class="section" id="tindakSection" style="display:none;">
     <div class="section-title">Tindak Lanjut / Action Item</div>
     <div class="section-body" id="fTindakBody">-</div>
   </div>
@@ -293,6 +294,7 @@
       <div class="agenda-row">
         <div class="topik">${escapeHtml(it.topik)}</div>
         ${it.pembahasan ? `<div class="pembahasan">${escapeHtml(it.pembahasan)}</div>` : ''}
+        ${(it.tindakLanjutList && it.tindakLanjutList.length > 0) ? `<div class="tindak-inline-wrap">${tindakRowsHtml(it.tindakLanjutList)}</div>` : ''}
       </div>
     `).join('');
   }
@@ -308,13 +310,8 @@
     </table>`;
   }
 
-  function renderTindak(items) {
-    const body = document.getElementById('fTindakBody');
-    if (!items || items.length === 0) {
-      body.innerHTML = '<span style="color:var(--muted);">Tidak ada tindak lanjut dari rapat ini.</span>';
-      return;
-    }
-    body.innerHTML = items.map(it => {
+  function tindakRowsHtml(items) {
+    return items.map(it => {
       const isSelesai = it.status === 'Selesai';
       return `
       <div class="tindak-row">
@@ -326,6 +323,18 @@
       </div>
     `;
     }).join('');
+  }
+
+  // Fallback buat notulen lama (sebelum Tindak Lanjut inline per topik ada) --
+  // section terpisah ini cuma ditampilkan kalau agendaList-nya belum punya
+  // tindakLanjutList sama sekali (lihat pemanggilannya di loadReport).
+  function renderTindak(items) {
+    const body = document.getElementById('fTindakBody');
+    if (!items || items.length === 0) {
+      body.innerHTML = '<span style="color:var(--muted);">Tidak ada tindak lanjut dari rapat ini.</span>';
+      return;
+    }
+    body.innerHTML = tindakRowsHtml(items);
   }
 
   async function loadReport() {
@@ -364,7 +373,12 @@
 
       renderAgenda(r.agendaList);
       renderPeserta(r.pesertaList);
-      renderTindak(r.tindakLanjutList);
+
+      const anyNestedTindak = (r.agendaList || []).some(a => a.tindakLanjutList && a.tindakLanjutList.length > 0);
+      if (!anyNestedTindak && (r.tindakLanjutList || []).length > 0) {
+        document.getElementById('tindakSection').style.display = '';
+        renderTindak(r.tindakLanjutList);
+      }
 
       if (r.catatanTambahan) {
         document.getElementById('catatanSection').style.display = 'block';

@@ -56,10 +56,36 @@
     width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 10px;
     background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
   }
-  .empty-hint { font-size: 12px; color: var(--muted); text-align: center; padding: 10px 0; }
   .carried-badge {
     display: inline-block; font-size: 10px; font-weight: 700; color: var(--navy);
     background: #EEF2FC; padding: 2px 8px; border-radius: 999px; margin-bottom: 8px;
+  }
+
+  /* ===== Tindak Lanjut inline di bawah tiap topik Agenda ===== */
+  .agenda-tindak-section { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .agenda-tindak-label {
+    font-size: 10.5px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 8px;
+  }
+  .tindak-sub-row {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; margin-bottom: 8px; position: relative;
+  }
+  .tindak-sub-row textarea { min-height: 40px; font-size: 12px; margin-bottom: 6px; padding-right: 26px; }
+  .tindak-sub-2col { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; }
+  .tindak-sub-2col input, .tindak-sub-2col select { flex: 1; min-width: 90px; font-size: 11.5px; padding: 8px; margin-bottom: 0; }
+  .btn-remove-subrow {
+    position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 50%;
+    border: none; background: #FCEAE8; color: var(--accent); font-weight: 800; font-size: 11px; cursor: pointer; z-index: 1;
+  }
+  .btn-add-subrow {
+    width: 100%; padding: 8px; border: 1.5px dashed var(--border); border-radius: 8px;
+    background: #fff; color: var(--navy); font-weight: 700; font-size: 11.5px; cursor: pointer;
+  }
+  .agenda-tindak-empty-hint { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
+  .carried-badge-sm {
+    display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--navy);
+    background: #EEF2FC; padding: 1px 6px; border-radius: 999px; margin-bottom: 6px;
   }
 
   /* ===== Sesi berlangsung -- QR absen + peserta live ===== */
@@ -215,8 +241,8 @@
   </div>
 
   <div class="card" id="notulenCard">
-    <h2 style="margin-bottom:4px;">Agenda &amp; Pembahasan</h2>
-    <p style="margin-bottom:12px;">Topik yang dibahas di rapat, beserta pembahasan/keputusannya.</p>
+    <h2 style="margin-bottom:4px;">Agenda, Pembahasan &amp; Tindak Lanjut</h2>
+    <p style="margin-bottom:12px;">Topik yang dibahas di rapat -- Tindak Lanjut/action item dari topik itu diisi langsung di bawahnya biar gampang dipantau progressnya per topik.</p>
     <div id="agendaRows"></div>
     <button type="button" class="btn-add-row" onclick="addAgendaRow()">+ Tambah Topik Agenda</button>
   </div>
@@ -225,14 +251,6 @@
     <h2 style="margin-bottom:4px;">Peserta yang Sudah Absen</h2>
     <p style="margin-bottom:10px;">Daftar ini otomatis dari hasil scan QR -- gak perlu diinput ulang.</p>
     <div class="attendee-list" id="pesertaSummaryList"></div>
-  </div>
-
-  <div class="card" id="tindakCard" style="display:none;">
-    <h2 style="margin-bottom:4px;">Tindak Lanjut / Action Item</h2>
-    <p style="margin-bottom:12px;">Opsional -- isi kalau ada hasil rapat yang perlu ditindaklanjuti.</p>
-    <div id="tindakRows"></div>
-    <div id="tindakEmptyHint" class="empty-hint">Belum ada tindak lanjut ditambahkan.</div>
-    <button type="button" class="btn-add-row" onclick="addTindakRow()">+ Tambah Tindak Lanjut</button>
   </div>
 
   <div class="card" id="catatanCard" style="display:none;">
@@ -288,7 +306,7 @@
   let projectList = [];
   let tipeMeeting = 'Mingguan';
   let agendaRowCount = 0;
-  let tindakRowCount = 0;
+  let tindakSubRowCount = 0;
   let currentSessionId = null;
   let currentNoMeeting = null;
   let currentProjectId = null;
@@ -305,12 +323,9 @@
   const sessionLiveCard = document.getElementById('sessionLiveCard');
   const notulenCard = document.getElementById('notulenCard');
   const pesertaSummaryCard = document.getElementById('pesertaSummaryCard');
-  const tindakCard = document.getElementById('tindakCard');
   const catatanCard = document.getElementById('catatanCard');
   const fotoCard = document.getElementById('fotoCard');
   const agendaRows = document.getElementById('agendaRows');
-  const tindakRows = document.getElementById('tindakRows');
-  const tindakEmptyHint = document.getElementById('tindakEmptyHint');
 
   document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
@@ -494,27 +509,40 @@
 
     notulenCard.style.display = 'block';
     pesertaSummaryCard.style.display = 'block';
-    tindakCard.style.display = 'block';
     catatanCard.style.display = 'block';
     fotoCard.style.display = 'block';
 
-    if (agendaRows.children.length === 0) addAgendaRow();
-    if (tindakRows.children.length === 0) await loadCarriedTindakLanjut();
-    renderTindakEmptyHint();
+    if (agendaRows.children.length === 0) {
+      await loadCarriedTindakLanjut();
+      if (agendaRows.children.length === 0) addAgendaRow();
+    }
     notulenCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // Tindak Lanjut berstatus Open (atau yang baru aja Selesai, 1x lagi) dari rapat
-  // sebelumnya di project yang sama -- otomatis diisikan ke sini biar gak ketinggalan
-  // ke-track sampai beneran kelar. Leader tetap bisa ubah/hapus/tambah manual.
+  // sebelumnya di project yang sama -- otomatis diisikan lagi ke sini, dikelompokkan
+  // per topik asalnya (biar tetap inline & gampang dipantau), sebagai baris Agenda
+  // tersendiri. Leader tetap bisa ubah/hapus/tambah manual.
   async function loadCarriedTindakLanjut() {
     if (!currentProjectId) return;
     try {
       const { data, error } = await supabaseClient.rpc('get_carried_tindak_lanjut', { p_project_id: currentProjectId });
       if (error) throw error;
-      (data || []).forEach(item => addTindakRow(item));
+      const items = data || [];
+      if (items.length === 0) return;
+
+      const groups = new Map();
+      items.forEach(item => {
+        const key = (item.topikTerkait && item.topikTerkait.trim()) ? item.topikTerkait.trim() : 'Tindak Lanjut Umum';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      });
+
+      groups.forEach((groupItems, topik) => {
+        addAgendaRow({ topik, pembahasan: '', carried: true, tindakLanjutList: groupItems });
+      });
     } catch (e) {
-      // Non-blocking -- leader masih bisa isi Tindak Lanjut manual kalau ini gagal.
+      // Non-blocking -- leader masih bisa isi Agenda/Tindak Lanjut manual kalau ini gagal.
       console.error('Gagal memuat tindak lanjut dari rapat sebelumnya:', e.message);
     }
   }
@@ -534,7 +562,11 @@
     `).join('');
   }
 
-  // ===== Agenda (dinamis) =====
+  // ===== Agenda (dinamis) -- Tindak Lanjut diisi inline di bawah tiap topik =====
+  function generateTindakId() {
+    return 'TL' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
   function addAgendaRow(prefill) {
     const rowId = agendaRowCount++;
     const div = document.createElement('div');
@@ -542,17 +574,27 @@
     div.id = `agenda-row-${rowId}`;
     div.innerHTML = `
       <div class="dyn-row-label">Topik ${agendaRows.children.length + 1}</div>
+      ${prefill && prefill.carried ? '<span class="carried-badge">↺ Lanjutan dari rapat sebelumnya</span>' : ''}
       <button type="button" class="btn-remove-row" onclick="removeAgendaRow(${rowId})">✕</button>
       <span class="dyn-mini-label">Topik</span>
       <input type="text" id="agenda-topik-${rowId}" placeholder="Contoh: Evaluasi insiden minggu ini">
       <span class="dyn-mini-label">Pembahasan / Keputusan</span>
       <textarea id="agenda-pembahasan-${rowId}" placeholder="Ringkasan pembahasan dan keputusan yang diambil..."></textarea>
+
+      <div class="agenda-tindak-section">
+        <div class="agenda-tindak-label">📌 Tindak Lanjut Topik Ini</div>
+        <div id="agenda-tindak-list-${rowId}"></div>
+        <div class="agenda-tindak-empty-hint" id="agenda-tindak-empty-${rowId}">Belum ada tindak lanjut buat topik ini.</div>
+        <button type="button" class="btn-add-subrow" onclick="addTindakSubRow(${rowId})">+ Tambah Tindak Lanjut</button>
+      </div>
     `;
     agendaRows.appendChild(div);
     if (prefill) {
       div.querySelector(`#agenda-topik-${rowId}`).value = prefill.topik || '';
       div.querySelector(`#agenda-pembahasan-${rowId}`).value = prefill.pembahasan || '';
+      (prefill.tindakLanjutList || []).forEach(t => addTindakSubRow(rowId, t));
     }
+    updateTindakEmptyHint(rowId);
   }
 
   function removeAgendaRow(rowId) {
@@ -568,89 +610,78 @@
   function collectAgendaItems() {
     return Array.from(agendaRows.children).map(row => {
       const rowId = row.id.replace('agenda-row-', '');
+      const tindakContainer = document.getElementById(`agenda-tindak-list-${rowId}`);
+      const tindakLanjutList = tindakContainer ? Array.from(tindakContainer.children).map(subRow => {
+        const subId = subRow.id.replace('tindak-sub-', '');
+        const status = document.getElementById(`tindak-status-${subId}`).value;
+        return {
+          id: subRow.dataset.itemId,
+          item: document.getElementById(`tindak-item-${subId}`).value.trim(),
+          pic: document.getElementById(`tindak-pic-${subId}`).value.trim(),
+          deadline: document.getElementById(`tindak-deadline-${subId}`).value || '',
+          status: status,
+          // Cuma relevan buat item Selesai -- penanda udah berapa kali nampang ulang
+          // di rapat sesudah statusnya ditutup (lihat get_carried_tindak_lanjut).
+          closedCarryCount: status === 'Selesai' ? parseInt(subRow.dataset.closedCarryCount || '0', 10) : 0,
+        };
+      }) : [];
       return {
         topik: document.getElementById(`agenda-topik-${rowId}`).value.trim(),
         pembahasan: document.getElementById(`agenda-pembahasan-${rowId}`).value.trim(),
+        tindakLanjutList: tindakLanjutList,
       };
     });
   }
 
-  // ===== Tindak Lanjut / Action Item (dinamis, opsional -- boleh 0 baris) =====
-  function renderTindakEmptyHint() {
-    tindakEmptyHint.style.display = tindakRows.children.length === 0 ? 'block' : 'none';
+  // ===== Tindak Lanjut inline (sub-baris di dalam tiap topik Agenda, opsional) =====
+  function updateTindakEmptyHint(agendaRowId) {
+    const container = document.getElementById(`agenda-tindak-list-${agendaRowId}`);
+    const hint = document.getElementById(`agenda-tindak-empty-${agendaRowId}`);
+    if (!container || !hint) return;
+    hint.style.display = container.children.length === 0 ? 'block' : 'none';
   }
 
-  function generateTindakId() {
-    return 'TL' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  }
-
-  function addTindakRow(prefill) {
-    const rowId = tindakRowCount++;
+  function addTindakSubRow(agendaRowId, prefill) {
+    const subId = tindakSubRowCount++;
+    const container = document.getElementById(`agenda-tindak-list-${agendaRowId}`);
     const div = document.createElement('div');
-    div.className = 'dyn-row';
-    div.id = `tindak-row-${rowId}`;
+    div.className = 'tindak-sub-row';
+    div.id = `tindak-sub-${subId}`;
     // id & closedCarryCount dipertahankan tiap kali item ini kebawa dari rapat
     // sebelumnya (get_carried_tindak_lanjut) -- gak ditampilkan, cuma buat nge-track
     // biar item yang statusnya Selesai cuma nampang 1x lagi di rapat sesudahnya.
     div.dataset.itemId = (prefill && prefill.id) ? prefill.id : generateTindakId();
     div.dataset.closedCarryCount = (prefill && prefill.closedCarryCount) ? String(prefill.closedCarryCount) : '0';
     div.innerHTML = `
-      <div class="dyn-row-label">Tindak Lanjut ${tindakRows.children.length + 1}</div>
-      ${prefill && prefill.carried ? '<span class="carried-badge">↺ Dari rapat sebelumnya</span>' : ''}
-      <button type="button" class="btn-remove-row" onclick="removeTindakRow(${rowId})">✕</button>
-      <span class="dyn-mini-label">Item / Tindak Lanjut</span>
-      <textarea id="tindak-item-${rowId}" placeholder="Contoh: Perbaikan pagar pengaman di area X"></textarea>
-      <div class="dyn-2col">
-        <div>
-          <span class="dyn-mini-label">PIC</span>
-          <input type="text" id="tindak-pic-${rowId}" placeholder="Penanggung jawab">
-        </div>
-        <div>
-          <span class="dyn-mini-label">Deadline</span>
-          <input type="date" id="tindak-deadline-${rowId}">
-        </div>
+      ${prefill && prefill.carried ? '<span class="carried-badge-sm">↺ Dari rapat sebelumnya</span><br>' : ''}
+      <button type="button" class="btn-remove-subrow" onclick="removeTindakSubRow(${subId})">✕</button>
+      <textarea id="tindak-item-${subId}" placeholder="Item tindak lanjut, contoh: Perbaikan pagar pengaman di area X"></textarea>
+      <div class="tindak-sub-2col">
+        <input type="text" id="tindak-pic-${subId}" placeholder="PIC">
+        <input type="date" id="tindak-deadline-${subId}">
+        <select id="tindak-status-${subId}">
+          <option value="Open">Open</option>
+          <option value="Selesai">Selesai</option>
+        </select>
       </div>
-      <span class="dyn-mini-label">Status</span>
-      <select id="tindak-status-${rowId}">
-        <option value="Open">Open</option>
-        <option value="Selesai">Selesai</option>
-      </select>
     `;
-    tindakRows.appendChild(div);
+    container.appendChild(div);
     if (prefill) {
-      div.querySelector(`#tindak-item-${rowId}`).value = prefill.item || '';
-      div.querySelector(`#tindak-pic-${rowId}`).value = prefill.pic || '';
-      div.querySelector(`#tindak-deadline-${rowId}`).value = prefill.deadline || '';
-      div.querySelector(`#tindak-status-${rowId}`).value = prefill.status || 'Open';
+      div.querySelector(`#tindak-item-${subId}`).value = prefill.item || '';
+      div.querySelector(`#tindak-pic-${subId}`).value = prefill.pic || '';
+      div.querySelector(`#tindak-deadline-${subId}`).value = prefill.deadline || '';
+      div.querySelector(`#tindak-status-${subId}`).value = prefill.status || 'Open';
     }
-    renderTindakEmptyHint();
+    updateTindakEmptyHint(agendaRowId);
   }
 
-  function removeTindakRow(rowId) {
-    const el = document.getElementById(`tindak-row-${rowId}`);
+  function removeTindakSubRow(subId) {
+    const el = document.getElementById(`tindak-sub-${subId}`);
     if (!el) return;
+    const parentList = el.parentElement;
+    const agendaRowId = parentList.id.replace('agenda-tindak-list-', '');
     el.remove();
-    Array.from(tindakRows.children).forEach((row, i) => {
-      row.querySelector('.dyn-row-label').innerText = `Tindak Lanjut ${i + 1}`;
-    });
-    renderTindakEmptyHint();
-  }
-
-  function collectTindakItems() {
-    return Array.from(tindakRows.children).map(row => {
-      const rowId = row.id.replace('tindak-row-', '');
-      const status = document.getElementById(`tindak-status-${rowId}`).value;
-      return {
-        id: row.dataset.itemId,
-        item: document.getElementById(`tindak-item-${rowId}`).value.trim(),
-        pic: document.getElementById(`tindak-pic-${rowId}`).value.trim(),
-        deadline: document.getElementById(`tindak-deadline-${rowId}`).value || '',
-        status: status,
-        // Cuma relevan buat item Selesai -- penanda udah berapa kali nampang ulang
-        // di rapat sesudah statusnya ditutup (lihat get_carried_tindak_lanjut).
-        closedCarryCount: status === 'Selesai' ? parseInt(row.dataset.closedCarryCount || '0', 10) : 0,
-      };
-    });
+    updateTindakEmptyHint(agendaRowId);
   }
 
   function handlePhotoSlot(event, idx) {
@@ -1081,12 +1112,22 @@
       return setStatus('❌ Semua baris Agenda (Topik & Pembahasan) wajib diisi lengkap.', 'error');
     }
 
-    const tindakItemsRaw = collectTindakItems();
-    const tindakKosong = tindakItemsRaw.filter(r => !r.item);
-    if (tindakKosong.length > 0) {
-      window.scrollTo({ top: tindakCard.offsetTop - 20, behavior: 'smooth' });
+    const tindakKosong = agendaItems.some(r => (r.tindakLanjutList || []).some(t => !t.item));
+    if (tindakKosong) {
+      window.scrollTo({ top: notulenCard.offsetTop - 20, behavior: 'smooth' });
       return setStatus('❌ Ada baris Tindak Lanjut yang kosong -- isi itemnya atau hapus barisnya.', 'error');
     }
+
+    // Ratakan Tindak Lanjut dari semua topik jadi satu list (buat carry-forward
+    // rapat berikutnya via get_carried_tindak_lanjut & ringkasan di Riwayat/PDF) --
+    // masing-masing dikasih tau topikTerkait-nya biar pas dibawa lagi tetap kegroup
+    // ke topik yang sama.
+    const flattenedTindakLanjut = [];
+    agendaItems.forEach(a => {
+      (a.tindakLanjutList || []).forEach(t => {
+        flattenedTindakLanjut.push({ ...t, topikTerkait: a.topik });
+      });
+    });
 
     const catatan = document.getElementById('txtCatatan').value.trim();
 
@@ -1109,7 +1150,7 @@
       const { data, error } = await supabaseClient.rpc('finalize_hse_meeting', {
         p_id: currentSessionId,
         p_agenda_list: agendaItems,
-        p_tindak_lanjut_list: tindakItemsRaw,
+        p_tindak_lanjut_list: flattenedTindakLanjut,
         p_catatan_tambahan: catatan,
         p_foto_list: fotoList,
       });
@@ -1143,15 +1184,11 @@
 
     agendaRows.innerHTML = '';
     agendaRowCount = 0;
-    tindakRows.innerHTML = '';
-    tindakRowCount = 0;
-    renderTindakEmptyHint();
     for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
 
     sessionLiveCard.style.display = 'none';
     notulenCard.style.display = 'none';
     pesertaSummaryCard.style.display = 'none';
-    tindakCard.style.display = 'none';
     catatanCard.style.display = 'none';
     fotoCard.style.display = 'none';
     btnStartSession.style.display = 'flex';
