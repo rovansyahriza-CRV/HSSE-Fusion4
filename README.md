@@ -60,7 +60,7 @@ Karena tujuan utamanya audit-readiness, urutan bangun yang disepakati:
 - [ ] **Incident / Accident Report** -- klasifikasi 6 tingkat + reminder wajib lapor <12 jam, investigasi & root cause.
 - [ ] **Inspeksi & Observasi Lapangan** -- safety patrol, checklist APD, kondisi alat/area kerja.
 - [ ] **Permit to Work / JSA / Toolbox Meeting** -- izin kerja, Job Safety Analysis, briefing harian.
-- [x] **Internal Audit** -- Rencana Audit (jadwal, tim auditor, scope, standar acuan) dulu, baru Temuan per kriteria checklist (`auditKriteriaTemplateTbl`, draft klausul ISO 45001, bisa diedit). Temuan "Tidak Sesuai" punya CAPA sendiri (akar masalah, rencana tindakan, PIC, tenggat) yang ditutup lewat tahap verifikasi closure terpisah -- gak digabung ke CERMAT. Khusus Author "Internal Auditor". Lihat `sql/026_internal_audit_schema.sql`, `audit-report.html`, `audit-list.html`, `audit-pdf.html`.
+- [x] **Internal Audit** -- Rencana Audit (jadwal, tim auditor, scope, standar acuan) dulu, baru Temuan per kriteria checklist (`auditKriteriaTemplateTbl`, draft klausul ISO 45001, bisa diedit). Temuan "Tidak Sesuai" punya CAPA sendiri (akar masalah, rencana tindakan, PIC, tenggat) yang ditutup lewat tahap verifikasi closure terpisah -- gak digabung ke CERMAT. Khusus Author "Internal Auditor". Tim Auditor otomatis kecentang dari orang yang punya tag itu (baca dari `karyawanTbl` DAN `paswordTbl` di Fusion4 -- lihat `sql/029_fix_get_karyawan_by_author_paswordtbl.sql`), Auditee bisa lebih dari satu. Lihat `sql/026_internal_audit_schema.sql`, `sql/027_audit_multi_auditee.sql`, `audit-report.html`, `audit-list.html`, `audit-pdf.html`.
 - [ ] **Statistik & KPI HSSE** -- TRIR, LTIFR, man-hours, temuan terbuka/tertutup -- dashboard audit-ready.
 
 ## Penyimpanan file (foto & PDF)

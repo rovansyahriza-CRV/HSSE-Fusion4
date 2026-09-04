@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Fix Tim Auditor gak kebaca tag Author yang di-set lewat paswordTbl' -m '- sql/029_fix_get_karyawan_by_author_paswordtbl.sql: get_karyawan_by_author() ternyata cuma baca karyawanTbl.Author (migrasi #028), padahal di Fusion4 ada tabel terpisah "paswordTbl" (satu Id bisa punya banyak baris, tiap baris nyimpen kombinasi tag Author beda-beda) yang jadi sumber utama buat tag yang di-set lewat form Fusion4. Sekarang RPC-nya baca DUA-duanya sekaligus (karyawanTbl.Author ATAU paswordTbl.Author, join by Id, IsActive true). Jalankan di Supabase project FUSION4, bukan HSSE-Fusion4.' -m '- index.html & README.md: update catatan migrasi (sql/001 s/d sql/029) dan penjelasan soal paswordTbl.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push
