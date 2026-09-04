@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Dept Auditee di Rencana Audit jadi dropdown, bukan ketik bebas' -m '- audit-report.html: field Dept di baris Auditee sekarang dropdown ambil dari master Divisi/Departemen Fusion4 (get_departemen_list(), sama kayak dropdown Arahkan ke Departemen di CERMAT) -- dikelompokkan per Divisi, biar penamaan dept-nya seragam.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push

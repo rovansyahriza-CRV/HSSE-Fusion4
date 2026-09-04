@@ -38,7 +38,7 @@
   .tim-candidate-row input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; }
   .tim-candidate-empty { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
   .tim-row { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
-  .tim-row input { flex: 1; margin-bottom: 0; }
+  .tim-row input, .tim-row select { flex: 1; margin-bottom: 0; }
   .tim-row .btn-remove-tim {
     flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px; border: none;
     background: #FCEAE8; color: var(--accent); font-weight: 800; cursor: pointer;
@@ -297,6 +297,7 @@
   const timAuditorCandidates = document.getElementById('timAuditorCandidates');
   const auditeeRows = document.getElementById('auditeeRows');
   let auditeeRowCount = 0;
+  let departmentList = [];
 
   document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
@@ -305,8 +306,37 @@
       document.querySelector('.header p').innerText = 'Melanjutkan Rencana Audit yang belum selesai -- identifikasi dulu buat masuk.';
     }
     await loadProjects();
+    await loadDepartments();
     addAuditeeRow();
   });
+
+  // Master Divisi/Departemen diambil dari FUSION4 (departemenTbl), sama kayak dropdown
+  // "Arahkan ke Departemen" di cermat-list.html -- biar penamaan dept Auditee seragam
+  // sama data Divisi/Dept di Fusion4, bukan diketik bebas.
+  async function loadDepartments() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_departemen_list');
+      if (error) throw error;
+      departmentList = data || []; // [{id, divisi, namaDept}], urut per Divisi
+    } catch (e) {
+      console.error('Gagal memuat daftar dept dari Fusion4:', e.message);
+    }
+  }
+
+  function deptOptionsHtml() {
+    let html = '';
+    let currentDivisi = null;
+    departmentList.forEach(d => {
+      if (d.divisi !== currentDivisi) {
+        if (currentDivisi !== null) html += '</optgroup>';
+        html += `<optgroup label="${escapeHtml(d.divisi)}">`;
+        currentDivisi = d.divisi;
+      }
+      html += `<option value="${escapeHtml(d.namaDept)}">${escapeHtml(d.namaDept)}</option>`;
+    });
+    if (currentDivisi !== null) html += '</optgroup>';
+    return html;
+  }
 
   async function loadProjects() {
     try {
@@ -391,9 +421,10 @@
     const div = document.createElement('div');
     div.className = 'tim-row';
     div.id = `auditee-row-${rowId}`;
+    const opts = deptOptionsHtml();
     div.innerHTML = `
       <input type="text" id="auditee-nama-${rowId}" placeholder="Nama PIC yang diaudit">
-      <input type="text" id="auditee-dept-${rowId}" placeholder="Dept (opsional)">
+      <select id="auditee-dept-${rowId}"><option value="">-- Dept (opsional) --</option>${opts}</select>
       <button type="button" class="btn-remove-tim" onclick="removeAuditeeRow(${rowId})">✕</button>
     `;
     auditeeRows.appendChild(div);
@@ -408,8 +439,7 @@
 
   function collectAuditeeList() {
     return Array.from(auditeeRows.children).map(row => {
-      const inputs = row.querySelectorAll('input');
-      return { nama: inputs[0].value.trim(), dept: inputs[1].value.trim() };
+      return { nama: row.querySelector('input').value.trim(), dept: row.querySelector('select').value.trim() };
     }).filter(a => a.nama);
   }
 
