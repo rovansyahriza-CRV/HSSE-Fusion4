@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Fix Tim Auditor gak kebaca kalau belum daftar wajah' -m '- sql/028_fusion4_get_karyawan_by_author.sql: RPC baru get_karyawan_by_author(), baca LANGSUNG dari karyawanTbl di Fusion4 (read-only). Jalankan di Supabase project FUSION4, bukan HSSE-Fusion4.' -m '- audit-report.html: checklist Tim Auditor sebelumnya pakai roster get_all_face_data() yang cuma isi orang yang udah pernah daftar wajah -- auditor yang cuma pakai QR/PIN jadi gak pernah muncul walau Author tag-nya udah bener. Sekarang pakai get_karyawan_by_author() yang nangkep semua orang dengan tag Internal Auditor apapun metode identifikasinya.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push

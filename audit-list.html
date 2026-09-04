@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat Internal Audit — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  .status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .status-badge.direncanakan { background: #EEF2FC; color: var(--navy); }
+  .status-badge.berlangsung { background: #FDF3E3; color: #8A6100; }
+  .status-badge.selesai-audit { background: #FCEAE8; color: var(--accent); }
+  .status-badge.ditutup { background: var(--success-bg); color: var(--success); }
+
+  .section-title { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 14px 0 6px; }
+
+  .temuan-item { padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .temuan-item:last-child { border-bottom: none; }
+  .temuan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .temuan-klausul { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .temuan-kriteria { font-weight: 700; margin-top: 2px; }
+  .temuan-keterangan { color: var(--muted); margin-top: 4px; }
+  .hasil-chip { flex-shrink: 0; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .hasil-chip.sesuai { background: var(--success-bg); color: var(--success); }
+  .hasil-chip.tidak { background: #FCEAE8; color: var(--accent); }
+  .hasil-chip.na { background: var(--bg); color: var(--muted); }
+
+  .capa-review-box {
+    margin-top: 8px; background: #FDF3E3; border: 1px solid #F0DFB8; border-radius: 10px; padding: 10px; font-size: 12px;
+  }
+  .capa-review-box.closed { background: var(--success-bg); border-color: var(--success); }
+  .capa-review-box .capa-title { font-size: 10.5px; font-weight: 800; color: #8A6100; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .capa-review-box.closed .capa-title { color: var(--success); }
+  .capa-review-row { margin-bottom: 4px; }
+  .capa-review-row b { color: var(--muted); font-weight: 700; }
+
+  .closure-form { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #F0DFB8; }
+  .closure-form textarea { min-height: 44px; font-size: 12px; margin-bottom: 6px; background: #fff; }
+  .closure-photo-slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-width: 140px; margin-bottom: 8px; }
+  .closure-photo-slots .photo-slot { aspect-ratio: 1/1; border-radius: 8px; }
+  .btn-mini {
+    border: none; background: var(--navy); color: #fff; font-size: 11.5px; font-weight: 700;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .verified-chip {
+    display: inline-block; background: var(--success-bg); color: var(--success); font-size: 11px;
+    font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 8px;
+  }
+
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+
+  /* ===== Modal verifikasi identitas -- sama pola dengan cermat-list.html ===== */
+  .approval-modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(20,26,46,0.6); z-index: 100;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .approval-modal-backdrop.open { display: flex; }
+  .approval-modal { background: var(--surface); border-radius: 16px; padding: 20px; max-width: 380px; width: 100%; }
+  .approval-modal h3 { font-size: 15px; margin-bottom: 4px; }
+  .approval-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .approval-choice-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .approval-choice-buttons button {
+    padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg);
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .approval-pin-form { display: none; margin-top: 10px; }
+  .approval-pin-form input { margin-bottom: 8px; }
+  .approval-cancel {
+    display: block; width: 100%; text-align: center; margin-top: 10px; background: none; border: none;
+    color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat Internal Audit</h1>
+      </div>
+    </div>
+    <p>Rencana Audit, Temuan, dan status CAPA (rencana tindak lanjut) sampai ditutup.</p>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-status="" onclick="filterByStatus('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Direncanakan" onclick="filterByStatus('Direncanakan', this)">Direncanakan</button>
+    <button type="button" class="filter-btn" data-status="Berlangsung" onclick="filterByStatus('Berlangsung', this)">Berlangsung</button>
+    <button type="button" class="filter-btn" data-status="Selesai Audit" onclick="filterByStatus('Selesai Audit', this)">Selesai Audit</button>
+    <button type="button" class="filter-btn" data-status="Ditutup" onclick="filterByStatus('Ditutup', this)">Ditutup</button>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<!-- ===== Modal verifikasi identitas -- scan wajah atau PIN, buat closure temuan ===== -->
+<div class="approval-modal-backdrop" id="approvalModalBackdrop">
+  <div class="approval-modal">
+    <h3 id="approvalModalTitle">Verifikasi</h3>
+    <p class="approval-sub" id="approvalModalSub"></p>
+
+    <div id="approvalChoiceScreen">
+      <div class="approval-choice-buttons">
+        <button type="button" id="btnApprovalScanFace">🙂 Scan Wajah</button>
+        <button type="button" id="btnApprovalUsePin">🔢 Input PIN</button>
+      </div>
+    </div>
+
+    <div class="cam-wrap" id="approvalCamWrap">
+      <video id="approvalVideo" autoplay muted playsinline></video>
+      <canvas id="approvalCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="approvalFaceOval"></div>
+    </div>
+    <button type="button" id="btnApprovalScanFaceGo" class="btn-block btn-primary" style="display:none; margin-top:10px;">📸 Scan Wajah</button>
+
+    <form class="approval-pin-form" id="approvalPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="approvalPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnApprovalPinSubmit">Verifikasi PIN</button>
+    </form>
+
+    <div id="approvalModalStatus" class="status-msg"></div>
+
+    <button type="button" class="approval-cancel" onclick="closeApprovalModal()">Batal</button>
+  </div>
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  const REQUIRED_TAG = 'Internal Auditor';
+
+  let currentStatusFilter = '';
+  let reports = [];
+  let closurePhotoSlots = {}; // { "temuanId-0": File }, direset tiap renderReports()
+  let closureCatatan = {}; // { temuanId: string }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadReports();
+  });
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    closurePhotoSlots = {};
+    closureCatatan = {};
+    try {
+      const { data, error } = await supabaseClient.rpc('get_audit_list', {
+        p_status: currentStatusFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByStatus(status, btnEl) {
+    currentStatusFilter = status;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Direncanakan') return 'direncanakan';
+    if (status === 'Berlangsung') return 'berlangsung';
+    if (status === 'Selesai Audit') return 'selesai-audit';
+    return 'ditutup';
+  }
+
+  function statusIcon(status) {
+    if (status === 'Direncanakan') return '🗓️';
+    if (status === 'Berlangsung') return '🔴';
+    if (status === 'Selesai Audit') return '⚠️';
+    return '✅';
+  }
+
+  function hasilChipHtml(hasil) {
+    const cls = hasil === 'Sesuai' ? 'sesuai' : hasil === 'Tidak Sesuai' ? 'tidak' : 'na';
+    const icon = hasil === 'Sesuai' ? '✅' : hasil === 'Tidak Sesuai' ? '⚠️' : '➖';
+    return `<span class="hasil-chip ${cls}">${icon} ${hasil}</span>`;
+  }
+
+  function closureBuktiSlotsHtml(temuanId) {
+    return `<div class="closure-photo-slots">
+      <div class="photo-slot" id="bukti-slot-${temuanId}-0">
+        <input type="file" accept="image/*" capture="environment" onchange="handleBuktiPhoto(event, '${temuanId}', 0)">
+        <div class="slot-placeholder">📷</div>
+        <img class="slot-preview">
+        <button type="button" class="slot-remove" onclick="removeBuktiPhoto('${temuanId}', 0, event)">✕</button>
+      </div>
+      <div class="photo-slot" id="bukti-slot-${temuanId}-1">
+        <input type="file" accept="image/*" capture="environment" onchange="handleBuktiPhoto(event, '${temuanId}', 1)">
+        <div class="slot-placeholder">📷</div>
+        <img class="slot-preview">
+        <button type="button" class="slot-remove" onclick="removeBuktiPhoto('${temuanId}', 1, event)">✕</button>
+      </div>
+    </div>`;
+  }
+
+  function temuanReviewHtml(auditId, items) {
+    if (!items || items.length === 0) return '<div class="empty-state" style="padding:10px 0;">Belum ada temuan.</div>';
+    return items.map(it => {
+      let capaHtml = '';
+      if (it.hasil === 'Tidak Sesuai' && it.capa) {
+        const isClosed = it.capa.status === 'Ditutup';
+        capaHtml = `<div class="capa-review-box ${isClosed ? 'closed' : ''}">
+          <div class="capa-title">📌 CAPA${it.kategoriTemuan ? ' -- ' + escapeHtml(it.kategoriTemuan) : ''} -- ${isClosed ? '✅ Ditutup' : '⏳ Open'}</div>
+          <div class="capa-review-row"><b>Akar Masalah:</b> ${escapeHtml(it.capa.akarMasalah) || '-'}</div>
+          <div class="capa-review-row"><b>Rencana Tindakan:</b> ${escapeHtml(it.capa.rencanaTindakan) || '-'}</div>
+          <div class="capa-review-row"><b>PIC:</b> ${escapeHtml(it.capa.picNama) || '-'} • <b>Tenggat:</b> ${formatDateOnly(it.capa.tenggat)}</div>
+          ${isClosed ? `
+            <div class="capa-review-row"><b>Diverifikasi Oleh:</b> ${escapeHtml(it.capa.verifikatorNama)} (${escapeHtml(it.capa.verifikatorQrCodeId || '')}) -- ${formatDate(it.capa.tanggalVerifikasi)}</div>
+            ${it.capa.catatanVerifikasi ? `<div class="capa-review-row"><b>Catatan Verifikasi:</b> ${escapeHtml(it.capa.catatanVerifikasi)}</div>` : ''}
+            ${photoGalleryHtml('Bukti Closure', it.capa.buktiFotoList)}
+          ` : `
+            <div class="closure-form">
+              <label class="mini-label" style="font-size:10.5px; font-weight:700; color:#8A6100; display:block; margin-bottom:4px;">Bukti Foto Tindak Lanjut (opsional)</label>
+              ${closureBuktiSlotsHtml(it.id)}
+              <textarea placeholder="Catatan verifikasi (opsional)..." oninput="closureCatatan['${it.id}'] = this.value"></textarea>
+              <button type="button" class="btn-mini" onclick="startCloseTemuan(${auditId}, '${it.id}')">🔒 Verifikasi &amp; Tutup Temuan Ini</button>
+            </div>
+          `}
+        </div>`;
+      }
+      return `
+      <div class="temuan-item">
+        <div class="temuan-top">
+          <div>
+            <div class="temuan-klausul">${escapeHtml(it.klausul)}</div>
+            <div class="temuan-kriteria">${escapeHtml(it.kriteria)}</div>
+            ${it.keterangan ? `<div class="temuan-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
+            ${photoGalleryHtml('Foto Temuan', it.fotoList)}
+          </div>
+          ${hasilChipHtml(it.hasil)}
+        </div>
+        ${capaHtml}
+      </div>`;
+    }).join('');
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada Internal Audit.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => {
+      const timNames = (r.timAuditorList || []).map(t => t.nama).filter(Boolean);
+      const ringkasan = r.status === 'Direncanakan'
+        ? 'Belum dilaksanakan'
+        : `${r.jumlahSesuai || 0} Sesuai • ${r.jumlahTidakSesuai || 0} Tidak Sesuai • ${r.jumlahNA || 0} N/A${r.skorPersen !== null && r.skorPersen !== undefined ? ` • Skor ${r.skorPersen}%` : ''}`;
+      return `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noAudit}</div>
+              <div class="report-title">${escapeHtml(r.judulAudit)}</div>
+              <div class="report-meta">${formatDateOnly(r.tanggalRencana)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Lead Auditor: ${escapeHtml(r.leadAuditor)}${r.leadAuditorQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <span class="status-badge ${statusBadgeClass(r.status)}">${statusIcon(r.status)} ${r.status}</span>
+              ${(r.status === 'Direncanakan' || r.status === 'Berlangsung') ? `<a href="audit-report.html?resume=${r.id}" class="pdf-link" onclick="event.stopPropagation()">✍️ Lanjut Pelaksanaan</a>` : ''}
+              <a href="audit-pdf.html?id=${r.id}" target="_blank" class="pdf-link" onclick="event.stopPropagation()">📄 PDF</a>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Standar / Acuan</b>${escapeHtml(r.standarAcuan) || '-'}</div>
+          <div class="detail-row"><b>Scope / Area</b>${escapeHtml(r.scopeArea) || '-'}</div>
+          ${timNames.length ? `<div class="detail-row"><b>Tim Auditor</b>${escapeHtml(r.leadAuditor)} (Lead)${timNames.length ? ', ' + timNames.map(escapeHtml).join(', ') : ''}</div>` : ''}
+          ${(r.auditeeList && r.auditeeList.length > 0) ? `<div class="detail-row"><b>Auditee</b>${r.auditeeList.map(a => escapeHtml(a.nama) + (a.dept ? ' -- ' + escapeHtml(a.dept) : '')).join(', ')}</div>` : ''}
+          <div class="detail-row"><b>Ringkasan Hasil</b>${ringkasan}</div>
+          <div class="section-title">Temuan</div>
+          ${temuanReviewHtml(r.id, r.temuanList)}
+          ${r.catatanUmum ? `<div class="detail-row" style="margin-top:10px;"><b>Catatan Umum</b>${escapeHtml(r.catatanUmum)}</div>` : ''}
+          ${photoGalleryHtml('Foto Umum', r.fotoUmumList)}
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  function handleBuktiPhoto(event, temuanId, slotIdx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    closurePhotoSlots[`${temuanId}-${slotIdx}`] = file;
+    const slotEl = document.getElementById(`bukti-slot-${temuanId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeBuktiPhoto(temuanId, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    delete closurePhotoSlots[`${temuanId}-${slotIdx}`];
+    const slotEl = document.getElementById(`bukti-slot-${temuanId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function drivePhotoSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (!f) return '#';
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+
+  // =====================================================================================
+  // TUTUP TEMUAN NC -- klik tombol buka modal verifikasi identitas (Author "Internal
+  // Auditor"), abis lolos verifikasi langsung upload bukti foto (kalau ada) & panggil
+  // verify_close_audit_temuan(). Beda dari cermat-list.html: verifikasi di sini gak
+  // di-cache per kartu -- tiap tombol tutup temuan minta verifikasi sendiri, karena tiap
+  // audit bisa punya beberapa temuan NC yang closure-nya belum tentu bareng.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let approvalContext = null; // { auditId, temuanId }
+  let approvalFaceModelsLoaded = false;
+  let approvalAllFaceDataCache = null;
+  let approvalFacingMode = 'user';
+  let closingInProgress = false;
+
+  const approvalModalBackdrop = document.getElementById('approvalModalBackdrop');
+  const approvalModalTitle = document.getElementById('approvalModalTitle');
+  const approvalModalSub = document.getElementById('approvalModalSub');
+  const approvalChoiceScreen = document.getElementById('approvalChoiceScreen');
+  const approvalCamWrap = document.getElementById('approvalCamWrap');
+  const approvalVideo = document.getElementById('approvalVideo');
+  const approvalCanvas = document.getElementById('approvalCanvas');
+  const approvalFaceOval = document.getElementById('approvalFaceOval');
+  const btnApprovalScanFaceGo = document.getElementById('btnApprovalScanFaceGo');
+  const approvalPinForm = document.getElementById('approvalPinForm');
+  const approvalPinInput = document.getElementById('approvalPinInput');
+  const approvalModalStatus = document.getElementById('approvalModalStatus');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  function setApprovalStatus(text, kind) {
+    if (!text) { approvalModalStatus.style.display = 'none'; return; }
+    approvalModalStatus.className = 'status-msg ' + (kind || 'info');
+    approvalModalStatus.innerText = text;
+    approvalModalStatus.style.display = 'block';
+  }
+
+  function startCloseTemuan(auditId, temuanId) {
+    approvalContext = { auditId, temuanId };
+    approvalModalTitle.innerText = `Verifikasi: ${REQUIRED_TAG}`;
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin "${REQUIRED_TAG}", buat memverifikasi & menutup temuan ini.`;
+    approvalChoiceScreen.style.display = 'block';
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+    approvalPinForm.style.display = 'none';
+    approvalPinInput.value = '';
+    setApprovalStatus('', null);
+    approvalModalBackdrop.classList.add('open');
+  }
+
+  function closeApprovalModal() {
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+  }
+
+  function stopApprovalCamera() {
+    if (approvalVideo.srcObject) {
+      approvalVideo.srcObject.getTracks().forEach(t => t.stop());
+      approvalVideo.srcObject = null;
+    }
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+  }
+
+  async function ensureApprovalFaceDataLoaded() {
+    if (approvalAllFaceDataCache) return approvalAllFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    approvalAllFaceDataCache = data || [];
+    return approvalAllFaceDataCache;
+  }
+
+  document.getElementById('btnApprovalUsePin').onclick = () => {
+    approvalChoiceScreen.style.display = 'none';
+    approvalPinForm.style.display = 'block';
+    setApprovalStatus('', null);
+  };
+
+  document.getElementById('btnApprovalPinSubmit').onclick = async () => {
+    const pin = approvalPinInput.value.trim();
+    if (!pin) return setApprovalStatus('❌ Isi PIN dulu.', 'error');
+    setApprovalStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureApprovalFaceDataLoaded();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setApprovalStatus('❌ PIN tidak dikenali.', 'error');
+      finishApproval(match);
+    } catch (e) {
+      setApprovalStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnApprovalScanFace').onclick = async () => {
+    approvalChoiceScreen.style.display = 'none';
+    setApprovalStatus('Memuat model wajah...', 'info');
+    try {
+      if (!approvalFaceModelsLoaded) {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+        approvalFaceModelsLoaded = true;
+      }
+      setApprovalStatus('Mengambil data karyawan...', 'info');
+      await ensureApprovalFaceDataLoaded();
+      if (approvalAllFaceDataCache.length === 0) {
+        setApprovalStatus('❌ Belum ada data wajah terdaftar. Pakai Input PIN.', 'error');
+        return;
+      }
+
+      approvalFacingMode = 'user';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: approvalFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      approvalVideo.srcObject = stream;
+      await approvalVideo.play();
+      approvalCanvas.width = approvalVideo.videoWidth;
+      approvalCanvas.height = approvalVideo.videoHeight;
+      approvalCamWrap.style.display = 'block';
+      approvalFaceOval.style.display = 'block';
+      btnApprovalScanFaceGo.style.display = 'block';
+      setApprovalStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+    }
+  };
+
+  btnApprovalScanFaceGo.onclick = async () => {
+    btnApprovalScanFaceGo.disabled = true;
+    setApprovalStatus('Mendeteksi wajah...', 'info');
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = approvalVideo.videoWidth || 640;
+      snapCanvas.height = approvalVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(approvalVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      const detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        setApprovalStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      const sorted = approvalAllFaceDataCache.map(p => ({
+        person: p,
+        distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+      })).sort((a, b) => a.distance - b.distance);
+
+      const best = sorted[0];
+      const secondBest = sorted[1];
+      const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+      const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+      if (!withinThreshold) {
+        setApprovalStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai PIN.`, 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+      if (isAmbiguous) {
+        setApprovalStatus('⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai PIN.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      finishApproval(best.person);
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+    }
+  };
+
+  async function finishApproval(person) {
+    if (!approvalContext || closingInProgress) return;
+    const { auditId, temuanId } = approvalContext;
+    const nama = getPersonField(person, ['nama'], '(tanpa nama)');
+    const qrCodeId = getPersonField(person, ['qrCodeId'], '');
+
+    if (!hasAuthorTag(person, REQUIRED_TAG)) {
+      setApprovalStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+      return;
+    }
+
+    closingInProgress = true;
+    setApprovalStatus('⏳ Memproses closure temuan...', 'info');
+    try {
+      const slots = [0, 1].map(i => closurePhotoSlots[`${temuanId}-${i}`]).filter(f => f);
+      let buktiFotoList = [];
+      for (let i = 0; i < slots.length; i++) {
+        setApprovalStatus(`📤 Mengupload bukti foto ${i + 1}/${slots.length}...`, 'info');
+        const fileName = `AUDIT_CLOSURE_${Date.now()}_${i + 1}.jpg`;
+        const uploaded = await uploadPhotoToDrive(slots[i], fileName);
+        buktiFotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+      }
+
+      setApprovalStatus('📤 Menyimpan verifikasi closure...', 'info');
+      const catatan = closureCatatan[temuanId] || '';
+      const { data, error } = await supabaseClient.rpc('verify_close_audit_temuan', {
+        p_audit_id: auditId,
+        p_temuan_id: temuanId,
+        p_verifikator_nama: nama,
+        p_verifikator_qrcode: qrCodeId,
+        p_bukti_foto_list: buktiFotoList,
+        p_catatan_verifikasi: catatan,
+      });
+      if (error) throw error;
+
+      stopApprovalCamera();
+      approvalModalBackdrop.classList.remove('open');
+      approvalContext = null;
+      closingInProgress = false;
+      btnApprovalScanFaceGo.disabled = false;
+
+      await loadReports();
+      alert(data.allClosed ? '✅ Temuan ditutup. Semua NC di audit ini sudah closed -- audit otomatis jadi Ditutup.' : '✅ Temuan ini berhasil ditutup.');
+    } catch (e) {
+      closingInProgress = false;
+      btnApprovalScanFaceGo.disabled = false;
+      setApprovalStatus('❌ Gagal memproses closure: ' + e.message, 'error');
+    }
+  }
+</script>
+
+</body>
+</html>

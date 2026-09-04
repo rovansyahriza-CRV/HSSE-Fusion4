@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cetak Notulen HSE Meeting — HSSE-Fusion4</title>
+<title>Cetak Internal Audit — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -41,7 +41,7 @@
 
   .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
 
-  /* ===== Lembar notulen (dicetak) ===== */
+  /* ===== Lembar audit (dicetak) ===== */
   .sheet {
     max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
     border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
@@ -68,11 +68,10 @@
   .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
 
   .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
-  .badge-mingguan { background: #E8F4FD; color: #1E88E5; }
-  .badge-bulanan { background: #F1EAFB; color: #7B4FC9; }
-  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
-  .badge-berlangsung { background: #FDF3E3; color: #8A6100; margin-left: 6px; }
-  .badge-selesai-status { background: var(--success-bg); color: var(--success); margin-left: 6px; }
+  .badge-direncanakan { background: #EEF2FC; color: var(--navy); }
+  .badge-berlangsung { background: #FDF3E3; color: #8A6100; }
+  .badge-selesai-audit { background: #FCEAE8; color: var(--accent); }
+  .badge-ditutup { background: var(--success-bg); color: var(--success); }
 
   .section { margin-bottom: 14px; }
   .section-title {
@@ -84,30 +83,24 @@
   .photo-grid { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
   .photo-grid img { width: 100px; height: 100px; border-radius: 6px; object-fit: cover; }
 
-  /* ===== Agenda ===== */
-  .agenda-row { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
-  .agenda-row:last-child { border-bottom: none; }
-  .agenda-row .topik { font-weight: 700; }
-  .agenda-row .pembahasan { color: var(--muted); margin-top: 2px; }
-  .agenda-row .tindak-inline-wrap { margin-top: 5px; padding-left: 8px; border-left: 2px solid var(--border); }
+  /* ===== Temuan ===== */
+  .temuan-row { padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
+  .temuan-row:last-child { border-bottom: none; }
+  .temuan-row-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .temuan-klausul { font-size: 8.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .temuan-kriteria { font-weight: 700; margin-top: 1px; }
+  .temuan-keterangan { color: var(--muted); margin-top: 3px; }
+  .hasil-pill { flex-shrink: 0; font-size: 8.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .hasil-pill.sesuai { background: var(--success-bg); color: var(--success); }
+  .hasil-pill.tidak { background: #FCEAE8; color: var(--accent); }
+  .hasil-pill.na { background: var(--bg); color: var(--muted); }
 
-  /* ===== Peserta ===== */
-  .peserta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-  .peserta-table th, .peserta-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
-  .peserta-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 800; }
-  .peserta-table tr:last-child td { border-bottom: none; }
-  .peserta-table td.ttd-digital { font-family: 'Courier New', monospace; font-size: 7.5px; color: var(--navy-dark); font-weight: 700; }
-  .ttd-barcode { display: block; margin: 0 auto; }
-  .ttd-digital-code { display: block; margin-top: 3px; word-break: break-all; max-width: 90px; }
-
-  /* ===== Tindak Lanjut ===== */
-  .tindak-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
-    padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
-  .tindak-row:last-child { border-bottom: none; }
-  .tindak-row-meta { font-size: 9.5px; color: var(--muted); margin-top: 2px; }
-  .status-pill { flex-shrink: 0; font-size: 8.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
-  .status-pill.open { background: #FDF3E3; color: #8A6100; }
-  .status-pill.selesai { background: var(--success-bg); color: var(--success); }
+  .capa-box { margin-top: 5px; background: #FDF3E3; border: 1px solid #F0DFB8; border-radius: 6px; padding: 7px 9px; font-size: 9.5px; }
+  .capa-box.closed { background: var(--success-bg); border-color: var(--success); }
+  .capa-box .capa-title { font-size: 8px; font-weight: 800; color: #8A6100; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .capa-box.closed .capa-title { color: var(--success); }
+  .capa-box .capa-row { margin-bottom: 2px; }
+  .capa-box .capa-row b { color: var(--muted); }
 
   .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 24px; }
   .signature-box { text-align: center; }
@@ -115,6 +108,7 @@
   .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
   .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
   .signature-box .sub.ttd-digital-sub { font-family: 'Courier New', monospace; font-weight: 700; color: var(--navy-dark); word-break: break-all; }
+  .ttd-barcode { display: block; margin: 4px auto 0; }
 
   .doc-footer {
     margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -150,13 +144,13 @@
 <div class="toolbar no-print">
   <div style="display:flex; gap:14px; align-items:center;">
     <a href="index.html">🏠 Menu Utama</a>
-    <a href="hse-meeting-list.html">⬅ Kembali ke Riwayat</a>
+    <a href="audit-list.html">⬅ Kembali ke Riwayat</a>
   </div>
   <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
 </div>
 <div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, dan aktifkan opsi "Background graphics" biar warna badge-nya ikut kecetak.</div>
 
-<div id="loadingState" class="loading">Memuat notulen...</div>
+<div id="loadingState" class="loading">Memuat laporan audit...</div>
 <div id="errorState" class="error-state" style="display:none;"></div>
 
 <div class="sheet" id="sheet">
@@ -167,15 +161,15 @@
     </div>
     <div class="doc-title">
       <div class="eyebrow">HSSE-Fusion4</div>
-      <h1>Notulen HSE Meeting</h1>
-      <div class="no-laporan" id="fNoMeeting"></div>
+      <h1>Laporan Internal Audit</h1>
+      <div class="no-laporan" id="fNoAudit"></div>
     </div>
   </div>
 
   <div class="info-grid">
     <div class="info-cell">
-      <div class="label">Tanggal &amp; Waktu Rapat</div>
-      <div class="value" id="fTanggal"></div>
+      <div class="label">Judul Audit</div>
+      <div class="value" id="fJudul"></div>
     </div>
     <div class="info-cell">
       <div class="label">Project / Kontrak</div>
@@ -183,59 +177,66 @@
       <div class="value small" id="fKontrak"></div>
     </div>
     <div class="info-cell">
-      <div class="label">Pemimpin Rapat</div>
-      <div class="value" id="fPemimpin"></div>
+      <div class="label">Status</div>
+      <div class="value" id="fStatus"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Standar / Acuan</div>
+      <div class="value" id="fStandar"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Scope / Area</div>
+      <div class="value" id="fScope"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Tanggal Rencana / Pelaksanaan</div>
+      <div class="value" id="fTanggal"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Lead Auditor</div>
+      <div class="value" id="fLeadAuditor"></div>
       <div class="value small" id="fQrCodeId"></div>
     </div>
     <div class="info-cell">
-      <div class="label">Tipe Meeting</div>
-      <div class="value" id="fTipe"></div>
+      <div class="label">Tim Auditor</div>
+      <div class="value small" id="fTimAuditor"></div>
     </div>
     <div class="info-cell">
-      <div class="label">Lokasi Rapat</div>
-      <div class="value" id="fLokasi"></div>
-    </div>
-    <div class="info-cell">
-      <div class="label">Jumlah Peserta</div>
-      <div class="value" id="fJumlahPeserta"></div>
+      <div class="label">Auditee</div>
+      <div class="value small" id="fAuditee"></div>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Agenda, Pembahasan &amp; Tindak Lanjut</div>
-    <div class="section-body" id="fAgendaBody">-</div>
+    <div class="section-title">Ringkasan Hasil</div>
+    <div class="section-body" id="fRingkasan">-</div>
   </div>
 
   <div class="section">
-    <div class="section-title">Daftar Peserta</div>
-    <div class="section-body" id="fPesertaBody">-</div>
-  </div>
-
-  <div class="section" id="tindakSection" style="display:none;">
-    <div class="section-title">Tindak Lanjut / Action Item</div>
-    <div class="section-body" id="fTindakBody">-</div>
+    <div class="section-title">Temuan</div>
+    <div class="section-body" id="fTemuanBody">-</div>
   </div>
 
   <div class="section" id="catatanSection" style="display:none;">
-    <div class="section-title">Catatan Tambahan</div>
+    <div class="section-title">Catatan Umum</div>
     <div class="section-body" id="fCatatan"></div>
   </div>
 
   <div class="section" id="fotoSection" style="display:none;">
-    <div class="section-title" id="fotoTitle">Foto Dokumentasi</div>
+    <div class="section-title" id="fotoTitle">Foto Umum</div>
     <div class="photo-grid" id="fotoGrid"></div>
   </div>
 
   <div class="signature-row">
     <div class="signature-box">
-      <div class="role">Dipimpin Oleh</div>
-      <div class="line" id="fSignPemimpin">&nbsp;</div>
-      <canvas id="fSignBarcode" class="ttd-barcode" style="margin: 4px auto 0;"></canvas>
+      <div class="role">Lead Auditor</div>
+      <div class="line" id="fSignLead">&nbsp;</div>
+      <canvas id="fSignBarcode" class="ttd-barcode"></canvas>
       <div class="sub ttd-digital-sub" id="fSignQrCodeId">&nbsp;</div>
     </div>
     <div class="signature-box">
-      <div class="role">Mengetahui (HSE / Management)</div>
-      <div class="line">&nbsp;</div>
+      <div class="role">Auditee / Pihak yang Diaudit</div>
+      <div class="line" id="fSignAuditee">&nbsp;</div>
       <div class="sub">Nama &amp; Tanda Tangan</div>
     </div>
   </div>
@@ -268,12 +269,8 @@
   function formatDateOnly(dateStr) {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
+    if (isNaN(d.getTime())) return '-';
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
-  function formatJamOnly(iso) {
-    if (!iso) return '-';
-    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   }
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -293,85 +290,47 @@
     ).join('');
   }
 
-  function renderAgenda(items) {
-    const body = document.getElementById('fAgendaBody');
-    if (!items || items.length === 0) { body.innerHTML = '-'; return; }
-    body.innerHTML = items.map(it => `
-      <div class="agenda-row">
-        <div class="topik">${escapeHtml(it.topik)}</div>
-        ${it.pembahasan ? `<div class="pembahasan">${escapeHtml(it.pembahasan)}</div>` : ''}
-        ${(it.tindakLanjutList && it.tindakLanjutList.length > 0) ? `<div class="tindak-inline-wrap">${tindakRowsHtml(it.tindakLanjutList)}</div>` : ''}
-      </div>
-    `).join('');
+  function hasilPillHtml(hasil) {
+    const cls = hasil === 'Sesuai' ? 'sesuai' : hasil === 'Tidak Sesuai' ? 'tidak' : 'na';
+    const icon = hasil === 'Sesuai' ? '✅' : hasil === 'Tidak Sesuai' ? '⚠️' : '➖';
+    return `<span class="hasil-pill ${cls}">${icon} ${hasil}</span>`;
   }
 
-  function renderPeserta(items, noMeeting) {
-    const body = document.getElementById('fPesertaBody');
-    document.getElementById('fJumlahPeserta').innerText = items ? items.length + ' orang' : '0 orang';
+  function renderTemuan(items) {
+    const body = document.getElementById('fTemuanBody');
     if (!items || items.length === 0) { body.innerHTML = '-'; return; }
-    const sorted = [...items].sort((a, b) => new Date(a.jamHadir || 0) - new Date(b.jamHadir || 0));
-    // TTD Digital -- bukti tanda tangan digital tiap peserta yang udah verifikasi diri
-    // sendiri (Scan QR/Wajah/PIN) pas absen: QR code + kode teks-nya, formatnya
-    // QrCodeId&NoMeeting biar unik per orang DAN per dokumen (gak bisa dipakai ulang
-    // buat notulen lain).
-    body.innerHTML = `<table class="peserta-table">
-      <thead><tr><th style="width:22px;">No</th><th>Nama</th><th>Jabatan</th><th style="width:50px;">Jam Hadir</th><th style="width:100px;">TTD Digital</th></tr></thead>
-      <tbody>${sorted.map((p, i) => {
-        const code = p.qrCodeId ? `${p.qrCodeId}&${noMeeting}` : '';
-        return `<tr>
-          <td>${i + 1}</td>
-          <td>${escapeHtml(p.nama)}</td>
-          <td>${escapeHtml(p.jabatan) || '-'}</td>
-          <td>${p.jamHadir ? formatJamOnly(p.jamHadir) : '-'}</td>
-          <td class="ttd-digital">${code ? `<canvas class="ttd-barcode" data-code="${escapeHtml(code)}"></canvas><span class="ttd-digital-code">${escapeHtml(code)}</span>` : '-'}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
-    renderBarcodes();
-  }
-
-  // Render tiap <canvas class="ttd-barcode" data-code="..."> jadi QR code beneran.
-  // Kalau library-nya gagal load/generate (misal CDN lagi bermasalah), jangan sampai
-  // nge-block tampilan lain -- teks kode di bawahnya (ttd-digital-code) tetap kebaca.
-  function renderBarcodes() {
-    document.querySelectorAll('canvas.ttd-barcode[data-code]').forEach(canvas => {
-      const code = canvas.getAttribute('data-code');
-      try {
-        if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
-        QRCode.toCanvas(canvas, code, { width: 60, margin: 1 }, (err) => {
-          if (err) console.error('Gagal generate QR code:', err);
-        });
-      } catch (e) {
-        console.error('Gagal generate QR code:', e);
+    body.innerHTML = items.map(it => {
+      let capaHtml = '';
+      if (it.hasil === 'Tidak Sesuai' && it.capa) {
+        const isClosed = it.capa.status === 'Ditutup';
+        capaHtml = `<div class="capa-box ${isClosed ? 'closed' : ''}">
+          <div class="capa-title">📌 CAPA${it.kategoriTemuan ? ' -- ' + escapeHtml(it.kategoriTemuan) : ''} -- ${isClosed ? 'Ditutup' : 'Open'}</div>
+          <div class="capa-row"><b>Akar Masalah:</b> ${escapeHtml(it.capa.akarMasalah) || '-'}</div>
+          <div class="capa-row"><b>Rencana Tindakan:</b> ${escapeHtml(it.capa.rencanaTindakan) || '-'}</div>
+          <div class="capa-row"><b>PIC:</b> ${escapeHtml(it.capa.picNama) || '-'} &nbsp;•&nbsp; <b>Tenggat:</b> ${formatDateOnly(it.capa.tenggat)}</div>
+          ${isClosed ? `<div class="capa-row"><b>Diverifikasi:</b> ${escapeHtml(it.capa.verifikatorNama)} -- ${formatDate(it.capa.tanggalVerifikasi)}</div>` : ''}
+        </div>`;
       }
-    });
-  }
-
-  function tindakRowsHtml(items) {
-    return items.map(it => {
-      const isSelesai = it.status === 'Selesai';
       return `
-      <div class="tindak-row">
-        <div>
-          <div>${escapeHtml(it.item)}</div>
-          <div class="tindak-row-meta">${it.pic ? 'PIC: ' + escapeHtml(it.pic) : 'PIC: -'}${it.deadline ? ' &nbsp;•&nbsp; Deadline: ' + formatDateOnly(it.deadline) : ''}</div>
+      <div class="temuan-row">
+        <div class="temuan-row-top">
+          <div>
+            <div class="temuan-klausul">${escapeHtml(it.klausul)}</div>
+            <div class="temuan-kriteria">${escapeHtml(it.kriteria)}</div>
+            ${it.keterangan ? `<div class="temuan-keterangan">${escapeHtml(it.keterangan)}</div>` : ''}
+          </div>
+          ${hasilPillHtml(it.hasil)}
         </div>
-        <span class="status-pill ${isSelesai ? 'selesai' : 'open'}">${isSelesai ? '✅ Selesai' : '⏳ Open'}</span>
-      </div>
-    `;
+        ${capaHtml}
+      </div>`;
     }).join('');
   }
 
-  // Fallback buat notulen lama (sebelum Tindak Lanjut inline per topik ada) --
-  // section terpisah ini cuma ditampilkan kalau agendaList-nya belum punya
-  // tindakLanjutList sama sekali (lihat pemanggilannya di loadReport).
-  function renderTindak(items) {
-    const body = document.getElementById('fTindakBody');
-    if (!items || items.length === 0) {
-      body.innerHTML = '<span style="color:var(--muted);">Tidak ada tindak lanjut dari rapat ini.</span>';
-      return;
-    }
-    body.innerHTML = tindakRowsHtml(items);
+  function badgeClass(status) {
+    if (status === 'Direncanakan') return 'badge-direncanakan';
+    if (status === 'Berlangsung') return 'badge-berlangsung';
+    if (status === 'Selesai Audit') return 'badge-selesai-audit';
+    return 'badge-ditutup';
   }
 
   async function loadReport() {
@@ -380,70 +339,76 @@
     if (!id) {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('errorState').style.display = 'block';
-      document.getElementById('errorState').innerText = '❌ Id notulen tidak ditemukan di URL.';
+      document.getElementById('errorState').innerText = '❌ Id audit tidak ditemukan di URL.';
       return;
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_hse_meeting_by_id', { p_id: id });
+      const { data: r, error } = await supabaseClient.rpc('get_audit_by_id', { p_id: id });
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('errorState').style.display = 'block';
-        document.getElementById('errorState').innerText = '❌ Notulen tidak ditemukan.';
+        document.getElementById('errorState').innerText = '❌ Laporan audit tidak ditemukan.';
         return;
       }
 
-      document.title = `${r.noMeeting} — HSSE-Fusion4`;
-      document.getElementById('fNoMeeting').innerText = r.noMeeting;
-      document.getElementById('fTanggal').innerText = formatDate(r.tanggalRapat);
+      document.title = `${r.noAudit} — HSSE-Fusion4`;
+      document.getElementById('fNoAudit').innerText = r.noAudit;
+      document.getElementById('fJudul').innerText = r.judulAudit;
       document.getElementById('fProject').innerText = r.namaProject;
       document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
-      document.getElementById('fPemimpin').innerHTML = escapeHtml(r.namaPemimpin) +
-        (r.pemimpinQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.pemimpinQrCodeId ? `QrCodeId: ${r.pemimpinQrCodeId}` : '';
-      const statusBadge = r.status === 'Berlangsung'
-        ? '<span class="badge badge-berlangsung">🔴 Berlangsung</span>'
-        : '<span class="badge badge-selesai-status">✅ Selesai</span>';
-      document.getElementById('fTipe').innerHTML = `<span class="badge ${r.tipeMeeting === 'Bulanan' ? 'badge-bulanan' : 'badge-mingguan'}">${r.tipeMeeting === 'Bulanan' ? '🗓️' : '📅'} ${r.tipeMeeting}</span> ${statusBadge}`;
-      document.getElementById('fLokasi').innerText = r.lokasiRapat || '-';
+      document.getElementById('fStatus').innerHTML = `<span class="badge ${badgeClass(r.status)}">${escapeHtml(r.status)}</span>`;
+      document.getElementById('fStandar').innerText = r.standarAcuan || '-';
+      document.getElementById('fScope').innerText = r.scopeArea || '-';
+      document.getElementById('fTanggal').innerText =
+        `${formatDateOnly(r.tanggalRencana)}${r.tanggalPelaksanaan ? ' (dilaksanakan ' + formatDate(r.tanggalPelaksanaan) + ')' : ''}`;
+      document.getElementById('fLeadAuditor').innerHTML = escapeHtml(r.leadAuditor) +
+        (r.leadAuditorQrCodeId ? ' <span class="badge badge-ditutup" style="font-size:8px;">&#10003; Terverifikasi</span>' : '');
+      document.getElementById('fQrCodeId').innerText = r.leadAuditorQrCodeId ? `QrCodeId: ${r.leadAuditorQrCodeId}` : '';
+      const timNames = (r.timAuditorList || []).map(t => t.nama).filter(Boolean);
+      document.getElementById('fTimAuditor').innerText = timNames.length ? timNames.join(', ') : '-';
+      const auditeeList = r.auditeeList || [];
+      document.getElementById('fAuditee').innerText = auditeeList.length > 0
+        ? auditeeList.map(a => `${a.nama}${a.dept ? ' -- ' + a.dept : ''}`).join(', ')
+        : '-';
 
-      renderAgenda(r.agendaList);
-      renderPeserta(r.pesertaList, r.noMeeting);
+      const ringkasan = r.status === 'Direncanakan'
+        ? 'Belum dilaksanakan.'
+        : `${r.jumlahSesuai || 0} Sesuai • ${r.jumlahTidakSesuai || 0} Tidak Sesuai • ${r.jumlahNA || 0} N/A${r.skorPersen !== null && r.skorPersen !== undefined ? ` • Skor Kepatuhan ${r.skorPersen}%` : ''}`;
+      document.getElementById('fRingkasan').innerText = ringkasan;
 
-      const anyNestedTindak = (r.agendaList || []).some(a => a.tindakLanjutList && a.tindakLanjutList.length > 0);
-      if (!anyNestedTindak && (r.tindakLanjutList || []).length > 0) {
-        document.getElementById('tindakSection').style.display = '';
-        renderTindak(r.tindakLanjutList);
-      }
+      renderTemuan(r.temuanList);
 
-      if (r.catatanTambahan) {
+      if (r.catatanUmum) {
         document.getElementById('catatanSection').style.display = 'block';
-        document.getElementById('fCatatan').innerText = r.catatanTambahan;
+        document.getElementById('fCatatan').innerText = r.catatanUmum;
       }
 
       renderPhotoGrid(
         document.getElementById('fotoGrid'), document.getElementById('fotoSection'),
-        document.getElementById('fotoTitle'), 'Foto Dokumentasi', r.fotoList
+        document.getElementById('fotoTitle'), 'Foto Umum', r.fotoUmumList
       );
 
-      document.getElementById('fSignPemimpin').innerText = r.namaPemimpin;
-      // TTD Digital pemimpin rapat -- QrCodeId&NoMeeting, sama formatnya (QR code +
-      // teks) kayak TTD Digital tiap peserta di tabel Daftar Peserta.
-      if (r.pemimpinQrCodeId) {
-        const leaderCode = `${r.pemimpinQrCodeId}&${r.noMeeting}`;
+      document.getElementById('fSignLead').innerText = r.leadAuditor;
+      // TTD Digital Lead Auditor -- QrCodeId&NoAudit, format sama kayak TTD Digital di
+      // modul HSE Meeting (QR code + kode teks di bawahnya).
+      if (r.leadAuditorQrCodeId) {
+        const leaderCode = `${r.leadAuditorQrCodeId}&${r.noAudit}`;
         document.getElementById('fSignQrCodeId').innerText = `TTD Digital: ${leaderCode}`;
         try {
           if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
           QRCode.toCanvas(document.getElementById('fSignBarcode'), leaderCode, { width: 100, margin: 1 }, (err) => {
-            if (err) console.error('Gagal generate QR code pemimpin:', err);
+            if (err) console.error('Gagal generate QR code Lead Auditor:', err);
           });
         } catch (e) {
-          console.error('Gagal generate QR code pemimpin:', e);
+          console.error('Gagal generate QR code Lead Auditor:', e);
         }
       } else {
         document.getElementById('fSignQrCodeId').innerText = '';
       }
+
+      document.getElementById('fSignAuditee').innerText = auditeeList.length > 0 ? auditeeList.map(a => a.nama).join(', ') : ' ';
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 
@@ -452,7 +417,7 @@
     } catch (e) {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('errorState').style.display = 'block';
-      document.getElementById('errorState').innerText = '❌ Gagal memuat notulen: ' + e.message;
+      document.getElementById('errorState').innerText = '❌ Gagal memuat laporan audit: ' + e.message;
     }
   }
 

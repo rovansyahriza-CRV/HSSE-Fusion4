@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Ganti TTD Digital dari barcode Code128 jadi QR Code di PDF HSE Meeting" -m "- hse-meeting-pdf.html: TTD Digital di tabel Daftar Peserta dan kotak tanda tangan pemimpin rapat sekarang render QR Code (pakai qrcode@1.5.1, library yang sama kayak buat QR absen) -- sebelumnya barcode Code128 (jsbarcode). Kode yang di-encode tetap sama, QrCodeId&NoMeeting, cuma bentuk visualnya diganti QR Code. Fallback teks kode tetap ada kalau library gagal load." -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

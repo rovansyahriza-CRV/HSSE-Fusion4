@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Internal Audit — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  select, input, textarea {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 13.5px; background: var(--surface); color: var(--text);
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .form-row > * { flex: 1; min-width: 140px; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  #formBody, #planCreatedCard, #pelaksanaanCard, #umumArea { display: none; }
+
+  /* ===== Tim Auditor -- checkbox otomatis + baris dinamis manual ===== */
+  .tim-candidate-row {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; margin-bottom: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tim-candidate-row input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; }
+  .tim-candidate-empty { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .tim-row { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .tim-row input { flex: 1; margin-bottom: 0; }
+  .tim-row .btn-remove-tim {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px; border: none;
+    background: #FCEAE8; color: var(--accent); font-weight: 800; cursor: pointer;
+  }
+  .btn-add-row {
+    width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
+  }
+
+  /* ===== Ringkasan Rencana Audit -- ditampilin di atas checklist pelaksanaan ===== */
+  .plan-summary {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); color: #fff;
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .plan-summary .no-audit { font-family: monospace; font-size: 11px; color: var(--safety-yellow); font-weight: 700; }
+  .plan-summary .judul { font-size: 15px; font-weight: 800; margin-top: 2px; }
+  .plan-summary .meta { font-size: 11.5px; color: #C7CEE8; margin-top: 6px; line-height: 1.6; }
+  .plan-created-icon { font-size: 40px; text-align: center; margin-bottom: 8px; }
+  .plan-created-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+  .plan-created-sub { font-size: 12.5px; color: var(--muted); text-align: center; margin-bottom: 16px; }
+
+  /* ===== Checklist kriteria per klausul ===== */
+  .checklist-kategori { font-size: 12px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1.5px solid var(--border); }
+  .checklist-kategori:first-child { margin-top: 0; }
+  .checklist-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .checklist-item:last-child { border-bottom: none; }
+  .checklist-item-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .hasil-select {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--surface); font-weight: 700; font-size: 12.5px; color: var(--muted); margin-bottom: 8px;
+  }
+  .hasil-select.val-sesuai { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .hasil-select.val-tidak { background: #FCEAE8; border-color: var(--accent); color: var(--accent); }
+  .hasil-select.val-na { background: var(--bg); border-color: #9CA8C9; color: var(--muted); }
+  .checklist-extra { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+  .checklist-extra textarea { min-height: 44px; font-size: 12.5px; }
+  .item-photo-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 220px; }
+  .item-photo-slots .photo-slot { aspect-ratio: 1/1; border-radius: 8px; }
+  .item-photo-slots .slot-placeholder { font-size: 18px; }
+
+  /* ===== CAPA per temuan Tidak Sesuai ===== */
+  .capa-box {
+    margin-top: 8px; background: #FDF3E3; border: 1px solid #F0DFB8; border-radius: 10px; padding: 10px;
+  }
+  .capa-box .capa-title { font-size: 11px; font-weight: 800; color: #8A6100; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+  .capa-box textarea, .capa-box input, .capa-box select { font-size: 12.5px; margin-bottom: 6px; background: #fff; }
+  .capa-box .cap-2col { display: flex; gap: 6px; }
+  .capa-box .cap-2col > * { flex: 1; }
+  .capa-box .mini-label { font-size: 10.5px; font-weight: 700; color: #8A6100; margin-bottom: 3px; display: block; }
+
+  .score-preview {
+    display: none; background: var(--bg); border-radius: 12px; padding: 14px; margin: 14px 0;
+    text-align: center;
+  }
+  .score-preview .score-num { font-size: 30px; font-weight: 800; }
+  .score-preview .score-num.good { color: var(--success); }
+  .score-preview .score-num.warn { color: var(--safety-yellow); }
+  .score-preview .score-num.bad { color: var(--accent); }
+  .score-preview .score-detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="page" style="max-width:520px;">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Internal Audit</h1>
+      </div>
+    </div>
+    <p>Bikin Rencana Audit dulu (jadwal, tim, scope), baru pas hari-H isi Temuan per kriteria. Temuan "Tidak Sesuai" langsung diisi CAPA-nya (akar masalah, rencana tindakan, PIC, tenggat).</p>
+  </div>
+
+  <div id="statusMsg" class="status-msg"></div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Identifikasi Lead Auditor</h2>
+    <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu. Cuma yang punya izin Author <b>"Internal Auditor"</b> yang bisa bikin/isi Internal Audit ini.</p>
+
+    <div class="id-gate-buttons" id="idGateButtons">
+      <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
+      <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+      <button type="button" id="btnIdUsePin">🔢 Input PIN</button>
+    </div>
+
+    <div class="cam-wrap" id="idCamWrap">
+      <video id="idVideo" autoplay muted playsinline></video>
+      <canvas id="idCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="idFaceOval"></div>
+      <div class="cam-qr-box" id="idQrBox"></div>
+    </div>
+    <div id="idCamStatus" class="status-msg"></div>
+    <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
+    <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+    <form class="id-pin-form" id="idPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="idPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnIdPinSubmit">Verifikasi PIN</button>
+      <button type="button" class="id-pin-cancel" id="btnIdPinCancel">Batal</button>
+    </form>
+
+    <div class="id-result-banner" id="idResultBanner">
+      <span class="id-name">✅ <span id="idName"></span></span>
+      <button type="button" onclick="resetIdentification()">Ganti</button>
+    </div>
+  </div>
+
+  <div id="formBody">
+
+  <div class="card" id="planCard">
+    <h2 style="margin-bottom:10px;">Rencana Audit</h2>
+
+    <div class="form-group">
+      <label for="selectProject">Project / Kontrak</label>
+      <select id="selectProject">
+        <option value="">-- Memuat daftar project... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtJudul">Judul Audit</label>
+      <input type="text" id="txtJudul" placeholder="Contoh: Internal Audit HSSE Q3 2026">
+    </div>
+
+    <div class="form-group">
+      <label for="txtStandar">Standar / Acuan (opsional)</label>
+      <input type="text" id="txtStandar" placeholder="Contoh: ISO 45001:2018, SOP HSSE PT BIMA">
+    </div>
+
+    <div class="form-group">
+      <label for="txtScope">Scope / Area yang Diaudit</label>
+      <input type="text" id="txtScope" placeholder="Contoh: Area Wellpad-3 & Site Office">
+    </div>
+
+    <div class="form-group">
+      <label for="dtRencana">Tanggal Rencana Pelaksanaan</label>
+      <input type="date" id="dtRencana">
+    </div>
+
+    <div class="form-group">
+      <label>Tim Auditor (otomatis dari yang punya izin Author "Internal Auditor" -- silang/uncheck yang gak ikut audit ini)</label>
+      <div id="timAuditorCandidates"></div>
+      <div id="timAuditorRows"></div>
+      <button type="button" class="btn-add-row" onclick="addTimRow()">+ Tambah Anggota Tim Manual</button>
+    </div>
+
+    <div class="form-group">
+      <label>Auditee / Pihak yang Diaudit (opsional, bisa lebih dari satu)</label>
+      <div id="auditeeRows"></div>
+      <button type="button" class="btn-add-row" onclick="addAuditeeRow()">+ Tambah Auditee</button>
+    </div>
+  </div>
+
+  <button type="button" id="btnSavePlan" class="btn-block btn-primary" onclick="savePlan()">
+    <span>📝 Simpan Rencana Audit</span>
+  </button>
+
+  <div class="card" id="planCreatedCard">
+    <div class="plan-created-icon">✅</div>
+    <div class="plan-created-title" id="planCreatedNo"></div>
+    <div class="plan-created-sub">Rencana Audit tersimpan. Mau langsung mulai pelaksanaan sekarang, atau nanti sesuai jadwal (bisa dilanjut lewat Riwayat Internal Audit)?</div>
+    <button type="button" class="btn-block btn-primary" style="margin-bottom:8px;" onclick="beginPelaksanaan()">
+      <span>▶️ Mulai Pelaksanaan Sekarang</span>
+    </button>
+    <a href="audit-list.html" class="btn-block" style="background:var(--bg); color:var(--text); text-decoration:none;">📋 Selesai, Lihat Riwayat Audit</a>
+  </div>
+
+  <div class="card" id="pelaksanaanCard">
+    <div class="plan-summary">
+      <div class="no-audit" id="liveNoAudit"></div>
+      <div class="judul" id="liveJudul"></div>
+      <div class="meta" id="liveMeta"></div>
+    </div>
+
+    <h2 style="margin-bottom:4px;">Checklist Temuan</h2>
+    <p style="margin-bottom:12px;">Isi hasil tiap kriteria. Kalau "Tidak Sesuai", isi juga rencana tindak lanjutnya (CAPA) di bawahnya.</p>
+    <div id="checklistBody">Memuat checklist...</div>
+
+    <div class="score-preview" id="scorePreview">
+      <div class="score-num" id="scoreNum">-</div>
+      <div class="score-detail" id="scoreDetail"></div>
+    </div>
+  </div>
+
+  <div class="card" id="umumArea">
+    <div class="form-group">
+      <label for="txtCatatanUmum">Catatan Umum (opsional)</label>
+      <textarea id="txtCatatanUmum" placeholder="Catatan tambahan soal audit ini..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Foto Umum (opsional, bisa sampai 3)</label>
+      <div class="photo-slots">
+        <div class="photo-slot" id="slot0">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 0)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(0, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot1">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 1)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(1, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot2">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 2)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(2, event)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitTemuan()">
+      <span>✅ Submit Temuan Audit</span>
+    </button>
+  </div>
+
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+
+  let projectList = [];
+  let timRowCount = 0;
+  let photoSlots = [null, null, null];
+  let checklistTemplate = []; // [{id, klausul, kriteria}]
+  let checklistState = {}; // { itemId: { klausul, kriteria, hasil, keterangan, fotoFiles:[..], capa:{...} } }
+  let currentAuditId = null;
+  let currentAuditData = null;
+  // Diisi dari ?resume=<id> di URL -- lanjutin Rencana Audit yang udah dibuat tapi
+  // belum/masih pelaksanaan (Direncanakan/Berlangsung), lewat link di audit-list.html.
+  let resumeAuditId = null;
+
+  const statusMsg = document.getElementById('statusMsg');
+  const selectProject = document.getElementById('selectProject');
+  const formBody = document.getElementById('formBody');
+  const planCard = document.getElementById('planCard');
+  const btnSavePlan = document.getElementById('btnSavePlan');
+  const planCreatedCard = document.getElementById('planCreatedCard');
+  const pelaksanaanCard = document.getElementById('pelaksanaanCard');
+  const umumArea = document.getElementById('umumArea');
+  const checklistBody = document.getElementById('checklistBody');
+  const scorePreview = document.getElementById('scorePreview');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const timAuditorRows = document.getElementById('timAuditorRows');
+  const timAuditorCandidates = document.getElementById('timAuditorCandidates');
+  const auditeeRows = document.getElementById('auditeeRows');
+  let auditeeRowCount = 0;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(window.location.search);
+    resumeAuditId = params.get('resume');
+    if (resumeAuditId) {
+      document.querySelector('.header p').innerText = 'Melanjutkan Rencana Audit yang belum selesai -- identifikasi dulu buat masuk.';
+    }
+    await loadProjects();
+    addAuditeeRow();
+  });
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+      if (projectList.length === 0) {
+        selectProject.innerHTML = '<option value="">Belum ada project aktif -- hubungi admin</option>';
+        return;
+      }
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+      setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');
+    }
+  }
+
+  // Checkbox otomatis -- semua orang yang punya Author tag "Internal Auditor", dibaca
+  // LANGSUNG dari karyawanTbl lewat get_karyawan_by_author() (bukan dari roster wajah
+  // get_all_face_data, yang cuma isi orang yang udah pernah daftar wajah -- jadi auditor
+  // yang cuma pakai QR/PIN gak akan ketinggalan). Semua CENTANG DEFAULT, tinggal
+  // di-uncheck (silang) kalau ada yang gak ikut audit ini. Lead Auditor yang udah
+  // teridentifikasi di atas gak dobel-muncul di sini.
+  async function loadTimAuditorCandidates() {
+    timAuditorCandidates.innerHTML = '<div class="tim-candidate-empty">Memuat daftar auditor...</div>';
+    try {
+      const { data, error } = await fusion4Client.rpc('get_karyawan_by_author', { p_author_tag: REQUIRED_TAG });
+      if (error) throw error;
+      const candidates = (data || []).filter(p => p.qrCodeId !== identifiedQrCodeId);
+      renderTimAuditorCandidates(candidates);
+    } catch (e) {
+      console.error('Gagal memuat roster auditor:', e.message);
+      timAuditorCandidates.innerHTML = '<div class="tim-candidate-empty">Gagal memuat daftar auditor lain -- tambahin manual di bawah kalau perlu.</div>';
+    }
+  }
+
+  function renderTimAuditorCandidates(candidates) {
+    if (!candidates || candidates.length === 0) {
+      timAuditorCandidates.innerHTML = '<div class="tim-candidate-empty">Belum ada auditor lain yang punya izin "Internal Auditor" -- tambahin manual di bawah kalau perlu.</div>';
+      return;
+    }
+    timAuditorCandidates.innerHTML = candidates.map((p, i) => {
+      const nama = p.nama || '(tanpa nama)';
+      return `<label class="tim-candidate-row">
+        <input type="checkbox" checked id="tim-cand-${i}" data-nama="${escapeHtml(nama)}">
+        <span>${escapeHtml(nama)}</span>
+      </label>`;
+    }).join('');
+  }
+
+  function addTimRow(nama) {
+    const rowId = timRowCount++;
+    const div = document.createElement('div');
+    div.className = 'tim-row';
+    div.id = `tim-row-${rowId}`;
+    div.innerHTML = `
+      <input type="text" id="tim-nama-${rowId}" placeholder="Nama anggota tim auditor">
+      <button type="button" class="btn-remove-tim" onclick="removeTimRow(${rowId})">✕</button>
+    `;
+    timAuditorRows.appendChild(div);
+    if (nama) div.querySelector(`#tim-nama-${rowId}`).value = nama;
+  }
+
+  function removeTimRow(rowId) {
+    const el = document.getElementById(`tim-row-${rowId}`);
+    if (el) el.remove();
+  }
+
+  function collectTimAuditorList() {
+    const fromCandidates = Array.from(timAuditorCandidates.querySelectorAll('input[type="checkbox"]:checked'))
+      .map(cb => ({ nama: cb.getAttribute('data-nama') }));
+    const fromManual = Array.from(timAuditorRows.children)
+      .map(row => row.querySelector('input').value.trim())
+      .filter(nama => nama)
+      .map(nama => ({ nama }));
+    return [...fromCandidates, ...fromManual];
+  }
+
+  function addAuditeeRow(nama, dept) {
+    const rowId = auditeeRowCount++;
+    const div = document.createElement('div');
+    div.className = 'tim-row';
+    div.id = `auditee-row-${rowId}`;
+    div.innerHTML = `
+      <input type="text" id="auditee-nama-${rowId}" placeholder="Nama PIC yang diaudit">
+      <input type="text" id="auditee-dept-${rowId}" placeholder="Dept (opsional)">
+      <button type="button" class="btn-remove-tim" onclick="removeAuditeeRow(${rowId})">✕</button>
+    `;
+    auditeeRows.appendChild(div);
+    if (nama) div.querySelector(`#auditee-nama-${rowId}`).value = nama;
+    if (dept) div.querySelector(`#auditee-dept-${rowId}`).value = dept;
+  }
+
+  function removeAuditeeRow(rowId) {
+    const el = document.getElementById(`auditee-row-${rowId}`);
+    if (el) el.remove();
+  }
+
+  function collectAuditeeList() {
+    return Array.from(auditeeRows.children).map(row => {
+      const inputs = row.querySelectorAll('input');
+      return { nama: inputs[0].value.trim(), dept: inputs[1].value.trim() };
+    }).filter(a => a.nama);
+  }
+
+  function handlePhotoSlot(event, idx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    photoSlots[idx] = file;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removePhotoSlot(idx, evt) {
+    if (evt) evt.stopPropagation();
+    photoSlots[idx] = null;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function setStatus(text, kind) {
+    statusMsg.className = 'status-msg ' + (kind || 'info');
+    statusMsg.innerText = text;
+    statusMsg.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function formatDate(d) {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  // =====================================================================================
+  // IDENTIFIKASI LEAD AUDITOR -- sama persis pola di hse-meeting-report.html / ptw-report.html
+  // (Scan QR/Wajah/PIN dicocokkan ke database karyawan Fusion4, read-only), gated
+  // Author tag "Internal Auditor".
+  // =====================================================================================
+  const REQUIRED_TAG = 'Internal Auditor';
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let identifiedNama = null;
+  let identifiedQrCodeId = null;
+  let idFacingMode = "environment";
+  let idQrScanning = false;
+  let idFaceModelsLoaded = false;
+  let allFaceDataCache = null;
+
+  const idGateButtons = document.getElementById('idGateButtons');
+  const idCamWrap = document.getElementById('idCamWrap');
+  const idVideo = document.getElementById('idVideo');
+  const idCanvas = document.getElementById('idCanvas');
+  const idFaceOval = document.getElementById('idFaceOval');
+  const idQrBox = document.getElementById('idQrBox');
+  const idCamStatus = document.getElementById('idCamStatus');
+  const btnIdScanFace = document.getElementById('btnIdScanFace');
+  const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idPinForm = document.getElementById('idPinForm');
+  const idPinInput = document.getElementById('idPinInput');
+  const idResultBanner = document.getElementById('idResultBanner');
+  const idNameEl = document.getElementById('idName');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  async function ensureAllFaceData() {
+    if (allFaceDataCache) return allFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    allFaceDataCache = data || [];
+    return allFaceDataCache;
+  }
+
+  function setIdStatus(text, kind) {
+    if (!text) { idCamStatus.style.display = 'none'; return; }
+    idCamStatus.className = 'status-msg ' + (kind || 'info');
+    idCamStatus.innerText = text;
+    idCamStatus.style.display = 'block';
+  }
+
+  async function ensureIdCamera(facingMode) {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    idVideo.srcObject = stream;
+    await idVideo.play();
+    idCanvas.width = idVideo.videoWidth;
+    idCanvas.height = idVideo.videoHeight;
+    idCamWrap.style.display = 'block';
+  }
+
+  function stopIdCamera() {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    idQrScanning = false;
+    idCamWrap.style.display = 'none';
+    idFaceOval.style.display = 'none';
+    idQrBox.style.display = 'none';
+    btnIdScanFace.style.display = 'none';
+    btnIdSwitchCam.style.display = 'none';
+  }
+
+  document.getElementById('btnIdScanQr').onclick = startIdQr;
+  document.getElementById('btnIdScanFaceStart').onclick = startIdFace;
+  btnIdScanFace.onclick = doIdFaceScan;
+  btnIdSwitchCam.onclick = async () => {
+    idFacingMode = idFacingMode === 'user' ? 'environment' : 'user';
+    try {
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnIdUsePin').onclick = () => {
+    idGateButtons.style.display = 'none';
+    idPinForm.style.display = 'block';
+    idPinInput.value = '';
+    setIdStatus('', null);
+    idPinInput.focus();
+  };
+
+  document.getElementById('btnIdPinCancel').onclick = () => {
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  };
+
+  document.getElementById('btnIdPinSubmit').onclick = async () => {
+    const pin = idPinInput.value.trim();
+    if (!pin) return setIdStatus('❌ Isi PIN dulu.', 'error');
+    setIdStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureAllFaceData();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
+      const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
+      if (!hasAuthorTag(match, REQUIRED_TAG)) {
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+      }
+      confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
+    } catch (e) {
+      setIdStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  async function startIdQr() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Menyiapkan kamera...', 'info');
+    try {
+      idFacingMode = 'environment';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    idQrBox.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Arahkan QR badge ke kamera...', 'info');
+    idQrScanning = true;
+    idQrLoop();
+  }
+
+  async function idQrLoop() {
+    const ctx = idCanvas.getContext('2d', { willReadFrequently: true });
+    while (idQrScanning) {
+      if (idVideo.readyState === idVideo.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(idVideo, 0, 0, idCanvas.width, idCanvas.height);
+        const imageData = ctx.getImageData(0, 0, idCanvas.width, idCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          idQrScanning = false;
+          await handleQrScanned(code.data.trim());
+          return;
+        }
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
+  async function handleQrScanned(rawData) {
+    let extractedId = rawData;
+    try {
+      const url = new URL(rawData);
+      const paramId = url.searchParams.get('QrCodeId') || url.searchParams.get('qrCodeId') || url.searchParams.get('qrcodeid');
+      if (paramId) extractedId = paramId;
+    } catch (e) { /* bukan URL, pakai apa adanya */ }
+    const qrId = extractedId.trim().toUpperCase();
+
+    setIdStatus('✅ QR terbaca: ' + qrId + ' -- mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qrId });
+      if (error) throw new Error(error.message);
+      if (!data || data.status === 'NOT_FOUND' || data.status === 'REJECTED' || !data.person) {
+        setIdStatus('❌ ' + (data && data.message ? data.message : 'QR tidak dikenali') + '. Coba lagi.', 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
+        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      confirmIdentity(nama, qrId);
+    } catch (e) {
+      setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
+      stopIdCamera();
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  async function loadFaceModelsOnce() {
+    if (idFaceModelsLoaded) return;
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    idFaceModelsLoaded = true;
+  }
+
+  async function startIdFace() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Memuat model wajah...', 'info');
+    try {
+      await loadFaceModelsOnce();
+    } catch (e) {
+      setIdStatus('❌ Gagal memuat model wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    setIdStatus('Mengambil data karyawan...', 'info');
+    try {
+      await ensureAllFaceData();
+    } catch (e) {
+      setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    if (allFaceDataCache.length === 0) {
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code atau Input PIN.', 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    try {
+      idFacingMode = 'user';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    idFaceOval.style.display = 'block';
+    btnIdScanFace.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+  }
+
+  async function doIdFaceScan() {
+    btnIdScanFace.disabled = true;
+    setIdStatus('Mendeteksi wajah...', 'info');
+
+    let detection;
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = idVideo.videoWidth || 640;
+      snapCanvas.height = idVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    } catch (e) {
+      setIdStatus('❌ ' + e.message, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    if (!detection) {
+      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    const sorted = allFaceDataCache.map(p => ({
+      person: p,
+      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+    })).sort((a, b) => a.distance - b.distance);
+
+    const best = sorted[0];
+    const secondBest = sorted[1];
+    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+    if (!withinThreshold) {
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code / PIN.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (isAmbiguous) {
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code atau PIN untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    confirmIdentity(getPersonField(best.person, ['nama'], ''), getPersonField(best.person, ['qrCodeId'], ''));
+  }
+
+  async function confirmIdentity(nama, qrCodeId) {
+    identifiedNama = nama;
+    identifiedQrCodeId = qrCodeId;
+    stopIdCamera();
+    setIdStatus('', null);
+    idNameEl.innerText = `${nama} (${qrCodeId})`;
+    idResultBanner.style.display = 'flex';
+    formBody.style.display = 'block';
+    if (resumeAuditId) {
+      loadResumedAudit();
+    } else {
+      planCard.style.display = 'block';
+      btnSavePlan.style.display = 'flex';
+      loadTimAuditorCandidates();
+    }
+  }
+
+  function resetIdentification() {
+    identifiedNama = null;
+    identifiedQrCodeId = null;
+    idResultBanner.style.display = 'none';
+    formBody.style.display = 'none';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  }
+
+  // =====================================================================================
+  // LANJUT RENCANA AUDIT YANG BELUM SELESAI -- dibuka lewat link di audit-list.html
+  // (?resume=<id>), buat kasus Lead Auditor udah bikin Rencana tapi belum/masih isi Temuan.
+  // =====================================================================================
+  async function loadResumedAudit() {
+    planCard.style.display = 'none';
+    btnSavePlan.style.display = 'none';
+    setStatus('⏳ Memuat Rencana Audit...', 'info');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_audit_by_id', { p_id: Number(resumeAuditId) });
+      if (error) throw error;
+      if (!data) {
+        setStatus('❌ Rencana Audit tidak ditemukan. Mungkin sudah dihapus.', 'error');
+        planCard.style.display = 'block';
+        btnSavePlan.style.display = 'flex';
+        return;
+      }
+      if (data.status !== 'Direncanakan' && data.status !== 'Berlangsung') {
+        setStatus(`ℹ️ Audit ${data.noAudit} ini sudah "${data.status}" -- temuan sudah pernah disubmit sebelumnya. Cek di Riwayat Internal Audit.`, 'info');
+        return;
+      }
+      currentAuditId = data.id;
+      currentAuditData = data;
+      setStatus('', null);
+      await beginPelaksanaanFromData(data);
+    } catch (e) {
+      setStatus('❌ Gagal memuat Rencana Audit: ' + e.message, 'error');
+      planCard.style.display = 'block';
+      btnSavePlan.style.display = 'flex';
+    }
+  }
+
+  // =====================================================================================
+  // SIMPAN RENCANA AUDIT
+  // =====================================================================================
+  async function savePlan() {
+    if (!identifiedQrCodeId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return setStatus('❌ Identifikasi Lead Auditor dulu di bagian atas.', 'error');
+    }
+    const projectId = selectProject.value;
+    const judul = document.getElementById('txtJudul').value.trim();
+    const standar = document.getElementById('txtStandar').value.trim();
+    const scope = document.getElementById('txtScope').value.trim();
+    const tanggalRencana = document.getElementById('dtRencana').value || null;
+
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    if (!judul) return setStatus('❌ Judul Audit wajib diisi.', 'error');
+    if (!scope) return setStatus('❌ Scope/Area yang diaudit wajib diisi.', 'error');
+
+    btnSavePlan.disabled = true;
+    btnSavePlan.innerHTML = '<span>⏳ Menyimpan...</span>';
+    try {
+      const { data, error } = await supabaseClient.rpc('create_audit_plan', {
+        p_project_id: projectId,
+        p_judul_audit: judul,
+        p_lead_auditor: identifiedNama,
+        p_lead_auditor_qrcode: identifiedQrCodeId,
+        p_standar_acuan: standar,
+        p_scope_area: scope,
+        p_tanggal_rencana: tanggalRencana,
+        p_tim_auditor_list: collectTimAuditorList(),
+        p_auditee_list: collectAuditeeList(),
+      });
+      if (error) throw error;
+
+      currentAuditId = data.id;
+      planCard.style.display = 'none';
+      btnSavePlan.style.display = 'none';
+      document.getElementById('planCreatedNo').innerText = `No. Audit: ${data.noAudit}`;
+      planCreatedCard.style.display = 'block';
+      setStatus('✅ Rencana Audit tersimpan.', 'success');
+      window.scrollTo({ top: planCreatedCard.offsetTop - 20, behavior: 'smooth' });
+    } catch (e) {
+      setStatus('❌ Gagal menyimpan Rencana Audit: ' + e.message, 'error');
+    } finally {
+      btnSavePlan.disabled = false;
+      btnSavePlan.innerHTML = '<span>📝 Simpan Rencana Audit</span>';
+    }
+  }
+
+  // =====================================================================================
+  // MULAI PELAKSANAAN -- panggil start_audit_pelaksanaan lalu tampilkan checklist.
+  // =====================================================================================
+  async function beginPelaksanaan() {
+    planCreatedCard.style.display = 'none';
+    setStatus('⏳ Membuka pelaksanaan audit...', 'info');
+    try {
+      const { error: startErr } = await supabaseClient.rpc('start_audit_pelaksanaan', { p_id: currentAuditId });
+      if (startErr) throw startErr;
+      const { data, error } = await supabaseClient.rpc('get_audit_by_id', { p_id: currentAuditId });
+      if (error) throw error;
+      currentAuditData = data;
+      setStatus('', null);
+      await beginPelaksanaanFromData(data);
+    } catch (e) {
+      setStatus('❌ Gagal membuka pelaksanaan: ' + e.message, 'error');
+      planCreatedCard.style.display = 'block';
+    }
+  }
+
+  async function beginPelaksanaanFromData(data) {
+    document.getElementById('liveNoAudit').innerText = data.noAudit;
+    document.getElementById('liveJudul').innerText = data.judulAudit;
+    const timNames = (data.timAuditorList || []).map(t => t.nama).filter(Boolean);
+    document.getElementById('liveMeta').innerText =
+      `${data.namaProject} (${data.noKontrak}) • Scope: ${data.scopeArea || '-'}` +
+      (timNames.length ? ` • Tim: ${timNames.join(', ')}` : '');
+    pelaksanaanCard.style.display = 'block';
+    umumArea.style.display = 'block';
+    await loadChecklist();
+    window.scrollTo({ top: pelaksanaanCard.offsetTop - 20, behavior: 'smooth' });
+  }
+
+  // =====================================================================================
+  // CHECKLIST KRITERIA AUDIT
+  // =====================================================================================
+  async function loadChecklist() {
+    checklistBody.innerHTML = 'Memuat checklist...';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_audit_checklist_template');
+      if (error) throw error;
+      checklistTemplate = data || [];
+      if (checklistTemplate.length === 0) {
+        checklistBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada kriteria checklist -- hubungi admin.</p>';
+        return;
+      }
+      checklistTemplate.forEach(it => {
+        checklistState[it.id] = {
+          klausul: it.klausul, kriteria: it.kriteria, hasil: '', keterangan: '', fotoFiles: [null, null, null],
+          capa: { kategoriTemuan: 'Minor NC', akarMasalah: '', rencanaTindakan: '', picNama: '', picQrCodeId: '', tenggat: '' }
+        };
+      });
+      renderChecklist();
+    } catch (e) {
+      checklistBody.innerHTML = '';
+      setStatus('❌ Gagal memuat checklist: ' + e.message, 'error');
+    }
+  }
+
+  function renderChecklist() {
+    let html = '';
+    let currentKlausul = null;
+    checklistTemplate.forEach(it => {
+      if (it.klausul !== currentKlausul) {
+        html += `<div class="checklist-kategori">${escapeHtml(it.klausul)}</div>`;
+        currentKlausul = it.klausul;
+      }
+      html += `
+        <div class="checklist-item">
+          <div class="checklist-item-label">${escapeHtml(it.kriteria)}</div>
+          <select class="hasil-select" id="hasil-${it.id}" onchange="setHasil(${it.id}, this.value)">
+            <option value="">-- Pilih Hasil --</option>
+            <option value="Sesuai">✅ Sesuai</option>
+            <option value="Tidak Sesuai">⚠️ Tidak Sesuai</option>
+            <option value="N/A">➖ N/A</option>
+          </select>
+          <div class="checklist-extra">
+            <textarea placeholder="Keterangan (opsional, wajib kalau Tidak Sesuai)..." oninput="setKeterangan(${it.id}, this.value)"></textarea>
+            <div class="item-photo-slots">
+              <div class="photo-slot" id="item-slot-${it.id}-0">
+                <input type="file" accept="image/*" capture="environment" onchange="handleItemPhoto(event, ${it.id}, 0)">
+                <div class="slot-placeholder">📷</div>
+                <img class="slot-preview">
+                <button type="button" class="slot-remove" onclick="removeItemPhoto(${it.id}, 0, event)">✕</button>
+              </div>
+              <div class="photo-slot" id="item-slot-${it.id}-1">
+                <input type="file" accept="image/*" capture="environment" onchange="handleItemPhoto(event, ${it.id}, 1)">
+                <div class="slot-placeholder">📷</div>
+                <img class="slot-preview">
+                <button type="button" class="slot-remove" onclick="removeItemPhoto(${it.id}, 1, event)">✕</button>
+              </div>
+            </div>
+          </div>
+          <div class="capa-box" id="capa-${it.id}" style="display:none;">
+            <div class="capa-title">📌 CAPA -- Rencana Tindak Lanjut</div>
+            <label class="mini-label">Kategori Temuan</label>
+            <select id="capa-kategori-${it.id}" onchange="setCapaField(${it.id}, 'kategoriTemuan', this.value)">
+              <option value="Minor NC">Minor NC</option>
+              <option value="Major NC">Major NC</option>
+            </select>
+            <label class="mini-label">Akar Masalah</label>
+            <textarea id="capa-akar-${it.id}" placeholder="Penyebab utama temuan ini..." oninput="setCapaField(${it.id}, 'akarMasalah', this.value)"></textarea>
+            <label class="mini-label">Rencana Tindakan Perbaikan</label>
+            <textarea id="capa-rencana-${it.id}" placeholder="Tindakan yang akan dilakukan..." oninput="setCapaField(${it.id}, 'rencanaTindakan', this.value)"></textarea>
+            <div class="cap-2col">
+              <div>
+                <label class="mini-label">PIC Tindak Lanjut</label>
+                <input type="text" id="capa-pic-${it.id}" placeholder="Nama PIC" oninput="setCapaField(${it.id}, 'picNama', this.value)">
+              </div>
+              <div>
+                <label class="mini-label">Tenggat</label>
+                <input type="date" id="capa-tenggat-${it.id}" onchange="setCapaField(${it.id}, 'tenggat', this.value)">
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+    checklistBody.innerHTML = html;
+  }
+
+  function setHasil(itemId, hasil) {
+    checklistState[itemId].hasil = hasil;
+    const selectEl = document.getElementById('hasil-' + itemId);
+    selectEl.className = 'hasil-select' +
+      (hasil === 'Sesuai' ? ' val-sesuai' : hasil === 'Tidak Sesuai' ? ' val-tidak' : hasil === 'N/A' ? ' val-na' : '');
+    const capaBox = document.getElementById('capa-' + itemId);
+    capaBox.style.display = hasil === 'Tidak Sesuai' ? 'block' : 'none';
+    updateScorePreview();
+  }
+
+  function setKeterangan(itemId, val) {
+    checklistState[itemId].keterangan = val;
+  }
+
+  function setCapaField(itemId, field, val) {
+    checklistState[itemId].capa[field] = val;
+  }
+
+  function handleItemPhoto(event, itemId, slotIdx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    checklistState[itemId].fotoFiles[slotIdx] = file;
+    const slotEl = document.getElementById(`item-slot-${itemId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeItemPhoto(itemId, slotIdx, evt) {
+    if (evt) evt.stopPropagation();
+    checklistState[itemId].fotoFiles[slotIdx] = null;
+    const slotEl = document.getElementById(`item-slot-${itemId}-${slotIdx}`);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function updateScorePreview() {
+    const items = Object.values(checklistState);
+    const sesuai = items.filter(i => i.hasil === 'Sesuai').length;
+    const tidak = items.filter(i => i.hasil === 'Tidak Sesuai').length;
+    const na = items.filter(i => i.hasil === 'N/A').length;
+    const answered = sesuai + tidak + na;
+    if (answered === 0) { scorePreview.style.display = 'none'; return; }
+
+    scorePreview.style.display = 'block';
+    const denom = sesuai + tidak;
+    const scoreNumEl = document.getElementById('scoreNum');
+    if (denom === 0) {
+      scoreNumEl.innerText = '-';
+      scoreNumEl.className = 'score-num';
+    } else {
+      const skor = Math.round((sesuai / denom) * 100);
+      scoreNumEl.innerText = skor + '%';
+      scoreNumEl.className = 'score-num ' + (skor >= 90 ? 'good' : skor >= 70 ? 'warn' : 'bad');
+    }
+    document.getElementById('scoreDetail').innerText =
+      `${sesuai} Sesuai • ${tidak} Tidak Sesuai • ${na} N/A (${answered}/${items.length} kriteria terisi)`;
+  }
+
+  // =====================================================================================
+  // SUBMIT TEMUAN AUDIT
+  // =====================================================================================
+  function generateTemuanId() {
+    return 'AF' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  async function submitTemuan() {
+    if (!currentAuditId) return setStatus('❌ Belum ada Rencana Audit yang dibuka buat pelaksanaan.', 'error');
+
+    const items = Object.entries(checklistState);
+    const belumDiisi = items.filter(([id, st]) => !st.hasil);
+    if (belumDiisi.length > 0) {
+      window.scrollTo({ top: pelaksanaanCard.offsetTop - 20, behavior: 'smooth' });
+      return setStatus(`❌ Masih ada ${belumDiisi.length} kriteria yang belum diisi.`, 'error');
+    }
+    const tanpaKeterangan = items.filter(([id, st]) => st.hasil === 'Tidak Sesuai' && !st.keterangan.trim());
+    if (tanpaKeterangan.length > 0) {
+      return setStatus('❌ Kriteria "Tidak Sesuai" wajib diisi keterangannya.', 'error');
+    }
+    const capaKurang = items.filter(([id, st]) => st.hasil === 'Tidak Sesuai' &&
+      (!st.capa.akarMasalah.trim() || !st.capa.rencanaTindakan.trim() || !st.capa.picNama.trim() || !st.capa.tenggat));
+    if (capaKurang.length > 0) {
+      return setStatus('❌ Kriteria "Tidak Sesuai" wajib diisi CAPA-nya lengkap: Akar Masalah, Rencana Tindakan, PIC, dan Tenggat.', 'error');
+    }
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
+
+    try {
+      const temuanPayload = [];
+      let uploadedCount = 0;
+      const totalFotoItem = items.reduce((sum, [id, st]) => sum + st.fotoFiles.filter(f => f).length, 0);
+      for (const [id, st] of items) {
+        const fotoList = [];
+        const filledFotoSlots = st.fotoFiles.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+        for (const slot of filledFotoSlots) {
+          uploadedCount++;
+          setStatus(`📤 Mengupload foto ${uploadedCount}/${totalFotoItem}...`, 'info');
+          const fileName = `AUDIT_${Date.now()}_item${id}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+        temuanPayload.push({
+          id: generateTemuanId(),
+          klausul: st.klausul,
+          kriteria: st.kriteria,
+          hasil: st.hasil,
+          keterangan: st.keterangan || '',
+          fotoList,
+          kategoriTemuan: st.hasil === 'Tidak Sesuai' ? st.capa.kategoriTemuan : null,
+          capa: st.hasil === 'Tidak Sesuai' ? {
+            akarMasalah: st.capa.akarMasalah,
+            rencanaTindakan: st.capa.rencanaTindakan,
+            picNama: st.capa.picNama,
+            picQrCodeId: st.capa.picQrCodeId || '',
+            tenggat: st.capa.tenggat,
+            status: 'Open',
+            buktiFotoList: [],
+          } : null,
+        });
+      }
+
+      let fotoUmumList = [];
+      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+      if (filledSlots.length > 0) {
+        setStatus(`📤 Mengupload ${filledSlots.length} foto umum...`, 'info');
+        for (const slot of filledSlots) {
+          const fileName = `AUDIT_UMUM_${Date.now()}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoUmumList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      setStatus('📤 Menyimpan temuan audit...', 'info');
+      const catatanUmum = document.getElementById('txtCatatanUmum').value.trim();
+      const { data, error } = await supabaseClient.rpc('submit_audit_temuan', {
+        p_id: currentAuditId,
+        p_temuan_list: temuanPayload,
+        p_catatan_umum: catatanUmum,
+        p_foto_umum_list: fotoUmumList,
+      });
+      if (error) throw error;
+
+      let msg = `✅ Temuan audit berhasil dikirim! Status: ${data.status}.`;
+      if (data.jumlahTidakSesuai > 0) {
+        msg += ` Ada ${data.jumlahTidakSesuai} temuan "Tidak Sesuai" yang perlu ditindaklanjuti & diverifikasi closure-nya lewat Riwayat Internal Audit.`;
+      }
+      setStatus(msg, 'success');
+      pelaksanaanCard.style.display = 'none';
+      umumArea.style.display = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      setStatus('❌ Gagal mengirim temuan audit: ' + e.message, 'error');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>✅ Submit Temuan Audit</span>';
+    }
+  }
+</script>
+
+</body>
+</html>
