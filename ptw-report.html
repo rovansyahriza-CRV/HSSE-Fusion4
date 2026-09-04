@@ -175,8 +175,8 @@
   </div>
 
   <div class="card" id="jsaArea">
-    <h2 style="margin-bottom:4px;">JSA -- Job Safety Analysis</h2>
-    <p style="margin-bottom:12px;">Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.</p>
+    <h2 style="margin-bottom:4px;" id="jsaTitle">JSA -- Job Safety Analysis</h2>
+    <p style="margin-bottom:12px;" id="jsaHint">Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.</p>
     <div id="jsaRows"></div>
     <button type="button" class="btn-add-row" onclick="addJsaRow()">+ Tambah Langkah Kerja</button>
   </div>
@@ -238,6 +238,7 @@
   let hazardTemplate = []; // [{id, item}]
   let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
   let jsaRowCount = 0;
+  let jsaTemplate = []; // [{langkah, bahaya, pengendalian}] -- contoh generik per Jenis Pekerjaan
   let lampiranFiles = []; // [{ id, file }] -- dokumen pendukung (foto/PDF), jumlah bebas (dibatasi MAX_LAMPIRAN)
   let lampiranIdCounter = 0;
   const MAX_LAMPIRAN = 5;
@@ -255,7 +256,8 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadProjects(), loadJenisPekerjaan()]);
-    addJsaRow(); // mulai dengan 1 baris JSA kosong
+    // Baris JSA baru diisi setelah Jenis Pekerjaan dipilih (lihat onJenisPekerjaanChange) --
+    // biar bisa auto-terisi contoh generik sesuai jenis pekerjaannya.
   });
 
   async function loadProjects() {
@@ -306,24 +308,52 @@
     document.getElementById('hazardTitle').innerText = `Hazard Checklist -- ${jenis}`;
     hazardState = {};
 
+    await Promise.all([loadJsaTemplate(jenis), loadHazardTemplate(jenis)]);
+    fotoArea.style.display = 'block';
+  }
+
+  async function loadHazardTemplate(jenis) {
     try {
       const { data, error } = await supabaseClient.rpc('get_ptw_hazard_checklist_template', { p_jenis_pekerjaan: jenis });
       if (error) throw error;
       hazardTemplate = data || [];
       if (hazardTemplate.length === 0) {
         hazardBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis ini -- hubungi admin.</p>';
-        fotoArea.style.display = 'block';
         return;
       }
       hazardTemplate.forEach(it => {
         hazardState[it.id] = { item: it.item, terpenuhi: false, keterangan: '' };
       });
       renderHazardChecklist();
-      fotoArea.style.display = 'block';
     } catch (e) {
       hazardBody.innerHTML = '';
       setStatus('❌ Gagal memuat hazard checklist: ' + e.message, 'error');
     }
+  }
+
+  // JSA -- ambil contoh generik (Langkah Kerja / Bahaya / Pengendalian) sesuai Jenis Pekerjaan,
+  // dari tabel master "ptwJsaTemplateTbl" (bisa diedit/ditambah lewat Table Editor Supabase).
+  // Tetap bisa diedit/ditambah/dihapus manual di form -- cuma titik awal biar gak dari nol.
+  async function loadJsaTemplate(jenis) {
+    document.getElementById('jsaTitle').innerText = `JSA -- Job Safety Analysis -- ${jenis}`;
+    jsaRows.innerHTML = '';
+    jsaRowCount = 0;
+    jsaTemplate = [];
+    try {
+      const { data, error } = await supabaseClient.rpc('get_ptw_jsa_template', { p_jenis_pekerjaan: jenis });
+      if (error) throw error;
+      jsaTemplate = data || [];
+      if (jsaTemplate.length > 0) {
+        jsaTemplate.forEach(it => addJsaRow(it));
+        document.getElementById('jsaHint').innerHTML = `Contoh langkah kerja umum buat <b>${escapeHtml(jenis)}</b> udah keisi otomatis -- edit, tambah, atau hapus baris sesuai kondisi kerja yang sebenarnya.`;
+        return;
+      }
+    } catch (e) {
+      setStatus('❌ Gagal memuat contoh JSA: ' + e.message, 'error');
+    }
+    // Belum ada template buat jenis ini (atau gagal ambil) -- mulai dari 1 baris kosong seperti biasa.
+    document.getElementById('jsaHint').innerText = 'Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.';
+    addJsaRow();
   }
 
   function renderHazardChecklist() {
@@ -348,7 +378,7 @@
   // =====================================================================================
   // JSA -- tabel dinamis, tambah/hapus baris Langkah Kerja / Bahaya / Pengendalian
   // =====================================================================================
-  function addJsaRow() {
+  function addJsaRow(prefill) {
     const rowId = jsaRowCount++;
     const div = document.createElement('div');
     div.className = 'jsa-row';
@@ -364,6 +394,11 @@
       <textarea id="jsa-pengendalian-${rowId}" placeholder="Cara mengendalikan bahaya tersebut..."></textarea>
     `;
     jsaRows.appendChild(div);
+    if (prefill) {
+      div.querySelector(`#jsa-langkah-${rowId}`).value = prefill.langkah || '';
+      div.querySelector(`#jsa-bahaya-${rowId}`).value = prefill.bahaya || '';
+      div.querySelector(`#jsa-pengendalian-${rowId}`).value = prefill.pengendalian || '';
+    }
   }
 
   function removeJsaRow(rowId) {
@@ -922,6 +957,7 @@
     fotoArea.style.display = 'none';
     hazardTemplate = [];
     hazardState = {};
+    jsaTemplate = [];
     for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
     lampiranFiles = [];
     renderLampiranList();

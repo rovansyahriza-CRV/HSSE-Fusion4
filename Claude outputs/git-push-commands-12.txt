@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Tambah template JSA generik per Jenis Pekerjaan (auto-fill saat isi Permit to Work)" -m "- sql/019_ptw_jsa_template.sql: tabel master ptwJsaTemplateTbl (Langkah/Bahaya/Pengendalian per Jenis Pekerjaan) + RPC get_ptw_jsa_template(), diseed contoh generik buat 7 jenis pekerjaan yang sudah ada (sama seperti pola ptwHazardChecklistTemplateTbl)" -m "- ptw-report.html: pas Requester pilih Jenis Pekerjaan, baris JSA otomatis keisi contoh langkah kerja/bahaya/pengendalian sesuai jenisnya -- tetap bisa diedit, ditambah, atau dihapus manual. Kalau belum ada template buat jenis tsb, tetap fallback ke 1 baris kosong seperti sebelumnya" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push
