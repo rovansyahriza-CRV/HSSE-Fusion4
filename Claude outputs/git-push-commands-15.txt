@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m "Toolbox Meeting: narik materi JSA & Hazard Checklist dari Permit to Work yang di-link" -m "- tbm-report.html: pas Leader pilih Permit yang terkait, Lokasi & Topik Briefing otomatis keisi dari data permit itu (Jenis Pekerjaan, Deskripsi, daftar Potensi Bahaya dari JSA) -- tetap bisa diedit manual" -m "- Nambah kartu referensi 'Materi dari Permit to Work' yang nampilin JSA (Langkah/Bahaya/Pengendalian) dan Hazard Checklist permit itu apa adanya, jadi Leader bisa langsung baca/bahas ke peserta pas briefing di lokasi tanpa perlu buka halaman lain" -m "- Data JSA/Hazard Checklist-nya udah kebawa dari RPC get_ptw_list yang dipakai buat isi dropdown Permit, jadi gak perlu query tambahan ke database" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" -m "Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy"
+git push

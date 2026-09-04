@@ -28,6 +28,37 @@
   .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
   #formBody, #scanArea, #closingForm { display: none; }
 
+  /* ===== Kartu referensi materi dari Permit to Work yang dipilih ===== */
+  .permit-ref-card {
+    display: none; margin-top: -4px; margin-bottom: 14px; border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; background: var(--bg);
+  }
+  .permit-ref-card.open { display: block; }
+  .permit-ref-title { font-size: 12.5px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+  .permit-ref-hint { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; }
+  .permit-ref-section-title {
+    font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 12px 0 6px;
+  }
+  .permit-ref-section-title:first-child { margin-top: 0; }
+  .permit-jsa-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 8px; font-size: 12.5px;
+  }
+  .permit-jsa-item b {
+    display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-top: 6px;
+  }
+  .permit-jsa-item b:first-child { margin-top: 0; }
+  .permit-hazard-item {
+    display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; font-size: 12.5px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .permit-hazard-item:last-child { border-bottom: none; }
+  .permit-hazard-item .dot {
+    flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--navy); margin-top: 6px;
+  }
+
   .mode-toggle { display: flex; gap: 10px; margin-bottom: 14px; }
   .mode-btn {
     flex: 1; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border);
@@ -132,10 +163,17 @@
       </div>
       <div class="form-group">
         <label for="selectPermit">Terkait Permit to Work (opsional)</label>
-        <select id="selectPermit">
+        <select id="selectPermit" onchange="onPermitLinkChange()">
           <option value="">-- Tidak terkait Permit --</option>
         </select>
       </div>
+
+      <div id="permitRefCard" class="permit-ref-card">
+        <div class="permit-ref-title">📋 Materi dari Permit to Work</div>
+        <p class="permit-ref-hint">Lokasi & Topik Briefing di atas udah keisi otomatis dari permit ini (masih bisa diedit). JSA & Hazard Checklist di bawah buat dibahas langsung ke peserta pas briefing.</p>
+        <div id="permitRefBody"></div>
+      </div>
+
       <button type="button" id="btnStartSession" class="btn-block btn-primary" onclick="startSession()">
         <span>▶️ Mulai Sesi &amp; Absen Peserta</span>
       </button>
@@ -283,6 +321,64 @@
     } catch (e) {
       console.error('Gagal memuat daftar Permit aktif:', e.message);
     }
+  }
+
+  // Pas Leader pilih Permit yang terkait, tarik JSA & Hazard Checklist-nya jadi materi
+  // briefing -- Lokasi & Topik Briefing auto-terisi (tetap bisa diedit), plus ditampilin
+  // kartu referensi biar Leader bisa langsung baca/bahas ke peserta di lokasi.
+  function onPermitLinkChange() {
+    const permitId = selectPermit.value;
+    const permitRefCard = document.getElementById('permitRefCard');
+    if (!permitId) {
+      permitRefCard.classList.remove('open');
+      document.getElementById('permitRefBody').innerHTML = '';
+      return;
+    }
+    const permit = permitList.find(p => String(p.id) === String(permitId));
+    if (!permit) return;
+
+    const txtLokasi = document.getElementById('txtLokasi');
+    const txtTopik = document.getElementById('txtTopik');
+    if (!txtLokasi.value.trim()) txtLokasi.value = permit.lokasiArea || '';
+
+    const bahayaList = (permit.jsaItems || []).map(j => j.bahaya).filter(Boolean);
+    const topikDraft = [
+      `Pekerjaan: ${permit.jenisPekerjaan}${permit.woNo ? ' (WO: ' + permit.woNo + ')' : ''}`,
+      `Deskripsi: ${permit.deskripsiPekerjaan}`,
+      '',
+      'Potensi bahaya yang perlu diwaspadai:',
+      ...(bahayaList.length > 0 ? bahayaList.map(b => `- ${b}`) : ['- (belum ada JSA di permit ini)']),
+    ].join('\n');
+    txtTopik.value = topikDraft;
+
+    renderPermitRefCard(permit);
+    permitRefCard.classList.add('open');
+  }
+
+  function renderPermitRefCard(permit) {
+    let html = `<div class="permit-ref-section-title">JSA -- ${escapeHtml(permit.jenisPekerjaan)}</div>`;
+    if ((permit.jsaItems || []).length === 0) {
+      html += `<p style="font-size:12px; color:var(--muted); margin:0;">Belum ada JSA di permit ini.</p>`;
+    } else {
+      html += permit.jsaItems.map((j, i) => `
+        <div class="permit-jsa-item">
+          <b>Langkah ${i + 1}</b>${escapeHtml(j.langkah)}
+          <b>Potensi Bahaya</b>${escapeHtml(j.bahaya)}
+          <b>Pengendalian</b>${escapeHtml(j.pengendalian)}
+        </div>
+      `).join('');
+    }
+
+    html += `<div class="permit-ref-section-title">Hazard Checklist</div>`;
+    if ((permit.hazardChecklist || []).length === 0) {
+      html += `<p style="font-size:12px; color:var(--muted); margin:0;">Belum ada hazard checklist di permit ini.</p>`;
+    } else {
+      html += permit.hazardChecklist.map(h => `
+        <div class="permit-hazard-item"><span class="dot"></span><span>${escapeHtml(h.item)}${h.terpenuhi ? ' ✅' : ' ⚠️ belum dicentang terpenuhi di permit'}</span></div>
+      `).join('');
+    }
+
+    document.getElementById('permitRefBody').innerHTML = html;
   }
 
   function setStatus(text, kind) {
