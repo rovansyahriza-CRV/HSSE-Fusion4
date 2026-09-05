@@ -59,7 +59,7 @@
     overflow-x: auto; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface);
     -webkit-overflow-scrolling: touch;
   }
-  table.hp-table { border-collapse: collapse; width: 100%; min-width: 1420px; font-size: 12.5px; }
+  table.hp-table { border-collapse: collapse; width: 100%; min-width: 1560px; font-size: 12.5px; }
   table.hp-table th, table.hp-table td {
     padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap;
   }
@@ -86,16 +86,25 @@
   .status-toggle button.active.na { background: #D1D5DB; color: #444; }
 
   .mo-input {
-    width: 44px; padding: 5px 3px; border: 1.5px solid var(--border); border-radius: 7px;
+    width: 56px; padding: 5px 3px; border: 1.5px solid var(--border); border-radius: 7px;
     font-size: 12px; text-align: center; font-weight: 600;
   }
   .mo-input:disabled { background: #F3F4F6; color: #B0B4BD; }
 
   .qty-input {
-    width: 56px; padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
+    width: 60px; padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
     font-size: 12px; text-align: center; font-weight: 700;
   }
   .qty-input:disabled { background: #F3F4F6; color: #B0B4BD; }
+
+  /* Angka bisa sampai 4 digit (mis. CERMAT 41x/hari -> ~1200an/bulan) -- spinner
+     bawaan browser di input[type=number] makan tempat & bikin angkanya kepotong
+     keliatan, jadi disembunyikan biar full angkanya kebaca. */
+  .mo-input::-webkit-outer-spin-button, .mo-input::-webkit-inner-spin-button,
+  .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .mo-input, .qty-input { -moz-appearance: textfield; }
   .freq-select {
     padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
     font-size: 11px; font-weight: 600; max-width: 96px;
