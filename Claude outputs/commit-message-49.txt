@@ -1,0 +1,11 @@
+Tambah modul MWT (Management Walk Through)
+
+- sql/033_mwt_schema.sql (baru): tabel mwtTbl + RPC generate_no_mwt, submit_mwt, get_mwt_list, get_mwt_by_id. get_hse_program() di-update (nambah 1 UNION ALL) biar realisasi item MWT di HSE Program sekarang kebaca beneran dari mwtTbl, gak dikunci 0 lagi kayak sebelumnya (sql/031).
+- mwt-report.html (baru): form lapor MWT -- SENGAJA dibikin simpel (submit tunggal, bukan checklist+skor kayak Inspeksi, bukan findings/CAPA berjenjang kayak Internal Audit), khusus Author "Management Walkthrough" yang boleh isi (scan QR/wajah/PIN, sama mekanismenya kayak modul lain). Field: Project, Tanggal Kunjungan, Area/Lokasi, Pendamping (dinamis nama+jabatan), Jumlah Pekerja yang Diajak Diskusi, Catatan Observasi (freeform), Foto Dokumentasi.
+- mwt-list.html (baru): riwayat semua kunjungan MWT, filter per Project, detail expand per kunjungan (pendamping, catatan, foto) -- read-only, gak ada approval/status.
+- sql/template-grant-author-management-walkthrough.sql (baru): template buat kasih Author tag "Management Walkthrough" ke orang di karyawanTbl Fusion4 (Project Manager/Site Manager/leadership), sama pola kayak template Author tag lainnya.
+- index.html: nambah baris modul "Management Walk Through (MWT)" (Lapor + Riwayat) di card Modul, taruh setelah Internal Audit.
+- README.md: dokumentasi modul MWT di bagian Modul.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

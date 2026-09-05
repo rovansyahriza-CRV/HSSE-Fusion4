@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat MWT — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 900px; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-row select {
+    padding: 8px 12px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; color: var(--text);
+  }
+  .report-card { cursor: pointer; }
+  .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-row { font-size: 13px; margin-bottom: 8px; }
+  .detail-row b { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+
+  .diskusi-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    background: #EEF2FC; color: var(--navy-dark); }
+
+  .section-title { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 14px 0 6px; }
+
+  .peserta-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .peserta-chip {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+    font-size: 12px; font-weight: 600;
+  }
+  .peserta-chip .jabatan { color: var(--muted); font-weight: 500; }
+
+  .catatan-text { font-size: 13px; white-space: pre-wrap; }
+  .catatan-text.truncated {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .catatan-expand-btn {
+    border: none; background: none; color: var(--navy); font-weight: 700; font-size: 11.5px;
+    cursor: pointer; padding: 4px 0 0; text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <div class="hero-banner">
+      <div class="hero-banner-top">
+        <img src="logo-bima.png" class="hero-logo" alt="Logo BiMa">
+        <div class="hero-text">
+          <div class="hero-title">SMART HSSE REPORTING SYSTEM</div>
+          <div class="hero-subtitle">System Pelaporan dan Dokumentasi HSSE untuk pekerjaan Konstruksi</div>
+        </div>
+      </div>
+      <div class="hero-powered">
+        <span>Powered by</span>
+        <img src="powered-by-icon.png" alt="Powered by">
+      </div>
+    </div>
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat MWT</h1>
+      </div>
+    </div>
+    <p>Daftar semua kunjungan Management Walk Through -- area yang dikunjungi, pendamping, dan catatan observasinya.</p>
+  </div>
+
+  <div class="filter-row">
+    <select id="selectProjectFilter" onchange="filterByProject(this.value)">
+      <option value="">-- Semua Project --</option>
+    </select>
+  </div>
+
+  <div id="reportContainer">
+    <div class="empty-state">Memuat data...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentProjectFilter = '';
+  let reports = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadProjects(), loadReports()]);
+  });
+
+  async function loadProjects() {
+    const selectProjectFilter = document.getElementById('selectProjectFilter');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      const projectList = data || [];
+      selectProjectFilter.innerHTML = '<option value="">-- Semua Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak})</option>`).join('');
+    } catch (e) {
+      console.error('Gagal memuat daftar project:', e.message);
+    }
+  }
+
+  async function loadReports() {
+    const container = document.getElementById('reportContainer');
+    container.innerHTML = '<div class="empty-state">Memuat data...</div>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_mwt_list', {
+        p_project_id: currentProjectFilter || null,
+      });
+      if (error) throw error;
+      reports = data || [];
+      renderReports();
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
+    }
+  }
+
+  function filterByProject(projectId) {
+    currentProjectFilter = projectId;
+    loadReports();
+  }
+
+  function pendampingChipsHtml(items) {
+    if (!items || items.length === 0) return '<div class="empty-state" style="padding:10px 0;">Belum ada pendamping tercatat.</div>';
+    return `<div class="peserta-chip-list">${items.map(p => `
+      <span class="peserta-chip">${escapeHtml(p.nama)}${p.jabatan ? ` <span class="jabatan">-- ${escapeHtml(p.jabatan)}</span>` : ''}</span>
+    `).join('')}</div>`;
+  }
+
+  function photoGalleryHtml(label, fotoArr) {
+    if (!fotoArr || fotoArr.length === 0) return '';
+    return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
+  }
+
+  function renderReports() {
+    const container = document.getElementById('reportContainer');
+    if (reports.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada kunjungan MWT.</div>';
+      return;
+    }
+
+    container.innerHTML = reports.map((r, idx) => {
+      const catatanPanjang = (r.catatanObservasi || '').length > 160;
+      return `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${r.noMWT}</div>
+              <div class="report-title">${escapeHtml(r.areaKunjungan) || '(Area tidak diisi)'}</div>
+              <div class="report-meta">${formatDate(r.tanggalKunjungan)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Management: ${escapeHtml(r.namaManagement)}${r.managementQrCodeId ? ' ✅' : ''}</div>
+            </div>
+            <div class="badges">
+              <span class="diskusi-badge">👷 ${r.jumlahPekerjaDiskusi || 0} Pekerja</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="section-title">Pendamping</div>
+          ${pendampingChipsHtml(r.pendampingList)}
+          <div class="section-title">Catatan Observasi</div>
+          ${r.catatanObservasi ? `
+            <div class="catatan-text ${catatanPanjang ? 'truncated' : ''}" id="catatan-${idx}">${escapeHtml(r.catatanObservasi)}</div>
+            ${catatanPanjang ? `<button type="button" class="catatan-expand-btn" id="catatan-btn-${idx}" onclick="event.stopPropagation(); toggleCatatan(${idx})">Selengkapnya</button>` : ''}
+          ` : '<div class="empty-state" style="padding:10px 0;">Belum ada catatan observasi.</div>'}
+          ${photoGalleryHtml('Foto Dokumentasi', r.fotoList)}
+        </div>
+      </div>
+    `;
+    }).join('');
+  }
+
+  function toggleDetail(idx) {
+    const panel = document.getElementById('detail-' + idx);
+    panel.classList.toggle('open');
+  }
+
+  function toggleCatatan(idx) {
+    const el = document.getElementById('catatan-' + idx);
+    const btn = document.getElementById('catatan-btn-' + idx);
+    const nowTruncated = el.classList.toggle('truncated');
+    btn.innerText = nowTruncated ? 'Selengkapnya' : 'Ciutkan';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  function drivePhotoSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w1000`;
+    return f.url || '';
+  }
+  function driveFallbackSrc(f) {
+    if (!f) return '';
+    if (f.fileId) return `https://lh3.googleusercontent.com/d/${f.fileId}=w1000`;
+    return f.url || '';
+  }
+  function driveViewUrl(f) {
+    if (!f) return '#';
+    if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
+    return f.url || '#';
+  }
+</script>
+
+</body>
+</html>
