@@ -1,0 +1,21 @@
+Fix akar masalah Author: get_all_face_data & get_person_face_data ikut baca paswordTbl
+
+- sql/036_fix_identification_rpcs_paswordtbl.sql (baru): redefine 2 RPC identifikasi inti
+  yang dipakai SEMUA modul (Cermat, Incident, PTW, TBM, HSE Meeting, Internal Audit, MWT):
+    1. get_all_face_data() -- Scan Wajah & Input PIN
+    2. get_person_face_data() -- Scan QR Code
+  Dua-duanya sekarang LEFT JOIN ke "paswordTbl" (by Id, yang IsActive = TRUE) dan gabung
+  Author dari karyawanTbl + paswordTbl jadi satu string, persis pola yang udah kebukti
+  jalan di get_karyawan_by_author (migrasi #029) dan get_all_karyawan_author (migrasi #030).
+
+Latar belakang: audit nyeluruh atas semua query terkait Author dari Cermat sampai MWT
+nemuin bahwa 2 RPC identifikasi inti ini SELAMA INI cuma baca Author dari
+karyawanTbl.Author, gak pernah nyentuh paswordTbl -- padahal form "Edit Karyawan" bawaan
+Fusion4 nulis Author ke paswordTbl. Ini akar masalah kenapa Hairani & CRV sempat ketolak
+"tidak punya izin" pas nyoba fitur MWT walaupun Author tag-nya keliatan udah bener di form
+Edit Karyawan -- dan bug yang sama sebenernya bisa kejadian di modul manapun, bukan cuma MWT.
+Setelah migrasi ini, tag Author yang ditambah lewat form Fusion4 ATAUPUN lewat UPDATE SQL
+manual dua-duanya bakal langsung kebaca di semua modul, gak perlu UPDATE manual tambahan lagi.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
