@@ -1,0 +1,8 @@
+Fix migrasi MWT -- lepas NOT NULL dari kolom skema pertama (lama)
+
+- sql/035_mwt_fix_legacy_notnull.sql (baru): tabel mwtTbl di database sempat ke-create dari VERSI PERTAMA sql/033 (submit tunggal, sebelum direvisi jadi 2 tahap jadwal+kunjungan) sebelum sql/033 v2 sempat dijalankan. Kolom lama (TanggalKunjungan, AreaKunjungan, NamaManagement, ManagementQrCodeId, PendampingList, JumlahPekerjaDiskusi, CatatanObservasi, FotoList) kemungkinan NOT NULL dari desain pertama itu, padahal udah gak dipakai RPC v2 (create_mwt_schedule/submit_mwt_kunjungan) -- kalau dibiarin, INSERT jadwal baru bisa gagal. Migrasi ini lepas NOT NULL-nya pakai DO block yang ngecek dulu per kolom (aman dijalankan berkali-kali, gak ada data yang dihapus).
+
+Urutan run di Supabase: 033 (kalau belum) -> 035 (fix ini) -> 034 udah pernah jalan, gak perlu diulang tapi aman kalau mau rerun.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
