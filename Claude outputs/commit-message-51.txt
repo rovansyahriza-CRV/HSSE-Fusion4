@@ -1,0 +1,10 @@
+Admin MWT bisa tutup paksa sesi (selain peserta tutup sendiri)
+
+- sql/034_mwt_admin_close.sql (baru): RPC close_mwt_session(p_id, p_admin_nama, p_admin_qrcode) -- tutup paksa sesi MWT, khusus Author "Admin MWT". Nambah kolom DitutupOlehNama/DitutupOlehQrCodeId di mwtTbl buat catat siapa yang nutup (baik peserta sendiri lewat submit_mwt_kunjungan p_tandai_selesai=true, ATAU Admin lewat close_mwt_session ini) -- dua-duanya jalan bareng, gak saling gantiin. get_mwt_list/get_mwt_by_id diupdate ikut nampilin field itu.
+- mwt-list.html: tombol "🔒 Tutup Sesi (Admin)" di tiap sesi yang masih Terjadwal/Berlangsung -- klik buka modal verifikasi identitas (scan wajah/PIN, khusus Author "Admin MWT", pola sama kayak modal closure temuan di audit-list.html), abis lolos langsung panggil close_mwt_session(). Kartu sesi yang udah Selesai nampilin "🔒 Ditutup oleh <nama> • <tanggal>".
+- mwt-report.html: pesan error pas sesi udah Selesai sekarang nyebut siapa yang nutupnya; sub-text checkbox "Tandai Selesai" dikasih catatan kalau lupa dicentang, Admin MWT tetap bisa nutup belakangan dari Riwayat MWT.
+
+Latar belakang: awalnya cuma peserta (Management) yang bisa nutup sesi pas submit kunjungan -- user tanya apa Admin juga bisa nutup, jawabannya: dua-duanya bisa, biar ada jaga-jaga kalau gak ada peserta yang nutup manual.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

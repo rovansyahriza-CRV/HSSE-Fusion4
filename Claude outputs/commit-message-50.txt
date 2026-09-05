@@ -1,0 +1,14 @@
+Redesain MWT jadi 2 tahap (jadwal lalu kunjungan multi-management)
+
+- sql/033_mwt_schema.sql (REPLACE total desain pertama): mwtTbl sekarang 1 row per SESI (bukan per laporan tunggal) -- kolom Status ('Terjadwal'/'Berlangsung'/'Selesai') + KunjunganList (JSONB array, 1 entry per management yang gabung). RPC baru: create_mwt_schedule (bikin jadwal, Author "Admin MWT"), submit_mwt_kunjungan (gabung sesi & nambah entry kunjungan sendiri-sendiri, Author "Management Walkthrough", bisa tandai sesi Selesai), get_mwt_list (filter status+project), get_mwt_by_id. get_hse_program() di-update: realisasi MWT dihitung PER SESI yang punya >=1 kunjungan (bukan per kepala management), bulan diambil dari kunjungan paling awal di sesi itu (CROSS JOIN LATERAL ke KunjunganList).
+- sql/template-grant-author-admin-mwt.sql (baru): template kasih Author tag "Admin MWT" ke HSE Admin/koordinator yang bikin jadwal MWT -- terpisah dari tag "Management Walkthrough" yang isi kunjungannya.
+- mwt-schedule.html (baru): form bikin jadwal/sesi MWT (Project, Area/Lokasi Rencana, Tanggal Rencana, Catatan Rencana), khusus Author "Admin MWT".
+- mwt-report.html (REWRITE total): dari "submit laporan tunggal" jadi "gabung sesi yang udah dijadwalkan & isi kunjungan sendiri" -- wajib buka lewat ?id=<no sesi>, load ringkasan sesi, identifikasi Management (Author "Management Walkthrough"), isi Pendamping/Jumlah Pekerja/Catatan/Foto, ada checkbox "Tandai sesi ini Selesai". Kalau sesi udah Selesai atau id gak valid, kasih pesan error yang jelas + link balik ke Riwayat MWT.
+- mwt-list.html (REWRITE total): dari daftar laporan tunggal jadi daftar SESI dengan filter status (Terjadwal/Berlangsung/Selesai) + project, tombol "+ Buat Jadwal MWT Baru", link "Gabung & Isi Kunjungan" per sesi yang masih terbuka, dan detail expand yang nampilin semua kunjungan (per management) yang udah masuk ke sesi itu.
+- index.html: update baris modul MWT -- badge "Buat Jadwal" (mwt-schedule.html) dan "Riwayat & Gabung MWT" (mwt-list.html), deskripsi diupdate jelasin alur 2 tahap.
+- README.md: dokumentasi ulang modul MWT sesuai desain v2.
+
+Latar belakang: desain pertama cuma bisa 1 nama management per laporan, padahal kadang lebih dari 1 orang manajemen ikut 1 kali kunjungan MWT -- sekarang sesi yang sama bisa diisi banyak orang, masing-masing catatan sendiri, tapi tetap 1 No. Dokumen.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

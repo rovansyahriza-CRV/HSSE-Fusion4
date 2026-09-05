@@ -6,21 +6,36 @@
 <title>Riwayat MWT — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
   .page { max-width: 900px; }
+  .top-actions { margin-bottom: 14px; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+
   .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
   .filter-row select {
     padding: 8px 12px; border-radius: 999px; border: 1.5px solid var(--border);
     background: var(--surface); font-size: 12.5px; font-weight: 700; color: var(--text);
   }
+
   .report-card { cursor: pointer; }
   .report-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
   .report-no { font-size: 12px; color: var(--muted); font-family: monospace; }
   .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; }
   .report-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .badges { display: flex; gap: 6px; flex-shrink: 0; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; flex-direction: column; align-items: flex-end; }
   .detail-panel { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .detail-panel.open { display: block; }
   .detail-row { font-size: 13px; margin-bottom: 8px; }
@@ -28,8 +43,13 @@
   .detail-photo { max-width: 100%; border-radius: 10px; margin-top: 6px; }
   .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
 
+  .status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .status-badge.terjadwal { background: #EEF2FC; color: var(--navy); }
+  .status-badge.berlangsung { background: #FDF3E3; color: #8A6100; }
+  .status-badge.selesai { background: var(--success-bg); color: var(--success); }
+
   .diskusi-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
-    background: #EEF2FC; color: var(--navy-dark); }
+    background: #EEF2FC; color: var(--navy-dark); white-space: nowrap; }
 
   .section-title { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
     letter-spacing: 0.04em; margin: 14px 0 6px; }
@@ -41,13 +61,48 @@
   }
   .peserta-chip .jabatan { color: var(--muted); font-weight: 500; }
 
-  .catatan-text { font-size: 13px; white-space: pre-wrap; }
-  .catatan-text.truncated {
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  .kunjungan-item { padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .kunjungan-item:last-child { border-bottom: none; }
+  .kunjungan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .kunjungan-nama { font-weight: 700; font-size: 13px; }
+  .kunjungan-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .catatan-text { font-size: 13px; white-space: pre-wrap; margin-top: 6px; }
+
+  .join-link {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; background: var(--success-bg); color: var(--success);
+    text-decoration: none; white-space: nowrap;
   }
-  .catatan-expand-btn {
-    border: none; background: none; color: var(--navy); font-weight: 700; font-size: 11.5px;
-    cursor: pointer; padding: 4px 0 0; text-decoration: underline;
+  .join-link:active { opacity: 0.7; }
+
+  .close-link {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; background: #FCEAE8; color: var(--accent);
+    text-decoration: none; white-space: nowrap; border: none; cursor: pointer;
+  }
+  .close-link:active { opacity: 0.7; }
+
+  .ditutup-oleh { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ===== Modal verifikasi identitas Admin MWT -- sama pola dengan audit-list.html ===== */
+  .approval-modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(20,26,46,0.6); z-index: 100;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .approval-modal-backdrop.open { display: flex; }
+  .approval-modal { background: var(--surface); border-radius: 16px; padding: 20px; max-width: 380px; width: 100%; }
+  .approval-modal h3 { font-size: 15px; margin-bottom: 4px; }
+  .approval-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .approval-choice-buttons { display: flex; flex-direction: column; gap: 8px; }
+  .approval-choice-buttons button {
+    padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg);
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .approval-pin-form { display: none; margin-top: 10px; }
+  .approval-pin-form input { margin-bottom: 8px; }
+  .approval-cancel {
+    display: block; width: 100%; text-align: center; margin-top: 10px; background: none; border: none;
+    color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 8px;
   }
 </style>
 </head>
@@ -77,7 +132,18 @@
         <h1>Riwayat MWT</h1>
       </div>
     </div>
-    <p>Daftar semua kunjungan Management Walk Through -- area yang dikunjungi, pendamping, dan catatan observasinya.</p>
+    <p>Daftar semua sesi Management Walk Through -- jadwal, siapa aja yang udah gabung isi kunjungan, dan catatan observasinya.</p>
+  </div>
+
+  <div class="top-actions">
+    <a href="mwt-schedule.html" class="btn-block btn-primary">+ Buat Jadwal MWT Baru</a>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button type="button" class="filter-btn active" data-status="" onclick="filterByStatus('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Terjadwal" onclick="filterByStatus('Terjadwal', this)">Terjadwal</button>
+    <button type="button" class="filter-btn" data-status="Berlangsung" onclick="filterByStatus('Berlangsung', this)">Berlangsung</button>
+    <button type="button" class="filter-btn" data-status="Selesai" onclick="filterByStatus('Selesai', this)">Selesai</button>
   </div>
 
   <div class="filter-row">
@@ -92,8 +158,42 @@
 
 </div>
 
+<!-- ===== Modal verifikasi identitas -- tutup paksa sesi MWT, khusus Author "Admin MWT" ===== -->
+<div class="approval-modal-backdrop" id="approvalModalBackdrop">
+  <div class="approval-modal">
+    <h3>Verifikasi: Admin MWT</h3>
+    <p class="approval-sub" id="approvalModalSub"></p>
+
+    <div id="approvalChoiceScreen">
+      <div class="approval-choice-buttons">
+        <button type="button" id="btnApprovalScanFace">🙂 Scan Wajah</button>
+        <button type="button" id="btnApprovalUsePin">🔢 Input PIN</button>
+      </div>
+    </div>
+
+    <div class="cam-wrap" id="approvalCamWrap">
+      <video id="approvalVideo" autoplay muted playsinline></video>
+      <canvas id="approvalCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="approvalFaceOval"></div>
+    </div>
+    <button type="button" id="btnApprovalScanFaceGo" class="btn-block btn-primary" style="display:none; margin-top:10px;">📸 Scan Wajah</button>
+
+    <form class="approval-pin-form" id="approvalPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="approvalPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnApprovalPinSubmit">Verifikasi PIN</button>
+    </form>
+
+    <div id="approvalModalStatus" class="status-msg"></div>
+
+    <button type="button" class="approval-cancel" onclick="closeApprovalModal()">Batal</button>
+  </div>
+</div>
+
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  const REQUIRED_TAG_ADMIN = 'Admin MWT';
+  let currentStatusFilter = '';
   let currentProjectFilter = '';
   let reports = [];
 
@@ -119,6 +219,7 @@
     container.innerHTML = '<div class="empty-state">Memuat data...</div>';
     try {
       const { data, error } = await supabaseClient.rpc('get_mwt_list', {
+        p_status: currentStatusFilter || null,
         p_project_id: currentProjectFilter || null,
       });
       if (error) throw error;
@@ -129,9 +230,28 @@
     }
   }
 
+  function filterByStatus(status, btnEl) {
+    currentStatusFilter = status;
+    document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
   function filterByProject(projectId) {
     currentProjectFilter = projectId;
     loadReports();
+  }
+
+  function statusBadgeClass(status) {
+    if (status === 'Terjadwal') return 'terjadwal';
+    if (status === 'Berlangsung') return 'berlangsung';
+    return 'selesai';
+  }
+
+  function statusIcon(status) {
+    if (status === 'Terjadwal') return '🗓️';
+    if (status === 'Berlangsung') return '🔴';
+    return '✅';
   }
 
   function pendampingChipsHtml(items) {
@@ -146,38 +266,58 @@
     return `<div class="detail-row"><b>${label} (${fotoArr.length})</b><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">${fotoArr.map(f => `<a href="${driveViewUrl(f)}" target="_blank" style="display:block; width:calc(33.33% - 4px); flex-shrink:0;"><img class="detail-photo" style="width:100%; aspect-ratio:1/1; object-fit:cover; margin-top:0;" src="${drivePhotoSrc(f)}" loading="lazy" onerror="this.onerror=null; this.src='${driveFallbackSrc(f)}';"></a>`).join('')}</div></div>`;
   }
 
+  function kunjunganListHtml(items) {
+    if (!items || items.length === 0) {
+      return '<div class="empty-state" style="padding:10px 0;">Belum ada management yang gabung isi kunjungan di sesi ini.</div>';
+    }
+    return items.map(k => `
+      <div class="kunjungan-item">
+        <div class="kunjungan-top">
+          <div>
+            <div class="kunjungan-nama">${escapeHtml(k.managementNama)}${k.managementQrCodeId ? ' ✅' : ''}</div>
+            <div class="kunjungan-meta">${formatDate(k.tanggalKunjungan)}</div>
+          </div>
+          <span class="diskusi-badge">👷 ${k.jumlahPekerjaDiskusi || 0} Pekerja</span>
+        </div>
+        ${(k.pendampingList && k.pendampingList.length) ? `<div style="margin-top:8px;">${pendampingChipsHtml(k.pendampingList)}</div>` : ''}
+        ${k.catatanObservasi ? `<div class="catatan-text">${escapeHtml(k.catatanObservasi)}</div>` : ''}
+        ${photoGalleryHtml('Foto Dokumentasi', k.fotoList)}
+      </div>
+    `).join('');
+  }
+
   function renderReports() {
     const container = document.getElementById('reportContainer');
     if (reports.length === 0) {
-      container.innerHTML = '<div class="empty-state">Belum ada kunjungan MWT.</div>';
+      container.innerHTML = '<div class="empty-state">Belum ada jadwal MWT.</div>';
       return;
     }
 
     container.innerHTML = reports.map((r, idx) => {
-      const catatanPanjang = (r.catatanObservasi || '').length > 160;
+      const jumlahKunjungan = (r.kunjunganList || []).length;
+      const bisaGabung = r.status === 'Terjadwal' || r.status === 'Berlangsung';
       return `
       <div class="card report-card">
         <div onclick="toggleDetail(${idx})">
           <div class="report-top">
             <div>
               <div class="report-no">${r.noMWT}</div>
-              <div class="report-title">${escapeHtml(r.areaKunjungan) || '(Area tidak diisi)'}</div>
-              <div class="report-meta">${formatDate(r.tanggalKunjungan)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Management: ${escapeHtml(r.namaManagement)}${r.managementQrCodeId ? ' ✅' : ''}</div>
+              <div class="report-title">${escapeHtml(r.areaRencana) || '(Area tidak diisi)'}</div>
+              <div class="report-meta">${formatDateOnly(r.tanggalRencana)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Admin: ${escapeHtml(r.adminNama)}</div>
+              ${r.status === 'Selesai' && r.ditutupOlehNama ? `<div class="ditutup-oleh">🔒 Ditutup oleh ${escapeHtml(r.ditutupOlehNama)} • ${formatDate(r.tanggalDitutup)}</div>` : ''}
             </div>
             <div class="badges">
-              <span class="diskusi-badge">👷 ${r.jumlahPekerjaDiskusi || 0} Pekerja</span>
+              <span class="status-badge ${statusBadgeClass(r.status)}">${statusIcon(r.status)} ${r.status}</span>
+              <span class="diskusi-badge">👥 ${jumlahKunjungan} Kunjungan</span>
+              ${bisaGabung ? `<a href="mwt-report.html?id=${r.id}" class="join-link" onclick="event.stopPropagation()">➕ Gabung &amp; Isi Kunjungan</a>` : ''}
+              ${bisaGabung ? `<button type="button" class="close-link" onclick="event.stopPropagation(); startCloseSession(${r.id}, '${escapeHtml(r.noMWT)}')">🔒 Tutup Sesi (Admin)</button>` : ''}
             </div>
           </div>
         </div>
         <div class="detail-panel" id="detail-${idx}">
-          <div class="section-title">Pendamping</div>
-          ${pendampingChipsHtml(r.pendampingList)}
-          <div class="section-title">Catatan Observasi</div>
-          ${r.catatanObservasi ? `
-            <div class="catatan-text ${catatanPanjang ? 'truncated' : ''}" id="catatan-${idx}">${escapeHtml(r.catatanObservasi)}</div>
-            ${catatanPanjang ? `<button type="button" class="catatan-expand-btn" id="catatan-btn-${idx}" onclick="event.stopPropagation(); toggleCatatan(${idx})">Selengkapnya</button>` : ''}
-          ` : '<div class="empty-state" style="padding:10px 0;">Belum ada catatan observasi.</div>'}
-          ${photoGalleryHtml('Foto Dokumentasi', r.fotoList)}
+          ${r.catatanRencana ? `<div class="detail-row"><b>Catatan Rencana</b>${escapeHtml(r.catatanRencana)}</div>` : ''}
+          <div class="section-title">Kunjungan (${jumlahKunjungan})</div>
+          ${kunjunganListHtml(r.kunjunganList)}
         </div>
       </div>
     `;
@@ -189,18 +329,18 @@
     panel.classList.toggle('open');
   }
 
-  function toggleCatatan(idx) {
-    const el = document.getElementById('catatan-' + idx);
-    const btn = document.getElementById('catatan-btn-' + idx);
-    const nowTruncated = el.classList.toggle('truncated');
-    btn.innerText = nowTruncated ? 'Selengkapnya' : 'Ciutkan';
-  }
-
   function formatDate(iso) {
     if (!iso) return '-';
     const d = new Date(iso);
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
       d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   function escapeHtml(str) {
@@ -222,6 +362,251 @@
     if (!f) return '#';
     if (f.fileId) return `https://drive.google.com/file/d/${f.fileId}/view`;
     return f.url || '#';
+  }
+
+  // =====================================================================================
+  // TUTUP PAKSA SESI MWT -- klik tombol buka modal verifikasi identitas (Author
+  // "Admin MWT"), abis lolos verifikasi langsung panggil close_mwt_session(). Ini
+  // TERPISAH dari cara peserta nutup sendiri (checkbox "Tandai Selesai" di
+  // mwt-report.html) -- dua-duanya jalan bareng, gak saling gantiin.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+
+  let approvalContext = null; // { sessionId, noMWT }
+  let approvalFaceModelsLoaded = false;
+  let approvalAllFaceDataCache = null;
+  let approvalFacingMode = 'user';
+  let closingInProgress = false;
+
+  const approvalModalBackdrop = document.getElementById('approvalModalBackdrop');
+  const approvalModalSub = document.getElementById('approvalModalSub');
+  const approvalChoiceScreen = document.getElementById('approvalChoiceScreen');
+  const approvalCamWrap = document.getElementById('approvalCamWrap');
+  const approvalVideo = document.getElementById('approvalVideo');
+  const approvalCanvas = document.getElementById('approvalCanvas');
+  const approvalFaceOval = document.getElementById('approvalFaceOval');
+  const btnApprovalScanFaceGo = document.getElementById('btnApprovalScanFaceGo');
+  const approvalPinForm = document.getElementById('approvalPinForm');
+  const approvalPinInput = document.getElementById('approvalPinInput');
+  const approvalModalStatus = document.getElementById('approvalModalStatus');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  function setApprovalStatus(text, kind) {
+    if (!text) { approvalModalStatus.style.display = 'none'; return; }
+    approvalModalStatus.className = 'status-msg ' + (kind || 'info');
+    approvalModalStatus.innerText = text;
+    approvalModalStatus.style.display = 'block';
+  }
+
+  function startCloseSession(sessionId, noMWT) {
+    approvalContext = { sessionId, noMWT };
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin "${REQUIRED_TAG_ADMIN}", buat menutup paksa sesi ${noMWT}. Setelah ditutup, sesi ini gak bisa ditambah kunjungan lagi.`;
+    approvalChoiceScreen.style.display = 'block';
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+    approvalPinForm.style.display = 'none';
+    approvalPinInput.value = '';
+    setApprovalStatus('', null);
+    approvalModalBackdrop.classList.add('open');
+  }
+
+  function closeApprovalModal() {
+    stopApprovalCamera();
+    approvalModalBackdrop.classList.remove('open');
+    approvalContext = null;
+  }
+
+  function stopApprovalCamera() {
+    if (approvalVideo.srcObject) {
+      approvalVideo.srcObject.getTracks().forEach(t => t.stop());
+      approvalVideo.srcObject = null;
+    }
+    approvalCamWrap.style.display = 'none';
+    approvalFaceOval.style.display = 'none';
+    btnApprovalScanFaceGo.style.display = 'none';
+  }
+
+  async function ensureApprovalFaceDataLoaded() {
+    if (approvalAllFaceDataCache) return approvalAllFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    approvalAllFaceDataCache = data || [];
+    return approvalAllFaceDataCache;
+  }
+
+  document.getElementById('btnApprovalUsePin').onclick = () => {
+    approvalChoiceScreen.style.display = 'none';
+    approvalPinForm.style.display = 'block';
+    setApprovalStatus('', null);
+  };
+
+  document.getElementById('btnApprovalPinSubmit').onclick = async () => {
+    const pin = approvalPinInput.value.trim();
+    if (!pin) return setApprovalStatus('❌ Isi PIN dulu.', 'error');
+    setApprovalStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureApprovalFaceDataLoaded();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setApprovalStatus('❌ PIN tidak dikenali.', 'error');
+      finishApproval(match);
+    } catch (e) {
+      setApprovalStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnApprovalScanFace').onclick = async () => {
+    approvalChoiceScreen.style.display = 'none';
+    setApprovalStatus('Memuat model wajah...', 'info');
+    try {
+      if (!approvalFaceModelsLoaded) {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+        approvalFaceModelsLoaded = true;
+      }
+      setApprovalStatus('Mengambil data karyawan...', 'info');
+      await ensureApprovalFaceDataLoaded();
+      if (approvalAllFaceDataCache.length === 0) {
+        setApprovalStatus('❌ Belum ada data wajah terdaftar. Pakai Input PIN.', 'error');
+        return;
+      }
+
+      approvalFacingMode = 'user';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: approvalFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      approvalVideo.srcObject = stream;
+      await approvalVideo.play();
+      approvalCanvas.width = approvalVideo.videoWidth;
+      approvalCanvas.height = approvalVideo.videoHeight;
+      approvalCamWrap.style.display = 'block';
+      approvalFaceOval.style.display = 'block';
+      btnApprovalScanFaceGo.style.display = 'block';
+      setApprovalStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+    }
+  };
+
+  btnApprovalScanFaceGo.onclick = async () => {
+    btnApprovalScanFaceGo.disabled = true;
+    setApprovalStatus('Mendeteksi wajah...', 'info');
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = approvalVideo.videoWidth || 640;
+      snapCanvas.height = approvalVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(approvalVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      const detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        setApprovalStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      const sorted = approvalAllFaceDataCache.map(p => ({
+        person: p,
+        distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+      })).sort((a, b) => a.distance - b.distance);
+
+      const best = sorted[0];
+      const secondBest = sorted[1];
+      const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+      const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+      if (!withinThreshold) {
+        setApprovalStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai PIN.`, 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+      if (isAmbiguous) {
+        setApprovalStatus('⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai PIN.', 'error');
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      finishApproval(best.person);
+    } catch (e) {
+      setApprovalStatus('❌ ' + e.message, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+    }
+  };
+
+  async function finishApproval(person) {
+    if (!approvalContext || closingInProgress) return;
+    const { sessionId } = approvalContext;
+    const nama = getPersonField(person, ['nama'], '(tanpa nama)');
+    const qrCodeId = getPersonField(person, ['qrCodeId'], '');
+
+    if (!hasAuthorTag(person, REQUIRED_TAG_ADMIN)) {
+      setApprovalStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG_ADMIN}". Minta orang yang berwenang buat nutup sesi ini.`, 'error');
+      btnApprovalScanFaceGo.disabled = false;
+      return;
+    }
+
+    closingInProgress = true;
+    setApprovalStatus('⏳ Menutup sesi MWT...', 'info');
+    try {
+      const { data, error } = await supabaseClient.rpc('close_mwt_session', {
+        p_id: sessionId,
+        p_admin_nama: nama,
+        p_admin_qrcode: qrCodeId,
+      });
+      if (error) throw error;
+      if (data && data.success === false) {
+        setApprovalStatus('❌ ' + (data.message || 'Gagal menutup sesi.'), 'error');
+        closingInProgress = false;
+        btnApprovalScanFaceGo.disabled = false;
+        return;
+      }
+
+      stopApprovalCamera();
+      approvalModalBackdrop.classList.remove('open');
+      approvalContext = null;
+      closingInProgress = false;
+      btnApprovalScanFaceGo.disabled = false;
+
+      await loadReports();
+      alert('✅ Sesi MWT berhasil ditutup.');
+    } catch (e) {
+      closingInProgress = false;
+      btnApprovalScanFaceGo.disabled = false;
+      setApprovalStatus('❌ Gagal menutup sesi: ' + e.message, 'error');
+    }
   }
 </script>
 

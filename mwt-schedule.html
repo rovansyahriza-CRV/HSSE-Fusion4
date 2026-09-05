@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Isi Kunjungan MWT — HSSE-Fusion4</title>
+<title>Buat Jadwal MWT — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="driveBridge.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
   .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
@@ -18,7 +17,7 @@
     width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
     font-family: inherit; font-size: 13.5px; background: var(--surface); color: var(--text);
   }
-  textarea { min-height: 80px; resize: vertical; }
+  textarea { min-height: 70px; resize: vertical; }
   select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
   .btn-block {
     width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
@@ -26,42 +25,10 @@
   }
   .btn-primary { background: var(--navy); color: #fff; }
   .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
-  #formBody, #idCard, #sessionSummaryCard { display: none; }
-
-  /* ===== Ringkasan sesi MWT yang lagi digabung ===== */
-  .plan-summary {
-    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); color: #fff;
-    border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
-  }
-  .plan-summary .no-audit { font-family: monospace; font-size: 11px; color: var(--safety-yellow); font-weight: 700; }
-  .plan-summary .judul { font-size: 15px; font-weight: 800; margin-top: 2px; }
-  .plan-summary .meta { font-size: 11.5px; color: #C7CEE8; margin-top: 6px; line-height: 1.6; }
-  .plan-summary .status-badge { margin-top: 8px; }
-
-  /* ===== Baris dinamis (Pendamping) ===== */
-  .dyn-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative; }
-  .dyn-row-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-  .dyn-row input, .dyn-row textarea, .dyn-row select { margin-bottom: 6px; font-size: 12.5px; }
-  .dyn-row input:last-child, .dyn-row textarea:last-child, .dyn-row select:last-child { margin-bottom: 0; }
-  .dyn-row .dyn-mini-label { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-bottom: 3px; display: block; }
-  .dyn-row .dyn-2col { display: flex; gap: 8px; }
-  .dyn-row .dyn-2col > div { flex: 1; }
-  .btn-remove-row {
-    position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
-    border: none; background: #FCEAE8; color: var(--accent); font-weight: 800; font-size: 13px; cursor: pointer;
-  }
-  .btn-add-row {
-    width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 10px;
-    background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
-  }
-
-  .tandai-selesai-box {
-    display: flex; align-items: flex-start; gap: 10px; background: var(--bg); border: 1.5px solid var(--border);
-    border-radius: 10px; padding: 12px; margin-bottom: 14px; cursor: pointer;
-  }
-  .tandai-selesai-box input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
-  .tandai-selesai-box .tandai-title { font-size: 13px; font-weight: 700; }
-  .tandai-selesai-box .tandai-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  #formBody, #planCreatedCard { display: none; }
+  .plan-created-icon { font-size: 40px; text-align: center; margin-bottom: 8px; }
+  .plan-created-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+  .plan-created-sub { font-size: 12.5px; color: var(--muted); text-align: center; margin-bottom: 16px; }
 </style>
 </head>
 <body>
@@ -87,34 +54,17 @@
     <div class="header-top">
       <div>
         <div class="eyebrow">HSSE-Fusion4</div>
-        <h1>Isi Kunjungan MWT</h1>
+        <h1>Buat Jadwal MWT</h1>
       </div>
     </div>
-    <p>Gabung ke sesi MWT yang udah dijadwalkan, verifikasi diri, lalu isi catatan observasi kamu sendiri. Kalau ada lebih dari 1 management yang ikut, tiap orang isi entry-nya masing-masing di sesi yang sama.</p>
+    <p>Bikin jadwal Management Walk Through dulu (Project, Area/Lokasi Rencana, Tanggal Rencana). Nanti management yang mau ikut tinggal gabung ke sesi ini lewat Riwayat MWT dan isi catatan observasinya masing-masing.</p>
   </div>
 
   <div id="statusMsg" class="status-msg"></div>
 
-  <div id="loadingMsg" class="empty-state" style="text-align:center; color:var(--muted); padding:30px 20px; font-size:13px;">Memuat sesi MWT...</div>
-
-  <div id="sessionErrorCard" class="card" style="display:none;">
-    <h2 style="margin-bottom:4px;">⚠️ Sesi MWT Tidak Bisa Diakses</h2>
-    <p id="sessionErrorText" style="margin-bottom:12px;">-</p>
-    <a href="mwt-list.html" class="btn-block btn-primary" style="text-decoration:none;">📋 Pilih Sesi dari Riwayat MWT</a>
-  </div>
-
-  <div class="card" id="sessionSummaryCard">
-    <div class="plan-summary">
-      <div class="no-audit" id="liveNoMwt"></div>
-      <div class="judul" id="liveArea"></div>
-      <div class="meta" id="liveMeta"></div>
-      <span class="status-badge" id="liveStatusBadge"></span>
-    </div>
-  </div>
-
-  <div class="card" id="idCard">
-    <h2 style="margin-bottom:4px;">Identifikasi Management</h2>
-    <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu. Cuma yang punya izin Author <b>"Management Walkthrough"</b> yang bisa isi kunjungan ini.</p>
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Identifikasi Admin MWT</h2>
+    <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu. Cuma yang punya izin Author <b>"Admin MWT"</b> yang bisa bikin jadwal MWT.</p>
 
     <div class="id-gate-buttons" id="idGateButtons">
       <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
@@ -146,65 +96,41 @@
 
   <div id="formBody">
 
-  <div class="card">
-    <h2 style="margin-bottom:4px;">Pendamping</h2>
-    <p style="margin-bottom:12px;">Siapa aja yang mendampingi kamu selama kunjungan ini (HSE Officer, Site Manager, dst).</p>
-    <div id="pendampingRows"></div>
-    <button type="button" class="btn-add-row" onclick="addPendampingRow()">+ Tambah Pendamping</button>
-  </div>
-
-  <div class="card">
-    <div class="form-group" style="margin-bottom:0;">
-      <label for="numPekerja">Jumlah Pekerja yang Diajak Diskusi</label>
-      <input type="number" id="numPekerja" min="0" step="1" value="0" placeholder="0">
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="form-group" style="margin-bottom:0;">
-      <label for="txtCatatan">Catatan Observasi</label>
-      <textarea id="txtCatatan" placeholder="Kondisi umum lapangan, kepatuhan APD, interaksi sama pekerja, hal positif atau yang perlu diperbaiki, dll."></textarea>
-    </div>
-  </div>
-
-  <div class="card">
+  <div class="card" id="planCard">
     <div class="form-group">
-      <label>Foto Dokumentasi (opsional, bisa sampai 3)</label>
-      <div class="photo-slots">
-        <div class="photo-slot" id="slot0">
-          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 0)">
-          <div class="slot-placeholder">📷</div>
-          <img class="slot-preview">
-          <button type="button" class="slot-remove" onclick="removePhotoSlot(0, event)">✕</button>
-        </div>
-        <div class="photo-slot" id="slot1">
-          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 1)">
-          <div class="slot-placeholder">📷</div>
-          <img class="slot-preview">
-          <button type="button" class="slot-remove" onclick="removePhotoSlot(1, event)">✕</button>
-        </div>
-        <div class="photo-slot" id="slot2">
-          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 2)">
-          <div class="slot-placeholder">📷</div>
-          <img class="slot-preview">
-          <button type="button" class="slot-remove" onclick="removePhotoSlot(2, event)">✕</button>
-        </div>
-      </div>
+      <label for="selectProject">Project / Kontrak</label>
+      <select id="selectProject">
+        <option value="">-- Memuat daftar project... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtArea">Area / Lokasi Rencana</label>
+      <input type="text" id="txtArea" placeholder="Contoh: Area Fabrikasi Pipa Blok B">
+    </div>
+
+    <div class="form-group">
+      <label for="dtRencana">Tanggal Rencana</label>
+      <input type="date" id="dtRencana">
+    </div>
+
+    <div class="form-group" style="margin-bottom:0;">
+      <label for="txtCatatan">Catatan Rencana (opsional)</label>
+      <textarea id="txtCatatan" placeholder="Tujuan kunjungan, fokus area, dst..."></textarea>
     </div>
   </div>
 
-  <div class="card">
-    <label class="tandai-selesai-box" for="chkSelesai">
-      <input type="checkbox" id="chkSelesai">
-      <div>
-        <div class="tandai-title">Tandai sesi MWT ini Selesai</div>
-        <div class="tandai-sub">Centang kalau menurut kamu MWT ini udah cukup -- gak akan bisa ditambah kunjungan lagi setelahnya. Kalau masih ada management lain yang mau ikut, jangan dicentang dulu. (Kalau lupa dicentang, Admin MWT tetap bisa nutup sesi ini belakangan dari Riwayat MWT.)</div>
-      </div>
-    </label>
+  <button type="button" id="btnSavePlan" class="btn-block btn-primary" onclick="saveSchedule()">
+    <span>📝 Buat Jadwal MWT</span>
+  </button>
 
-    <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitKunjungan()">
-      <span>✅ Kirim Kunjungan Saya</span>
-    </button>
+  <div class="card" id="planCreatedCard">
+    <div class="plan-created-icon">✅</div>
+    <div class="plan-created-title" id="planCreatedNo"></div>
+    <div class="plan-created-sub">Jadwal MWT tersimpan. Management yang mau ikut tinggal gabung ke sesi ini lewat Riwayat MWT (scan QR/wajah/PIN masing-masing).</div>
+    <a id="linkJoinNow" href="#" class="btn-block btn-primary" style="text-decoration:none; margin-bottom:8px;">▶️ Gabung &amp; Isi Kunjungan Sekarang</a>
+    <a href="mwt-list.html" class="btn-block" style="background:var(--bg); color:var(--text); text-decoration:none; margin-bottom:8px;">📋 Selesai, Lihat Riwayat MWT</a>
+    <button type="button" class="btn-block" style="background:var(--bg); color:var(--text);" onclick="resetFormForNewSchedule()">+ Buat Jadwal MWT Lain</button>
   </div>
 
   </div>
@@ -215,150 +141,34 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
 
-  let photoSlots = [null, null, null];
-  let pendampingRowCount = 0;
-  let sessionId = null;
-  let sessionData = null;
+  let projectList = [];
 
   const statusMsg = document.getElementById('statusMsg');
-  const loadingMsg = document.getElementById('loadingMsg');
-  const sessionErrorCard = document.getElementById('sessionErrorCard');
-  const sessionErrorText = document.getElementById('sessionErrorText');
-  const sessionSummaryCard = document.getElementById('sessionSummaryCard');
-  const idCard = document.getElementById('idCard');
-  const btnSubmit = document.getElementById('btnSubmit');
+  const selectProject = document.getElementById('selectProject');
   const formBody = document.getElementById('formBody');
-  const pendampingRows = document.getElementById('pendampingRows');
+  const planCard = document.getElementById('planCard');
+  const btnSavePlan = document.getElementById('btnSavePlan');
+  const planCreatedCard = document.getElementById('planCreatedCard');
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const params = new URLSearchParams(window.location.search);
-    sessionId = params.get('id');
-    if (!sessionId) {
-      showSessionError('Link ini gak punya nomor sesi MWT. Pilih sesi yang mau digabung dari Riwayat MWT dulu.');
-      return;
-    }
-    await loadSession();
+    await loadProjects();
   });
 
-  function showSessionError(text) {
-    loadingMsg.style.display = 'none';
-    sessionErrorText.innerText = text;
-    sessionErrorCard.style.display = 'block';
-  }
-
-  async function loadSession() {
+  async function loadProjects() {
     try {
-      const { data, error } = await supabaseClient.rpc('get_mwt_by_id', { p_id: Number(sessionId) });
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
       if (error) throw error;
-      if (!data || !data.id) {
-        showSessionError('Sesi MWT dengan nomor ini gak ditemukan. Mungkin link-nya salah atau sesinya udah dihapus.');
+      projectList = data || [];
+      if (projectList.length === 0) {
+        selectProject.innerHTML = '<option value="">Belum ada project aktif -- hubungi admin</option>';
         return;
       }
-      sessionData = data;
-      loadingMsg.style.display = 'none';
-
-      if (data.status === 'Selesai') {
-        sessionSummaryCard.style.display = 'block';
-        renderSessionSummary();
-        showSessionError(`Sesi MWT ini udah ditutup (Selesai) pada ${formatDate(data.tanggalDitutup)}${data.ditutupOlehNama ? ' oleh ' + data.ditutupOlehNama : ''}. Gak bisa ditambah kunjungan baru lagi -- kalau masih ada yang mau ikut MWT, minta Admin MWT bikin jadwal baru.`);
-        return;
-      }
-
-      sessionSummaryCard.style.display = 'block';
-      renderSessionSummary();
-      idCard.style.display = 'block';
-      if (pendampingRows.children.length === 0) addPendampingRow();
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
     } catch (e) {
-      showSessionError('Gagal memuat sesi MWT: ' + e.message);
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+      setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');
     }
-  }
-
-  function renderSessionSummary() {
-    const jumlahKunjungan = (sessionData.kunjunganList || []).length;
-    document.getElementById('liveNoMwt').innerText = sessionData.noMWT;
-    document.getElementById('liveArea').innerText = sessionData.areaRencana;
-    document.getElementById('liveMeta').innerText =
-      `${formatDateOnly(sessionData.tanggalRencana)} • ${sessionData.namaProject} (${sessionData.noKontrak}) • Admin: ${sessionData.adminNama}` +
-      (sessionData.catatanRencana ? ` • ${sessionData.catatanRencana}` : '');
-    const badge = document.getElementById('liveStatusBadge');
-    badge.innerText = `${statusIcon(sessionData.status)} ${sessionData.status} • ${jumlahKunjungan} kunjungan sudah masuk`;
-    badge.style.background = 'rgba(255,255,255,0.15)';
-    badge.style.color = '#fff';
-  }
-
-  function statusIcon(status) {
-    if (status === 'Terjadwal') return '🗓️';
-    if (status === 'Berlangsung') return '🔴';
-    return '✅';
-  }
-
-  // ===== Pendamping (dinamis) =====
-  function addPendampingRow(prefill) {
-    const rowId = pendampingRowCount++;
-    const div = document.createElement('div');
-    div.className = 'dyn-row';
-    div.id = `pendamping-row-${rowId}`;
-    div.innerHTML = `
-      <div class="dyn-row-label">Pendamping ${pendampingRows.children.length + 1}</div>
-      <button type="button" class="btn-remove-row" onclick="removePendampingRow(${rowId})">✕</button>
-      <div class="dyn-2col">
-        <div>
-          <span class="dyn-mini-label">Nama</span>
-          <input type="text" id="pendamping-nama-${rowId}" placeholder="Nama pendamping">
-        </div>
-        <div>
-          <span class="dyn-mini-label">Jabatan</span>
-          <input type="text" id="pendamping-jabatan-${rowId}" placeholder="Jabatan">
-        </div>
-      </div>
-    `;
-    pendampingRows.appendChild(div);
-    if (prefill) {
-      div.querySelector(`#pendamping-nama-${rowId}`).value = prefill.nama || '';
-      div.querySelector(`#pendamping-jabatan-${rowId}`).value = prefill.jabatan || '';
-    }
-  }
-
-  function removePendampingRow(rowId) {
-    const el = document.getElementById(`pendamping-row-${rowId}`);
-    if (!el) return;
-    if (pendampingRows.children.length <= 1) return alert('Minimal harus ada 1 pendamping.');
-    el.remove();
-    Array.from(pendampingRows.children).forEach((row, i) => {
-      row.querySelector('.dyn-row-label').innerText = `Pendamping ${i + 1}`;
-    });
-  }
-
-  function collectPendampingList() {
-    return Array.from(pendampingRows.children).map(row => {
-      const rowId = row.id.replace('pendamping-row-', '');
-      return {
-        nama: document.getElementById(`pendamping-nama-${rowId}`).value.trim(),
-        jabatan: document.getElementById(`pendamping-jabatan-${rowId}`).value.trim(),
-      };
-    });
-  }
-
-  function handlePhotoSlot(event, idx) {
-    const file = event.target.files[0];
-    if (!file) return;
-    photoSlots[idx] = file;
-    const slotEl = document.getElementById('slot' + idx);
-    const img = slotEl.querySelector('.slot-preview');
-    img.src = URL.createObjectURL(file);
-    img.style.display = 'block';
-    slotEl.classList.add('filled');
-  }
-
-  function removePhotoSlot(idx, evt) {
-    if (evt) evt.stopPropagation();
-    photoSlots[idx] = null;
-    const slotEl = document.getElementById('slot' + idx);
-    const img = slotEl.querySelector('.slot-preview');
-    img.style.display = 'none';
-    img.src = '';
-    slotEl.classList.remove('filled');
-    slotEl.querySelector('input[type="file"]').value = '';
   }
 
   function setStatus(text, kind) {
@@ -372,28 +182,14 @@
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   }
 
-  function formatDate(iso) {
-    if (!iso) return '-';
-    const d = new Date(iso);
-    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
-      d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function formatDateOnly(dateStr) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
-
   // =====================================================================================
-  // IDENTIFIKASI MANAGEMENT -- pola sama persis dengan form lain di HSSE-Fusion4.
+  // IDENTIFIKASI ADMIN MWT -- pola sama persis dengan form lain di HSSE-Fusion4.
   // =====================================================================================
   const FACE_MATCH_THRESHOLD = 0.45;
   const FACE_AMBIGUITY_MARGIN = 0.12;
   const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
-  // Cuma yang punya izin Author ini yang boleh isi kunjungan MWT.
-  const REQUIRED_TAG = 'Management Walkthrough';
+  // Cuma yang punya izin Author ini yang boleh bikin jadwal MWT.
+  const REQUIRED_TAG = 'Admin MWT';
 
   let identifiedNama = null;
   let identifiedQrCodeId = null;
@@ -524,7 +320,7 @@
       if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
       const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
       if (!hasAuthorTag(match, REQUIRED_TAG)) {
-        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi kunjungan MWT ini.`, 'error');
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat bikin jadwal MWT ini.`, 'error');
       }
       confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
     } catch (e) {
@@ -588,7 +384,7 @@
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
       if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
-        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi kunjungan MWT ini.`, 'error');
+        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat bikin jadwal MWT ini.`, 'error');
         stopIdCamera();
         idGateButtons.style.display = 'flex';
         return;
@@ -697,7 +493,7 @@
       return;
     }
     if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
-      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi kunjungan MWT ini.`, 'error');
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat bikin jadwal MWT ini.`, 'error');
       btnIdScanFace.disabled = false;
       return;
     }
@@ -713,6 +509,8 @@
     idNameEl.innerText = `${nama} (${qrCodeId})`;
     idResultBanner.style.display = 'flex';
     formBody.style.display = 'block';
+    planCard.style.display = 'block';
+    btnSavePlan.style.display = 'flex';
   }
 
   function resetIdentification() {
@@ -727,87 +525,60 @@
   }
 
   // =====================================================================================
-  // KIRIM KUNJUNGAN SAYA -- nambah 1 entry ke KunjunganList sesi ini (bukan submit tunggal
-  // kayak v1 lama -- sesi ini bisa diisi lebih dari 1 management, masing2 entry sendiri).
+  // SIMPAN JADWAL MWT
   // =====================================================================================
-  async function submitKunjungan() {
+  async function saveSchedule() {
     if (!identifiedNama) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      return setStatus('❌ Identifikasi Management dulu (Scan QR Code / Scan Wajah / Input PIN) di bagian atas.', 'error');
+      return setStatus('❌ Identifikasi Admin MWT dulu (Scan QR Code / Scan Wajah / Input PIN) di bagian atas.', 'error');
     }
-
-    const pendampingList = collectPendampingList().filter(p => p.nama || p.jabatan);
-    const pendampingKosong = collectPendampingList().some(p => (p.nama && !p.jabatan) || (!p.nama && p.jabatan));
-    if (pendampingKosong) {
-      return setStatus('❌ Ada baris Pendamping yang belum lengkap -- isi Nama & Jabatan-nya, atau hapus barisnya.', 'error');
-    }
-
-    const jumlahPekerja = parseInt(document.getElementById('numPekerja').value, 10) || 0;
+    const projectId = selectProject.value;
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    const area = document.getElementById('txtArea').value.trim();
+    if (!area) return setStatus('❌ Isi Area/Lokasi Rencana dulu.', 'error');
+    const tanggalRencana = document.getElementById('dtRencana').value;
+    if (!tanggalRencana) return setStatus('❌ Isi Tanggal Rencana dulu.', 'error');
     const catatan = document.getElementById('txtCatatan').value.trim();
-    const tandaiSelesai = document.getElementById('chkSelesai').checked;
 
-    btnSubmit.disabled = true;
-    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
-
+    btnSavePlan.disabled = true;
+    btnSavePlan.innerHTML = '<span>⏳ Menyimpan...</span>';
     try {
-      let fotoList = [];
-      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
-      if (filledSlots.length > 0) {
-        setStatus(`📤 Mengupload ${filledSlots.length} foto...`, 'info');
-        for (const slot of filledSlots) {
-          const fileName = `MWT_${Date.now()}_${slot.idx + 1}.jpg`;
-          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
-          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
-        }
-      }
-
-      setStatus('📤 Mengirim kunjungan MWT...', 'info');
-      const { data, error } = await supabaseClient.rpc('submit_mwt_kunjungan', {
-        p_id: Number(sessionId),
-        p_management_nama: identifiedNama,
-        p_management_qrcode: identifiedQrCodeId,
-        p_jumlah_pekerja_diskusi: jumlahPekerja,
-        p_catatan_observasi: catatan,
-        p_pendamping_list: pendampingList,
-        p_foto_list: fotoList,
-        p_tandai_selesai: tandaiSelesai,
+      const { data, error } = await supabaseClient.rpc('create_mwt_schedule', {
+        p_project_id: projectId,
+        p_area_rencana: area,
+        p_tanggal_rencana: tanggalRencana,
+        p_admin_nama: identifiedNama,
+        p_admin_qrcode: identifiedQrCodeId,
+        p_catatan_rencana: catatan,
       });
       if (error) throw error;
-      if (data && data.success === false) {
-        setStatus('❌ ' + (data.message || 'Gagal mengirim kunjungan.'), 'error');
-        return;
-      }
 
-      setStatus(`✅ Kunjungan kamu berhasil dicatat! Total kunjungan di sesi ini sekarang: ${data.jumlahKunjungan}.` +
-        (data.status === 'Selesai' ? ' Sesi MWT ini sudah ditandai Selesai.' : ''), 'success');
-
-      resetForm();
-      await loadSession();
-      if (sessionData && sessionData.status === 'Selesai') {
-        idCard.style.display = 'none';
-      }
+      planCard.style.display = 'none';
+      btnSavePlan.style.display = 'none';
+      document.getElementById('planCreatedNo').innerText = `No. MWT: ${data.noMWT}`;
+      document.getElementById('linkJoinNow').href = `mwt-report.html?id=${data.id}`;
+      planCreatedCard.style.display = 'block';
+      setStatus('✅ Jadwal MWT tersimpan.', 'success');
+      window.scrollTo({ top: planCreatedCard.offsetTop - 20, behavior: 'smooth' });
     } catch (e) {
-      setStatus('❌ Gagal mengirim kunjungan MWT: ' + e.message, 'error');
+      setStatus('❌ Gagal menyimpan jadwal MWT: ' + e.message, 'error');
     } finally {
-      btnSubmit.disabled = false;
-      btnSubmit.innerHTML = '<span>✅ Kirim Kunjungan Saya</span>';
+      btnSavePlan.disabled = false;
+      btnSavePlan.innerHTML = '<span>📝 Buat Jadwal MWT</span>';
     }
   }
 
-  function resetForm() {
-    // Identifikasi Management DIRESET -- kunjungan berikutnya di sesi yang sama biasanya
-    // diisi oleh orang yang berbeda, jadi minta scan ulang tiap kali.
-    resetIdentification();
-    document.getElementById('numPekerja').value = 0;
+  function resetFormForNewSchedule() {
+    // Identitas Admin MWT SENGAJA tidak direset -- biar 1 orang bisa lanjut bikin
+    // jadwal MWT lain tanpa scan ulang.
+    selectProject.value = '';
+    document.getElementById('txtArea').value = '';
+    document.getElementById('dtRencana').value = '';
     document.getElementById('txtCatatan').value = '';
-    document.getElementById('chkSelesai').checked = false;
-
-    pendampingRows.innerHTML = '';
-    pendampingRowCount = 0;
-    addPendampingRow();
-
-    for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
-
+    planCreatedCard.style.display = 'none';
+    planCard.style.display = 'block';
+    btnSavePlan.style.display = 'flex';
+    setStatus('', null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 </script>

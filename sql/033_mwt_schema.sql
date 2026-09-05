@@ -1,41 +1,68 @@
 -- =====================================================================================
--- HSSE-Fusion4 — MIGRASI #33: MODUL MANAGEMENT WALK THROUGH (MWT)
--- Jalankan SETELAH 001-032, di Supabase project HSSE-Fusion4.
+-- HSSE-Fusion4 — MIGRASI #33: MODUL MANAGEMENT WALK THROUGH (MWT) -- v2
+-- Jalankan SETELAH 001-032, di Supabase project HSSE-Fusion4 (BUKAN Fusion4).
 --
--- Konsep (disepakati di chat):
--- 1. MWT itu kunjungan lapangan oleh manajemen/leadership buat liat langsung kondisi
---    HSSE, ngobrol sama pekerja, kasih bukti visible leadership commitment -- BUKAN
---    audit formal, jadi form-nya SIMPEL: submit tunggal + Author-gate (Author
---    "Management Walkthrough"), sesuai pola HSE Meeting/CERMAT/Inspeksi (gak ada
---    checklist+skor kayak Inspeksi, gak ada alur findings/CAPA berjenjang kayak
---    Internal Audit).
--- 2. Isi kunjungan: Area/Lokasi yang dikunjungi, Pendamping (dinamis, nama+jabatan),
---    Catatan Observasi Umum (freeform, BUKAN daftar temuan terstruktur), Jumlah
---    Pekerja yang Diajak Diskusi, Foto Dokumentasi.
--- 3. Realisasi-nya nyambung ke HSE Program (get_hse_program, KodeItem='MWT') yang
---    sebelumnya (sql/031) masih dikunci 0 karena modulnya belum dibangun.
+-- CATATAN: kalau kamu sempat menjalankan versi PERTAMA sql/033 (yang cuma 1 form submit
+-- tunggal, tanpa jadwal), file ini SUDAH REPLACE total desainnya -- jalankan file ini,
+-- CREATE TABLE IF NOT EXISTS-nya aman (gak ngedrop data), tapi kolom2 lama versi pertama
+-- (AreaKunjungan, NamaManagement, dst di level tabel) TIDAK dipakai lagi oleh RPC baru di
+-- bawah -- kalau tabelnya sudah pernah ke-create dengan skema lama & sudah ada isinya,
+-- kasih tau dulu sebelum lanjut migrasi data manual.
+--
+-- Konsep (disepakati di chat, setelah diskusi soal >1 manajemen ikut 1 sesi):
+-- 1. MWT sekarang 2 TAHAP, mirip pola Internal Audit (Rencana -> Pelaksanaan):
+--    a. JADWAL/RENCANA -- dibikin oleh Author "Admin MWT" (HSE Admin/koordinator):
+--       Project, Area/Lokasi Rencana, Tanggal Rencana. Keluar No. Dokumen (NoMWT).
+--       Status awal 'Terjadwal'.
+--    b. KUNJUNGAN -- Management (Author "Management Walkthrough") pilih sesi yang
+--       udah dijadwalkan, verifikasi diri (scan QR/wajah/PIN), lalu isi catatan
+--       observasi SENDIRI-SENDIRI (tiap Management yang gabung punya entry sendiri --
+--       bukan 1 catatan gabungan). Entry numpuk di "KunjunganList" (array), tetap
+--       1 dokumen/No. MWT yang sama. Status jadi 'Berlangsung' begitu entry pertama
+--       masuk. Salah satu dari mereka bisa tandai sesi 'Selesai' saat submit kalau
+--       dirasa udah cukup (manual, gak otomatis).
+-- 2. Realisasi ke HSE Program dihitung per SESI (dokumen) yang udah ada minimal 1
+--    kunjungan -- BUKAN per kepala Management yang ikut -- bulan diambil dari
+--    kunjungan PALING AWAL di sesi itu.
 -- =====================================================================================
 
 
 -- -------------------------------------------------------------------------------------
--- 1. TABEL MWT
+-- 1. TABEL MWT (satu row per SESI/dokumen -- dari Terjadwal sampai Selesai)
+--    KunjunganList JSONB shape per item:
+--    { "managementNama":.., "managementQrCodeId":.., "tanggalKunjungan":.. (timestamptz),
+--      "jumlahPekerjaDiskusi":.. (int), "catatanObservasi":.. (text),
+--      "pendampingList": [{nama, jabatan}], "fotoList": [{url, fileId}] }
 -- -------------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS "mwtTbl" (
     "Id" BIGSERIAL PRIMARY KEY,
     "NoMWT" TEXT UNIQUE NOT NULL,
     "ProjectId" BIGINT NOT NULL REFERENCES "projectTbl"("Id"),
-    "TanggalKunjungan" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    "AreaKunjungan" TEXT NOT NULL,
-    "NamaManagement" TEXT NOT NULL,
-    "ManagementQrCodeId" TEXT DEFAULT '',
-    "PendampingList" JSONB NOT NULL DEFAULT '[]'::jsonb, -- [{nama, jabatan}]
-    "JumlahPekerjaDiskusi" INT NOT NULL DEFAULT 0,
-    "CatatanObservasi" TEXT DEFAULT '',
-    "FotoList" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "AreaRencana" TEXT NOT NULL,
+    "TanggalRencana" DATE NOT NULL,
+    "CatatanRencana" TEXT DEFAULT '',
+    "AdminNama" TEXT NOT NULL,
+    "AdminQrCodeId" TEXT DEFAULT '',
+    "Status" TEXT NOT NULL DEFAULT 'Terjadwal' CHECK ("Status" IN ('Terjadwal', 'Berlangsung', 'Selesai')),
+    "KunjunganList" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "TanggalDitutup" TIMESTAMPTZ,
     "CreatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_mwt_project ON "mwtTbl" ("ProjectId");
+CREATE INDEX IF NOT EXISTS idx_mwt_status ON "mwtTbl" ("Status");
+
+-- Kalau tabel ini sebelumnya ke-create dari versi PERTAMA migrasi ini (kolom lama:
+-- AreaKunjungan, NamaManagement, dst di level tabel, bukan di dalam KunjunganList),
+-- baris di bawah nambahin kolom2 baru yang belum ada -- aman dijalankan berkali-kali.
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "AreaRencana" TEXT;
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "TanggalRencana" DATE;
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "CatatanRencana" TEXT DEFAULT '';
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "AdminNama" TEXT;
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "AdminQrCodeId" TEXT DEFAULT '';
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "Status" TEXT DEFAULT 'Terjadwal';
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "KunjunganList" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "TanggalDitutup" TIMESTAMPTZ;
 
 
 -- -------------------------------------------------------------------------------------
@@ -57,19 +84,20 @@ $$;
 
 
 -- -------------------------------------------------------------------------------------
--- 3. RPC: SUBMIT MWT
+-- 3. RPC: BIKIN JADWAL/RENCANA MWT (Author "Admin MWT" -- dicek di client sebelum
+--    manggil ini, sama pola kayak tahap Author-gated lainnya). Status awal 'Terjadwal'.
 -- -------------------------------------------------------------------------------------
+-- Bersihin dulu kemungkinan versi lama fungsi ini dari migrasi pertama (signature beda).
 DROP FUNCTION IF EXISTS submit_mwt(BIGINT, TEXT, TEXT, JSONB, INT, TEXT, TEXT, TIMESTAMPTZ, JSONB);
-CREATE OR REPLACE FUNCTION submit_mwt(
+DROP FUNCTION IF EXISTS create_mwt_schedule(BIGINT, TEXT, DATE, TEXT, TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION create_mwt_schedule(
     p_project_id BIGINT,
-    p_area_kunjungan TEXT,
-    p_nama_management TEXT,
-    p_pendamping_list JSONB,
-    p_jumlah_pekerja_diskusi INT,
-    p_management_qrcode TEXT DEFAULT '',
-    p_catatan_observasi TEXT DEFAULT '',
-    p_tanggal_kunjungan TIMESTAMPTZ DEFAULT NULL,
-    p_foto_list JSONB DEFAULT '[]'::jsonb
+    p_area_rencana TEXT,
+    p_tanggal_rencana DATE,
+    p_admin_nama TEXT,
+    p_admin_qrcode TEXT DEFAULT '',
+    p_catatan_rencana TEXT DEFAULT ''
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -80,13 +108,11 @@ DECLARE
     v_id BIGINT;
 BEGIN
     INSERT INTO "mwtTbl" (
-        "NoMWT", "ProjectId", "TanggalKunjungan", "AreaKunjungan",
-        "NamaManagement", "ManagementQrCodeId", "PendampingList",
-        "JumlahPekerjaDiskusi", "CatatanObservasi", "FotoList"
+        "NoMWT", "ProjectId", "AreaRencana", "TanggalRencana",
+        "AdminNama", "AdminQrCodeId", "CatatanRencana"
     ) VALUES (
-        v_no_mwt, p_project_id, COALESCE(p_tanggal_kunjungan, NOW()), p_area_kunjungan,
-        p_nama_management, p_management_qrcode, p_pendamping_list,
-        p_jumlah_pekerja_diskusi, p_catatan_observasi, p_foto_list
+        v_no_mwt, p_project_id, p_area_rencana, p_tanggal_rencana,
+        p_admin_nama, p_admin_qrcode, p_catatan_rencana
     )
     RETURNING "Id" INTO v_id;
 
@@ -96,10 +122,67 @@ $$;
 
 
 -- -------------------------------------------------------------------------------------
--- 4. RPC: AMBIL DAFTAR (RIWAYAT) & DETAIL BY ID
+-- 4. RPC: GABUNG SESI & ISI KUNJUNGAN SENDIRI (Author "Management Walkthrough" --
+--    dicek di client). Nambah 1 entry ke KunjunganList, sesi jadi 'Berlangsung' kalau
+--    masih 'Terjadwal'. p_tandai_selesai=true -> sesi ditutup jadi 'Selesai' (manual,
+--    dari salah satu Management yang ngerasa udah cukup -- bukan otomatis).
+-- -------------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS submit_mwt_kunjungan(BIGINT, TEXT, TEXT, INT, TEXT, JSONB, JSONB, BOOLEAN);
+CREATE OR REPLACE FUNCTION submit_mwt_kunjungan(
+    p_id BIGINT,
+    p_management_nama TEXT,
+    p_management_qrcode TEXT,
+    p_jumlah_pekerja_diskusi INT,
+    p_catatan_observasi TEXT,
+    p_pendamping_list JSONB DEFAULT '[]'::jsonb,
+    p_foto_list JSONB DEFAULT '[]'::jsonb,
+    p_tandai_selesai BOOLEAN DEFAULT false
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_status TEXT;
+    v_new_entry JSONB;
+    v_jumlah_entry INT;
+BEGIN
+    SELECT "Status" INTO v_status FROM "mwtTbl" WHERE "Id" = p_id;
+    IF v_status IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Jadwal MWT tidak ditemukan.');
+    END IF;
+    IF v_status = 'Selesai' THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Sesi MWT ini sudah Selesai, tidak bisa ditambah kunjungan lagi.');
+    END IF;
+
+    v_new_entry := jsonb_build_object(
+        'managementNama', p_management_nama,
+        'managementQrCodeId', p_management_qrcode,
+        'tanggalKunjungan', to_jsonb(NOW()),
+        'jumlahPekerjaDiskusi', COALESCE(p_jumlah_pekerja_diskusi, 0),
+        'catatanObservasi', COALESCE(p_catatan_observasi, ''),
+        'pendampingList', COALESCE(p_pendamping_list, '[]'::jsonb),
+        'fotoList', COALESCE(p_foto_list, '[]'::jsonb)
+    );
+
+    UPDATE "mwtTbl"
+    SET "KunjunganList" = "KunjunganList" || jsonb_build_array(v_new_entry),
+        "Status" = CASE WHEN p_tandai_selesai THEN 'Selesai' ELSE 'Berlangsung' END,
+        "TanggalDitutup" = CASE WHEN p_tandai_selesai THEN NOW() ELSE "TanggalDitutup" END
+    WHERE "Id" = p_id
+    RETURNING jsonb_array_length("KunjunganList") INTO v_jumlah_entry;
+
+    RETURN jsonb_build_object('success', true, 'jumlahKunjungan', v_jumlah_entry, 'status', CASE WHEN p_tandai_selesai THEN 'Selesai' ELSE 'Berlangsung' END);
+END;
+$$;
+
+
+-- -------------------------------------------------------------------------------------
+-- 5. RPC: AMBIL DAFTAR (RIWAYAT) & DETAIL BY ID
 -- -------------------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS get_mwt_list(BIGINT);
-CREATE OR REPLACE FUNCTION get_mwt_list(p_project_id BIGINT DEFAULT NULL)
+DROP FUNCTION IF EXISTS get_mwt_list(TEXT, BIGINT);
+CREATE OR REPLACE FUNCTION get_mwt_list(p_status TEXT DEFAULT NULL, p_project_id BIGINT DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -110,21 +193,23 @@ BEGIN
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'id', c."Id",
         'noMWT', c."NoMWT",
-        'tanggalKunjungan', c."TanggalKunjungan",
-        'areaKunjungan', c."AreaKunjungan",
-        'namaManagement', c."NamaManagement",
-        'managementQrCodeId', c."ManagementQrCodeId",
-        'pendampingList', c."PendampingList",
-        'jumlahPekerjaDiskusi', c."JumlahPekerjaDiskusi",
-        'catatanObservasi', c."CatatanObservasi",
-        'fotoList', c."FotoList",
+        'areaRencana', c."AreaRencana",
+        'tanggalRencana', c."TanggalRencana",
+        'catatanRencana', c."CatatanRencana",
+        'adminNama', c."AdminNama",
+        'adminQrCodeId', c."AdminQrCodeId",
+        'status', c."Status",
+        'kunjunganList', c."KunjunganList",
+        'tanggalDitutup', c."TanggalDitutup",
+        'createdAt', c."CreatedAt",
         'namaProject', p."NamaProject",
         'noKontrak', p."NoKontrak"
-    ) ORDER BY c."TanggalKunjungan" DESC), '[]'::JSONB)
+    ) ORDER BY c."CreatedAt" DESC), '[]'::JSONB)
     INTO v_result
     FROM "mwtTbl" c
     JOIN "projectTbl" p ON p."Id" = c."ProjectId"
-    WHERE p_project_id IS NULL OR c."ProjectId" = p_project_id;
+    WHERE (p_status IS NULL OR c."Status" = p_status)
+      AND (p_project_id IS NULL OR c."ProjectId" = p_project_id);
 
     RETURN v_result;
 END;
@@ -143,14 +228,16 @@ BEGIN
     SELECT jsonb_build_object(
         'id', c."Id",
         'noMWT', c."NoMWT",
-        'tanggalKunjungan', c."TanggalKunjungan",
-        'areaKunjungan', c."AreaKunjungan",
-        'namaManagement', c."NamaManagement",
-        'managementQrCodeId', c."ManagementQrCodeId",
-        'pendampingList', c."PendampingList",
-        'jumlahPekerjaDiskusi', c."JumlahPekerjaDiskusi",
-        'catatanObservasi', c."CatatanObservasi",
-        'fotoList', c."FotoList",
+        'projectId', c."ProjectId",
+        'areaRencana', c."AreaRencana",
+        'tanggalRencana', c."TanggalRencana",
+        'catatanRencana', c."CatatanRencana",
+        'adminNama', c."AdminNama",
+        'adminQrCodeId', c."AdminQrCodeId",
+        'status', c."Status",
+        'kunjunganList', c."KunjunganList",
+        'tanggalDitutup', c."TanggalDitutup",
+        'createdAt', c."CreatedAt",
         'namaProject', p."NamaProject",
         'noKontrak', p."NoKontrak",
         'tipeKonstruksi', p."TipeKonstruksi"
@@ -166,10 +253,9 @@ $$;
 
 
 -- -------------------------------------------------------------------------------------
--- 5. get_hse_program() -- tambah 1 UNION ALL buat realisasi MWT (kode item 'MWT' udah
---    ada dari sql/031, sebelumnya realisasinya selalu 0 karena modulnya belum ada).
---    Body fungsi ini disalin utuh dari sql/032_hse_program_frequency_spread.sql,
---    cuma nambah 1 blok UNION ALL di CTE "realisasi" -- gak ada bagian lain yang diubah.
+-- 6. get_hse_program() -- realisasi MWT dihitung PER SESI (bukan per kepala Management)
+--    -- 1 sesi yang udah ada >=1 kunjungan = 1 "kali", bulan diambil dari kunjungan
+--    PALING AWAL di sesi itu. Body fungsi disalin dari sql/032, cuma nambah 1 UNION ALL.
 -- -------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_hse_program(p_project_id BIGINT, p_tahun INT)
 RETURNS JSONB
@@ -231,9 +317,15 @@ BEGIN
         GROUP BY 2
 
         UNION ALL
-        SELECT 'MWT', EXTRACT(MONTH FROM "TanggalKunjungan")::INT, COUNT(*)
-        FROM "mwtTbl"
-        WHERE "ProjectId" = p_project_id AND EXTRACT(YEAR FROM "TanggalKunjungan") = p_tahun
+        SELECT 'MWT', EXTRACT(MONTH FROM mv.tgl_kunjungan_pertama)::INT, COUNT(*)
+        FROM "mwtTbl" m
+        CROSS JOIN LATERAL (
+            SELECT MIN((elem->>'tanggalKunjungan')::timestamptz) AS tgl_kunjungan_pertama
+            FROM jsonb_array_elements(m."KunjunganList") elem
+        ) mv
+        WHERE m."ProjectId" = p_project_id
+          AND mv.tgl_kunjungan_pertama IS NOT NULL
+          AND EXTRACT(YEAR FROM mv.tgl_kunjungan_pertama) = p_tahun
         GROUP BY 2
     ),
     realisasi_agg AS (
@@ -272,7 +364,6 @@ $function$;
 
 
 -- -------------------------------------------------------------------------------------
--- 6. Update deskripsi item master MWT (baris sudah ada dari sql/031, KodeItem='MWT')
---    sekarang modulnya sudah dibangun -- gak ubah NamaItem/SatuanTarget/Urutan.
+-- 7. Update deskripsi item master MWT (baris sudah ada dari sql/031, KodeItem='MWT').
 -- -------------------------------------------------------------------------------------
-UPDATE "hseProgramMasterItemTbl" SET "Keterangan" = 'Realisasi dari modul MWT' WHERE "KodeItem" = 'MWT';
+UPDATE "hseProgramMasterItemTbl" SET "Keterangan" = 'Realisasi dari modul MWT -- 1 sesi/dokumen = 1 kali, dihitung dari kunjungan pertama di sesi itu' WHERE "KodeItem" = 'MWT';
