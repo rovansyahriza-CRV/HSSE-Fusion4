@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor HSE Program — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 900px; }
+
+  .selector-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .selector-row .field { flex: 1; min-width: 180px; }
+  .selector-row label {
+    display: block; font-size: 11.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .selector-row select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--text);
+  }
+
+  .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .summary-card {
+    flex: 1; min-width: 130px; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .summary-card .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .summary-card .value { font-size: 20px; font-weight: 800; color: var(--navy-dark); margin-top: 4px; }
+  .summary-card .value.ok { color: var(--success); }
+  .summary-card .value.warn { color: var(--safety-yellow); }
+  .summary-card .value.bad { color: var(--accent); }
+
+  .item-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .item-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+  .item-card-top h3 { font-size: 14.5px; font-weight: 800; color: var(--navy-dark); }
+  .item-card-top .item-freq { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pct-badge {
+    font-size: 12.5px; font-weight: 800; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .pct-badge.ok { background: var(--success-bg); color: var(--success); }
+  .pct-badge.warn { background: #FDF3E3; color: #8A6100; }
+  .pct-badge.bad { background: #FCEAE8; color: var(--accent); }
+
+  .item-stats { display: flex; gap: 16px; margin: 10px 0 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .item-stats b { color: var(--navy-dark); font-size: 13px; }
+
+  .chart-wrap { position: relative; height: 180px; }
+
+  .na-list {
+    font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 10px;
+    padding: 10px 14px; margin-top: 6px; line-height: 1.7;
+  }
+  .na-list b { color: var(--navy-dark); }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+  .monitor-link {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; background: #EAF1FD; color: #2A5CCB;
+    text-decoration: none; white-space: nowrap; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="Smart HSSE Reporting System">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Monitor HSE Program</h1>
+      </div>
+    </div>
+    <p>Actual vs Target tiap item HSE Program per bulan -- buat dipantau HSE Officer/Management, gak buat diedit. Untuk atur target & durasi project, buka halaman <a href="hse-program.html" style="color:var(--navy);font-weight:700;">HSE Program</a>.</p>
+  </div>
+
+  <div class="selector-row">
+    <div class="field">
+      <label>Project / Kontrak</label>
+      <select id="selectProject"><option value="">Memuat...</option></select>
+    </div>
+    <div class="field">
+      <label>Tahun</label>
+      <select id="selectTahun"></select>
+    </div>
+  </div>
+
+  <div class="summary-row" id="summaryRow" style="display:none;">
+    <div class="summary-card">
+      <div class="label">Item Dipakai (Use)</div>
+      <div class="value" id="sumUseCount">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Target (setahun)</div>
+      <div class="value" id="sumTargetTotal">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Realisasi</div>
+      <div class="value" id="sumRealisasiTotal">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">% Capaian Keseluruhan</div>
+      <div class="value" id="sumPct">0%</div>
+    </div>
+  </div>
+
+  <div id="loadingState" class="empty-state">Pilih project dulu buat lihat monitor-nya ya.</div>
+
+  <div id="itemCards"></div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const REVERSED_TARGET_ITEMS = ['INCIDENT'];
+
+  const selectProject = document.getElementById('selectProject');
+  const selectTahun = document.getElementById('selectTahun');
+  const loadingState = document.getElementById('loadingState');
+  const summaryRow = document.getElementById('summaryRow');
+  const itemCards = document.getElementById('itemCards');
+
+  let charts = []; // simpan instance Chart.js biar bisa di-destroy pas reload
+  let projectMap = {}; // id -> {tanggalMulaiProject, tanggalSelesaiProject, ...}
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    setupTahunOptions();
+    await loadProjects();
+    selectProject.addEventListener('change', loadProgram);
+    selectTahun.addEventListener('change', loadProgram);
+  });
+
+  function setupTahunOptions() {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 1; y <= now + 2; y++) {
+      opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    }
+    selectTahun.innerHTML = opts;
+  }
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      const projectList = data || [];
+      projectMap = {};
+      projectList.forEach(p => { projectMap[p.id] = p; });
+      selectProject.innerHTML = projectList.length === 0
+        ? '<option value="">Belum ada project aktif</option>'
+        : '<option value="">-- Pilih Project --</option>' +
+          projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+    }
+  }
+
+  async function loadProgram() {
+    const projectId = selectProject.value;
+    const tahun = selectTahun.value;
+    destroyCharts();
+    if (!projectId) {
+      summaryRow.style.display = 'none';
+      itemCards.innerHTML = '';
+      loadingState.style.display = 'block';
+      loadingState.textContent = 'Pilih project dulu buat lihat monitor-nya ya.';
+      return;
+    }
+    loadingState.style.display = 'block';
+    loadingState.textContent = 'Memuat data...';
+    summaryRow.style.display = 'none';
+    itemCards.innerHTML = '';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_program', {
+        p_project_id: Number(projectId), p_tahun: Number(tahun)
+      });
+      if (error) throw error;
+      const items = data || [];
+      renderSummary(items);
+      renderCards(items);
+      loadingState.style.display = 'none';
+      summaryRow.style.display = 'flex';
+    } catch (e) {
+      loadingState.textContent = 'Gagal memuat data: ' + (e.message || e);
+    }
+  }
+
+  function renderSummary(items) {
+    let useCount = 0, sumTarget = 0, sumRealisasi = 0;
+    items.forEach(item => {
+      if (REVERSED_TARGET_ITEMS.includes(item.kodeItem)) return;
+      if (item.statusPakai !== 'Use') return;
+      useCount++;
+      sumTarget += Number(item.targetTotal) || 0;
+      sumRealisasi += Number(item.realisasiTotal) || 0;
+    });
+    const pct = sumTarget > 0 ? Math.round((sumRealisasi / sumTarget) * 100) : 0;
+    document.getElementById('sumUseCount').textContent = useCount;
+    document.getElementById('sumTargetTotal').textContent = sumTarget;
+    document.getElementById('sumRealisasiTotal').textContent = sumRealisasi;
+    const pctEl = document.getElementById('sumPct');
+    pctEl.textContent = pct + '%';
+    pctEl.className = 'value ' + (pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : 'bad');
+  }
+
+  function pctClassFor(pct) {
+    return pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : 'bad';
+  }
+
+  function renderCards(items) {
+    const useItems = items.filter(x => x.statusPakai === 'Use');
+    const naItems = items.filter(x => x.statusPakai !== 'Use');
+
+    if (useItems.length === 0) {
+      itemCards.innerHTML = '<div class="empty-state">Belum ada item yang di-set "Use" buat project & tahun ini. Buka halaman HSE Program buat mulai atur target.</div>';
+      return;
+    }
+
+    itemCards.innerHTML = useItems.map(item => cardHtml(item)).join('') +
+      (naItems.length ? naListHtml(naItems) : '');
+
+    useItems.forEach(item => drawChart(item));
+  }
+
+  function cardHtml(item) {
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+    const realisasiTotal = item.realisasiTotal || 0;
+
+    if (isReversed) {
+      return `
+        <div class="item-card">
+          <div class="item-card-top">
+            <div>
+              <h3>${escapeHtml(item.namaItem)}</h3>
+              <div class="item-freq">Zero Target -- lagging indicator, target dikunci 0</div>
+            </div>
+            <span class="pct-badge" id="badge-${item.itemId}">-</span>
+          </div>
+          <div class="item-stats">
+            <div>Total kejadian: <b>${realisasiTotal}</b></div>
+            <div id="stat-extra-${item.itemId}"></div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-${item.itemId}"></canvas></div>
+        </div>`;
+    }
+
+    const targetTotal = item.targetTotal || 0;
+    const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
+    const freqLabel = item.frequency ? `${item.frequency}${item.targetQty != null ? ' -- ' + item.targetQty + ' ' + (item.satuanTarget || 'kali') : ''}` : 'target diisi manual per bulan';
+    return `
+      <div class="item-card">
+        <div class="item-card-top">
+          <div>
+            <h3>${escapeHtml(item.namaItem)}</h3>
+            <div class="item-freq">${escapeHtml(freqLabel)}</div>
+          </div>
+          <span class="pct-badge ${pctClassFor(pct)}">${pct}%</span>
+        </div>
+        <div class="item-stats">
+          <div>Target: <b>${targetTotal}</b></div>
+          <div>Realisasi: <b>${realisasiTotal}</b></div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-${item.itemId}"></canvas></div>
+      </div>`;
+  }
+
+  function naListHtml(naItems) {
+    return `<div class="na-list"><b>Item non-aktif (N/A) di project/tahun ini:</b><br>${naItems.map(x => escapeHtml(x.namaItem)).join(', ')}</div>`;
+  }
+
+  function drawChart(item) {
+    const canvas = document.getElementById(`chart-${item.itemId}`);
+    if (!canvas) return;
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+    const realisasiBulanan = item.realisasiBulanan || {};
+
+    if (isReversed) {
+      const data = BULAN_LABEL.map((_, idx) => Number(realisasiBulanan[idx + 1]) || 0);
+      const colors = data.map(v => v > 0 ? '#B32220' : '#178A4C');
+      const chart = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: BULAN_LABEL, datasets: [{ label: 'Kejadian', data, backgroundColor: colors, borderRadius: 4 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: (ctx) => `${ctx.parsed.y} kejadian`
+          } } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } }
+        }
+      });
+      charts.push(chart);
+
+      const activeMonths = getActiveMonthsForPct(item);
+      const zeroMonths = activeMonths.filter(m => !(Number(realisasiBulanan[m]) > 0)).length;
+      const pct = activeMonths.length ? Math.round((zeroMonths / activeMonths.length) * 100) : 0;
+      const badge = document.getElementById(`badge-${item.itemId}`);
+      badge.textContent = pct + '% bulan aman';
+      badge.className = 'pct-badge ' + pctClassFor(pct);
+      document.getElementById(`stat-extra-${item.itemId}`).textContent =
+        `${zeroMonths} dari ${activeMonths.length} bulan aktif tanpa kejadian`;
+      return;
+    }
+
+    const targetData = BULAN_LABEL.map((_, idx) => Number(item.targetBulanan && item.targetBulanan[idx + 1]) || 0);
+    const realisasiData = BULAN_LABEL.map((_, idx) => Number(realisasiBulanan[idx + 1]) || 0);
+    const realisasiColors = targetData.map((t, idx) => {
+      const r = realisasiData[idx];
+      if (t === 0) return r > 0 ? '#178A4C' : '#CBD3E8';
+      return r >= t ? '#178A4C' : '#B32220';
+    });
+
+    const chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: BULAN_LABEL,
+        datasets: [
+          { label: 'Target', data: targetData, backgroundColor: '#CBD3E8', borderRadius: 4 },
+          { label: 'Realisasi', data: realisasiData, backgroundColor: realisasiColors, borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+    charts.push(chart);
+  }
+
+  function daysInMonthUTC(year, month) { // month 1-12
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  // Bulan aktif project di tahun berjalan -- dipakai buat itung % bulan aman item
+  // Zero Target, sama persis logikanya kayak di hse-program.html. Kalau tanggal
+  // project belum diisi, dianggap 12 bulan penuh (fallback aman).
+  function getActiveMonthsForPct(item) {
+    const proj = projectMap[selectProject.value] || {};
+    const tglMulai = proj.tanggalMulaiProject, tglSelesai = proj.tanggalSelesaiProject;
+    if (!tglMulai || !tglSelesai) return [1,2,3,4,5,6,7,8,9,10,11,12];
+    const tahun = Number(selectTahun.value);
+    const projStart = new Date(tglMulai + 'T00:00:00Z');
+    const projEnd = new Date(tglSelesai + 'T00:00:00Z');
+    const yearStart = new Date(Date.UTC(tahun, 0, 1));
+    const yearEnd = new Date(Date.UTC(tahun, 11, 31));
+    const effStart = projStart > yearStart ? projStart : yearStart;
+    const effEnd = projEnd < yearEnd ? projEnd : yearEnd;
+    if (effStart > effEnd) return [];
+    const activeMonths = [];
+    for (let m = 1; m <= 12; m++) {
+      const mStart = new Date(Date.UTC(tahun, m - 1, 1));
+      const mEnd = new Date(Date.UTC(tahun, m - 1, daysInMonthUTC(tahun, m)));
+      const aStart = mStart > effStart ? mStart : effStart;
+      const aEnd = mEnd < effEnd ? mEnd : effEnd;
+      if (aStart <= aEnd) activeMonths.push(m);
+    }
+    return activeMonths;
+  }
+
+  function destroyCharts() {
+    charts.forEach(c => c.destroy());
+    charts = [];
+  }
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+</script>
+
+</body>
+</html>

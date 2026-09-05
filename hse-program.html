@@ -116,6 +116,10 @@
   }
   .spread-btn:disabled { background: #E4E7F0; color: #B0B4BD; cursor: not-allowed; }
 
+  .reversed-note { color: var(--muted); font-size: 11px; font-style: italic; text-align: left; padding-left: 10px !important; }
+  .reversed-ok { color: var(--success); font-weight: 700; }
+  .reversed-bad { color: var(--accent); font-weight: 800; background: #FCEAE8; }
+
   td.total-target, td.total-realisasi { font-weight: 800; color: var(--navy-dark); }
   td.pct-cell { font-weight: 800; }
   .pct-ok { color: var(--success); }
@@ -151,6 +155,7 @@
     <div class="note" style="margin-top:10px;">
       HSE Program ini adalah bagian dari <b>HSE Plan</b> project (dokumen kebijakan/organisasi HSE yang lebih luas, dikelola di luar sistem). Item-item di bawah ini generik/sama untuk semua project -- yang berbeda per project cuma toggle Use/N/A dan nilai targetnya.
     </div>
+    <a href="hse-program-monitor.html" class="pdf-link" style="margin-top:10px;">📊 Lihat Monitor Actual vs Target</a>
   </div>
 
   <div class="selector-row">
@@ -228,6 +233,10 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  // Item lagging indicator (bukan aktivitas terjadwal) -- targetnya dikunci 0
+  // (Zero Incident) dan %Capaian-nya dibalik: makin dikit/gak ada kejadian makin
+  // bagus, bukan makin deket ke angka target kayak item leading indicator lainnya.
+  const REVERSED_TARGET_ITEMS = ['INCIDENT'];
   const FREQUENCY_OPTIONS = [
     { value: '', label: '-- pilih --' },
     { value: 'Harian', label: 'Harian (per hari)' },
@@ -354,6 +363,41 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
+  // Bulan-bulan di tahun `tahun` yang beririsan sama durasi project (dipakai buat
+  // itung %Capaian item Zero Target -- lihat REVERSED_TARGET_ITEMS). Kalau tanggal
+  // project belum diisi, dianggap semua 12 bulan aktif (fallback aman).
+  function getActiveMonths(tahun, tglMulai, tglSelesai) {
+    if (!tglMulai || !tglSelesai) return [1,2,3,4,5,6,7,8,9,10,11,12];
+    const projStart = new Date(tglMulai + 'T00:00:00Z');
+    const projEnd = new Date(tglSelesai + 'T00:00:00Z');
+    const yearStart = new Date(Date.UTC(tahun, 0, 1));
+    const yearEnd = new Date(Date.UTC(tahun, 11, 31));
+    const effStart = projStart > yearStart ? projStart : yearStart;
+    const effEnd = projEnd < yearEnd ? projEnd : yearEnd;
+    if (effStart > effEnd) return [];
+    const activeMonths = [];
+    for (let m = 1; m <= 12; m++) {
+      const mStart = new Date(Date.UTC(tahun, m - 1, 1));
+      const mEnd = new Date(Date.UTC(tahun, m - 1, daysInMonthUTC(tahun, m)));
+      const aStart = mStart > effStart ? mStart : effStart;
+      const aEnd = mEnd < effEnd ? mEnd : effEnd;
+      if (aStart <= aEnd) activeMonths.push(m);
+    }
+    return activeMonths;
+  }
+
+  // %Capaian item Zero Target (REVERSED_TARGET_ITEMS): persentase bulan aktif yang
+  // TANPA kejadian sama sekali -- makin tinggi makin bagus (100% = gak ada kejadian
+  // di bulan manapun sepanjang bulan aktif project tahun ini).
+  function computeReversedPct(item, tahun) {
+    const proj = projectMap[selectProject.value] || {};
+    let months = getActiveMonths(tahun, proj.tanggalMulaiProject, proj.tanggalSelesaiProject);
+    if (months.length === 0) months = [1,2,3,4,5,6,7,8,9,10,11,12];
+    const realisasiBulanan = item.realisasiBulanan || {};
+    const zeroMonths = months.filter(m => !(Number(realisasiBulanan[m]) > 0)).length;
+    return Math.round((zeroMonths / months.length) * 100);
+  }
+
   function computeSpread(tahun, targetQty, frequency, tglMulai, tglSelesai) {
     const result = {};
     for (let m = 1; m <= 12; m++) result[m] = 0;
@@ -461,6 +505,7 @@
   function respreadAllRows() {
     programItems.forEach(item => {
       if (item.statusPakai !== 'Use') return;
+      if (REVERSED_TARGET_ITEMS.includes(item.kodeItem)) { markDirty(item.itemId); return; }
       const row = document.getElementById(`row-${item.itemId}`);
       if (!row) return;
       const qty = row.querySelector('.qty-input').value;
@@ -477,13 +522,45 @@
 
   function rowHtml(item) {
     const isUse = item.statusPakai === 'Use';
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+    const realisasiTotal = item.realisasiTotal || 0;
+
+    if (isReversed) {
+      // Zero Target item (mis. Incident/Accident): target dikunci 0, gak ada
+      // qty/frequency/spread. Kolom bulan nampilin REALISASI per bulan (read-only,
+      // merah kalau ada kejadian) biar langsung keliatan bulan mana yang "aman".
+      const realisasiBulanan = item.realisasiBulanan || {};
+      const monthCells = BULAN_LABEL.map((_, idx) => {
+        const bulan = idx + 1;
+        const v = Number(realisasiBulanan[bulan]) || 0;
+        return `<td class="${v > 0 ? 'reversed-bad' : 'reversed-ok'}">${v}</td>`;
+      }).join('');
+      const pct = isUse ? computeReversedPct(item, Number(selectTahun.value)) : 0;
+      const pctClass = !isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad');
+      return `
+        <tr class="${isUse ? '' : 'na-row'}" id="row-${item.itemId}" data-reversed="1">
+          <td class="item-name">${escapeHtml(item.namaItem)}</td>
+          <td>
+            <div class="status-toggle">
+              <button type="button" class="${isUse ? 'active use' : ''}" onclick="setStatus(${item.itemId}, 'Use')">Use</button>
+              <button type="button" class="${!isUse ? 'active na' : ''}" onclick="setStatus(${item.itemId}, 'N/A')">N/A</button>
+            </div>
+          </td>
+          <td colspan="3" class="reversed-note">Target: 0 (Zero Incident)</td>
+          ${monthCells}
+          <td class="total-target">${isUse ? 0 : '-'}</td>
+          <td class="total-realisasi">${realisasiTotal}</td>
+          <td class="pct-cell ${pctClass}" id="pct-${item.itemId}" title="% bulan aktif tanpa kejadian">${isUse ? pct + '%' : '-'}</td>
+          <td><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
+        </tr>`;
+    }
+
     const monthInputs = BULAN_LABEL.map((_, idx) => {
       const bulan = idx + 1;
       const val = item.targetBulanan && item.targetBulanan[bulan] != null ? item.targetBulanan[bulan] : 0;
       return `<td><input type="number" min="0" class="mo-input" data-item="${item.itemId}" data-bulan="${bulan}"
         value="${val}" ${isUse ? '' : 'disabled'} onchange="markDirty(${item.itemId})"></td>`;
     }).join('');
-    const realisasiTotal = item.realisasiTotal || 0;
     const targetTotal = item.targetTotal || 0;
     const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
     const pctClass = !isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad');
@@ -521,9 +598,14 @@
     const row = document.getElementById(`row-${itemId}`);
     row.className = status === 'Use' ? '' : 'na-row';
     row.querySelectorAll('.mo-input').forEach(inp => { inp.disabled = status !== 'Use'; });
-    row.querySelector('.qty-input').disabled = status !== 'Use';
-    row.querySelector('.freq-select').disabled = status !== 'Use';
-    row.querySelector('.spread-btn').disabled = status !== 'Use';
+    // Item Zero Target (row-nya data-reversed="1") gak punya qty/frequency/spread --
+    // pakai optional chaining biar gak error di row itu.
+    const qtyInput = row.querySelector('.qty-input');
+    const freqSelect = row.querySelector('.freq-select');
+    const spreadBtn = row.querySelector('.spread-btn');
+    if (qtyInput) qtyInput.disabled = status !== 'Use';
+    if (freqSelect) freqSelect.disabled = status !== 'Use';
+    if (spreadBtn) spreadBtn.disabled = status !== 'Use';
     row.querySelectorAll('.status-toggle button')[0].className = status === 'Use' ? 'active use' : '';
     row.querySelectorAll('.status-toggle button')[1].className = status === 'N/A' ? 'active na' : '';
     recalcRow(itemId);
@@ -535,12 +617,21 @@
     if (!item) return;
     const row = document.getElementById(`row-${itemId}`);
     const isUse = item.statusPakai === 'Use';
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+    const pctEl = document.getElementById(`pct-${itemId}`);
+
+    if (isReversed) {
+      const pct = isUse ? computeReversedPct(item, Number(selectTahun.value)) : 0;
+      pctEl.textContent = isUse ? pct + '%' : '-';
+      pctEl.className = 'pct-cell ' + (!isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad'));
+      return;
+    }
+
     let targetTotal = 0;
     row.querySelectorAll('.mo-input').forEach(inp => { targetTotal += Number(inp.value) || 0; });
     document.getElementById(`target-total-${itemId}`).textContent = isUse ? targetTotal : '-';
     const realisasiTotal = item.realisasiTotal || 0;
     const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
-    const pctEl = document.getElementById(`pct-${itemId}`);
     pctEl.textContent = isUse ? pct + '%' : '-';
     pctEl.className = 'pct-cell ' + (!isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad'));
   }
@@ -559,13 +650,24 @@
     const projectId = Number(selectProject.value);
     const tahun = Number(selectTahun.value);
     const row = document.getElementById(`row-${itemId}`);
-    const targetBulanan = {};
-    row.querySelectorAll('.mo-input').forEach(inp => {
-      targetBulanan[inp.dataset.bulan] = Number(inp.value) || 0;
-    });
-    const qtyVal = row.querySelector('.qty-input').value;
-    const targetQty = qtyVal === '' ? null : Number(qtyVal);
-    const frequency = row.querySelector('.freq-select').value || null;
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+
+    let targetBulanan, targetQty, frequency;
+    if (isReversed) {
+      // Zero Target -- target dikunci 0 di semua bulan, gak ada qty/frequency.
+      targetBulanan = {};
+      for (let m = 1; m <= 12; m++) targetBulanan[m] = 0;
+      targetQty = 0;
+      frequency = null;
+    } else {
+      targetBulanan = {};
+      row.querySelectorAll('.mo-input').forEach(inp => {
+        targetBulanan[inp.dataset.bulan] = Number(inp.value) || 0;
+      });
+      const qtyVal = row.querySelector('.qty-input').value;
+      targetQty = qtyVal === '' ? null : Number(qtyVal);
+      frequency = row.querySelector('.freq-select').value || null;
+    }
     const btn = document.getElementById(`save-${itemId}`);
     btn.textContent = 'Menyimpan...';
     try {
@@ -594,6 +696,12 @@
   function updateSummary() {
     let useCount = 0, sumTarget = 0, sumRealisasi = 0;
     programItems.forEach(item => {
+      // Item Zero Target (lagging indicator) sengaja gak diikutin ke ringkasan
+      // leading-indicator ini -- realisasinya (jumlah kejadian) kalau ikut dijumlah
+      // ke Total Realisasi malah bikin %Capaian Keseluruhan keliatan LEBIH bagus
+      // padahal ada insiden, yang justru kebalikan dari maksudnya. %Capaian item
+      // ini cukup dilihat di baris-nya sendiri (% bulan tanpa kejadian).
+      if (REVERSED_TARGET_ITEMS.includes(item.kodeItem)) return;
       const row = document.getElementById(`row-${item.itemId}`);
       if (!row || row.classList.contains('na-row')) return;
       useCount++;
