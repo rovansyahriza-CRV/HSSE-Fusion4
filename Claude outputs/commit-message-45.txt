@@ -1,0 +1,7 @@
+Tambah search box dynamic filter modul di index.html
+
+- index.html: nambah input pencarian di atas card "Modul" -- ketik nama modul (atau kata kunci apa aja yang ada di deskripsinya, misal "audit", "incident", "program") langsung filter live tanpa reload, baik di card "Modul" (pelaporan harian) maupun "Manajemen & KPI HSSE". Card yang semua isinya kefilter otomatis ke-hide, dan kalau gak ada satupun yang cocok muncul catatan "Gak ada modul yang cocok".
+- style.css: nambah style .search-input buat kotak pencariannya, konsisten sama tema warna yang lain.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

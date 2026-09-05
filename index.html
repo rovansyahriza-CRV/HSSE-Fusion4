@@ -29,6 +29,11 @@
   </div>
 
   <div class="card">
+    <input type="text" id="moduleSearch" class="search-input" placeholder="🔍 Cari modul... (misal: CERMAT, Incident, Audit, Program)" oninput="filterModules(this.value)">
+    <div id="noResultsMsg" class="note" style="display:none; margin-top:10px;">Gak ada modul yang cocok sama kata kunci itu. Coba kata kunci lain.</div>
+  </div>
+
+  <div class="card">
     <h2 style="margin-bottom:10px;">Modul</h2>
     <div class="module-list">
       <div class="module-item done">
@@ -187,6 +192,30 @@
   </div>
 
 </div>
+
+<script>
+function filterModules(query) {
+  var q = query.trim().toLowerCase();
+  var totalVisible = 0;
+  document.querySelectorAll('.module-list').forEach(function (list) {
+    var items = list.querySelectorAll('.module-item');
+    var visibleInList = 0;
+    items.forEach(function (item) {
+      var nameEl = item.querySelector('.module-name');
+      var descEl = item.querySelector('.module-desc');
+      var text = ((nameEl ? nameEl.textContent : '') + ' ' + (descEl ? descEl.textContent : '')).toLowerCase();
+      var match = q === '' || text.indexOf(q) !== -1;
+      item.style.display = match ? '' : 'none';
+      if (match) visibleInList++;
+    });
+    totalVisible += visibleInList;
+    var card = list.closest('.card');
+    if (card) card.style.display = (q !== '' && visibleInList === 0) ? 'none' : '';
+  });
+  var noRes = document.getElementById('noResultsMsg');
+  if (noRes) noRes.style.display = (q !== '' && totalVisible === 0) ? 'block' : 'none';
+}
+</script>
 
 </body>
 </html>

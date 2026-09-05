@@ -105,6 +105,14 @@ body {
   background: var(--success-bg); color: var(--success); margin-left: auto; white-space: nowrap;
 }
 
+.search-input {
+  width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+  font-size: 14px; font-family: inherit; color: var(--navy-dark); background: var(--surface);
+  box-sizing: border-box;
+}
+.search-input:focus { outline: none; border-color: var(--navy); }
+.search-input::placeholder { color: var(--muted); }
+
 .note {
   font-size: 12.5px; color: var(--muted); background: #FDF3E3; border-left: 3px solid var(--safety-yellow);
   padding: 10px 12px; border-radius: 0 8px 8px 0; margin-top: 6px;
