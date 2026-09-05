@@ -29,12 +29,15 @@ body {
 .header {
   margin-bottom: 20px;
 }
+/* header-banner.png gak dipakai lagi di halaman manapun -- diganti .hero-banner di bawah.
+   Class ini disimpan aja siapa tau masih kepake buat referensi lama. */
 .header-banner {
   display: block; width: 100%; height: auto; border-radius: 20px; margin-bottom: 16px;
 }
 
-/* ===== Hero banner khusus index.html (menu utama) -- native HTML/CSS, bukan gambar
-   flat, biar gak ada masalah shadow/halo kebakar kayak header-banner.png. ===== */
+/* ===== Hero banner -- dipakai di semua halaman (index.html & modul lain), native
+   HTML/CSS, bukan gambar flat, biar gak ada masalah shadow/halo kebakar kayak
+   header-banner.png yang lama. ===== */
 .hero-banner {
   background: linear-gradient(135deg, #E9EFFC 0%, #D9E3F7 100%);
   border-radius: 20px;
@@ -63,10 +66,9 @@ body {
 .header h1 { font-size: 22px; font-weight: 800; color: var(--navy-dark); }
 .header p { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
-/* Logo BiMa udah kepampang di header-banner di atas -- header-top gak perlu nampilin
+/* Logo BiMa udah kepampang di hero-banner di atas -- header-top gak perlu nampilin
    logo kecil lagi biar gak dobel, cukup judul halamannya aja. */
 .header-top { display: flex; align-items: center; gap: 14px; }
-.header-top .header-logo { display: none; }
 .header-top .eyebrow { margin-bottom: 4px; }
 
 .back-to-menu {

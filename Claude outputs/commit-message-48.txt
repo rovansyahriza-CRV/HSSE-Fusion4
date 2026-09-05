@@ -1,0 +1,8 @@
+Terapin header baru (hero-banner) ke semua halaman
+
+- 17 halaman (cermat-report.html, cermat-list.html, incident-report.html, incident-list.html, inspeksi-report.html, inspeksi-list.html, ptw-report.html, ptw-list.html, tbm-report.html, tbm-list.html, hse-meeting-report.html, hse-meeting-list.html, hse-meeting-checkin.html, audit-report.html, audit-list.html, hse-program.html, hse-program-monitor.html): ganti header <img src="header-banner.png"> yang lama (rawan shadow/halo kebakar) jadi header HTML/CSS asli (.hero-banner) yang sama kayak yang udah dipasang di index.html -- logo, judul, subjudul, & Powered by tetap sama isinya, cuma sekarang teks & background CSS asli, bukan 1 gambar flat.
+- Semua halaman sekarang konsisten pakai .hero-banner, gak ada lagi yang pakai header-banner.png.
+- style.css: hapus rule .header-top .header-logo (udah gak kepake lagi karena img logo duplikat di header-top udah dihapus dari semua halaman), rapiin komentar .hero-banner & .header-banner.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
