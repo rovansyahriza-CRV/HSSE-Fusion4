@@ -1,0 +1,6 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git rm --cached header-banner.jpg
+del header-banner.jpg
+git add -A
+git commit -m 'Hilangin border putih di banner header, radius & shadow murni CSS' -m '- header-banner.png (baru, ganti header-banner.jpg): banner "SMART HSSE REPORTING SYSTEM" di-crop pas ke bentuk kotaknya (bukan file lama yang ada border putih tebal ngelilingin), sudut transparan PNG biar radius & shadow-nya kepakai murni dari CSS, nyatu langsung sama background halaman -- gak ada garis putih di pinggirnya lagi.' -m '- style.css: border-radius banner disesuain jadi 20px.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push

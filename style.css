@@ -30,7 +30,7 @@ body {
   margin-bottom: 20px;
 }
 .header-banner {
-  display: block; width: 100%; height: auto; border-radius: 14px; margin-bottom: 16px;
+  display: block; width: 100%; height: auto; border-radius: 20px; margin-bottom: 16px;
   box-shadow: 0 8px 24px rgba(45, 60, 115, 0.18);
 }
 .header .eyebrow {

@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSE Program — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 1100px; }
+
+  .selector-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .selector-row .field { flex: 1; min-width: 180px; }
+  .selector-row label {
+    display: block; font-size: 11.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .selector-row select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--text);
+  }
+
+  .project-dates-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 16px; display: none;
+  }
+  .project-dates-card .pd-title {
+    font-size: 12px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 10px;
+  }
+  .project-dates-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .project-dates-row .field { flex: 1; min-width: 150px; }
+  .project-dates-row label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px;
+  }
+  .project-dates-row input[type="date"] {
+    width: 100%; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px;
+  }
+  .pd-save-btn {
+    padding: 10px 16px; border-radius: 9px; border: none; background: var(--navy); color: #fff;
+    font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .pd-save-btn.saved { background: var(--success); }
+  .pd-hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+
+  .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .summary-card {
+    flex: 1; min-width: 130px; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .summary-card .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .summary-card .value { font-size: 20px; font-weight: 800; color: var(--navy-dark); margin-top: 4px; }
+
+  .table-wrap {
+    overflow-x: auto; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface);
+    -webkit-overflow-scrolling: touch;
+  }
+  table.hp-table { border-collapse: collapse; width: 100%; min-width: 1420px; font-size: 12.5px; }
+  table.hp-table th, table.hp-table td {
+    padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap;
+  }
+  table.hp-table thead th {
+    background: var(--navy); color: #fff; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.03em; position: sticky; top: 0; z-index: 1;
+  }
+  table.hp-table td.item-name {
+    text-align: left; font-weight: 700; color: var(--navy-dark); white-space: normal; min-width: 190px;
+    position: sticky; left: 0; background: var(--surface); z-index: 1;
+  }
+  table.hp-table thead th:first-child { position: sticky; left: 0; z-index: 2; }
+  table.hp-table tr.na-row td.item-name { color: var(--muted); }
+  table.hp-table tr.na-row { background: #FAFAFB; }
+
+  .status-toggle {
+    display: inline-flex; border-radius: 999px; overflow: hidden; border: 1.5px solid var(--border);
+  }
+  .status-toggle button {
+    border: none; background: var(--surface); padding: 5px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; color: var(--muted);
+  }
+  .status-toggle button.active.use { background: var(--success); color: #fff; }
+  .status-toggle button.active.na { background: #D1D5DB; color: #444; }
+
+  .mo-input {
+    width: 44px; padding: 5px 3px; border: 1.5px solid var(--border); border-radius: 7px;
+    font-size: 12px; text-align: center; font-weight: 600;
+  }
+  .mo-input:disabled { background: #F3F4F6; color: #B0B4BD; }
+
+  .qty-input {
+    width: 56px; padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
+    font-size: 12px; text-align: center; font-weight: 700;
+  }
+  .qty-input:disabled { background: #F3F4F6; color: #B0B4BD; }
+  .freq-select {
+    padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
+    font-size: 11px; font-weight: 600; max-width: 96px;
+  }
+  .freq-select:disabled { background: #F3F4F6; color: #B0B4BD; }
+  .spread-btn {
+    border: none; background: var(--safety-yellow); color: #5A3E00; border-radius: 7px;
+    padding: 6px 8px; font-size: 13px; cursor: pointer; font-weight: 700;
+  }
+  .spread-btn:disabled { background: #E4E7F0; color: #B0B4BD; cursor: not-allowed; }
+
+  td.total-target, td.total-realisasi { font-weight: 800; color: var(--navy-dark); }
+  td.pct-cell { font-weight: 800; }
+  .pct-ok { color: var(--success); }
+  .pct-warn { color: var(--safety-yellow); }
+  .pct-bad { color: var(--accent); }
+
+  .row-save-btn {
+    padding: 5px 12px; border-radius: 8px; border: none; background: var(--navy);
+    color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;
+  }
+  .row-save-btn:active { background: var(--navy-dark); }
+  .row-save-btn.saved { background: var(--success); }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="Smart HSSE Reporting System">
+    <div class="header-top">
+      <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>HSE Program</h1>
+      </div>
+    </div>
+    <p>Target tahunan (per bulan) untuk tiap kegiatan HSSE per project -- lampiran dari HSE Plan project yang bersangkutan. Toggle <b>Use</b> kalau item ini berlaku di project ini, isi target per bulan, dan realisasi otomatis dihitung dari data laporan yang sudah masuk.</p>
+    <div class="note" style="margin-top:10px;">
+      HSE Program ini adalah bagian dari <b>HSE Plan</b> project (dokumen kebijakan/organisasi HSE yang lebih luas, dikelola di luar sistem). Item-item di bawah ini generik/sama untuk semua project -- yang berbeda per project cuma toggle Use/N/A dan nilai targetnya.
+    </div>
+  </div>
+
+  <div class="selector-row">
+    <div class="field">
+      <label>Project / Kontrak</label>
+      <select id="selectProject"><option value="">Memuat...</option></select>
+    </div>
+    <div class="field">
+      <label>Tahun</label>
+      <select id="selectTahun"></select>
+    </div>
+  </div>
+
+  <div class="project-dates-card" id="projectDatesCard">
+    <div class="pd-title">Durasi Project (dipakai buat auto-spread target ke matrik bulan)</div>
+    <div class="project-dates-row">
+      <div class="field">
+        <label>Tanggal Mulai Project</label>
+        <input type="date" id="pdMulai">
+      </div>
+      <div class="field">
+        <label>Tanggal Selesai Project</label>
+        <input type="date" id="pdSelesai">
+      </div>
+      <button type="button" class="pd-save-btn" id="pdSaveBtn" onclick="saveProjectDates()">Simpan Durasi Project</button>
+    </div>
+    <div class="pd-hint">Isi & simpan ini dulu ya. Begitu tersimpan, semua baris yang udah keisi Target (qty) + Frequency otomatis ke-generate ke matrik bulan (gak perlu klik ⚡ manual lagi) -- tombol ⚡ tinggal buat generate ulang satu baris kalau perlu.</div>
+  </div>
+
+  <div class="summary-row" id="summaryRow" style="display:none;">
+    <div class="summary-card">
+      <div class="label">Item Dipakai (Use)</div>
+      <div class="value" id="sumUseCount">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Target (setahun)</div>
+      <div class="value" id="sumTargetTotal">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Realisasi</div>
+      <div class="value" id="sumRealisasiTotal">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">% Capaian Keseluruhan</div>
+      <div class="value" id="sumPct">0%</div>
+    </div>
+  </div>
+
+  <div id="loadingState" class="empty-state">Pilih project dulu buat mulai atur HSE Program-nya ya.</div>
+
+  <div class="table-wrap" id="tableWrap" style="display:none;">
+    <table class="hp-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Status</th>
+          <th>Target<br>(qty)</th>
+          <th>Frequency</th>
+          <th>⚡</th>
+          <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>Mei</th><th>Jun</th>
+          <th>Jul</th><th>Agu</th><th>Sep</th><th>Okt</th><th>Nov</th><th>Des</th>
+          <th>Target<br>Total</th>
+          <th>Realisasi<br>Total</th>
+          <th>%<br>Capaian</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const FREQUENCY_OPTIONS = [
+    { value: '', label: '-- pilih --' },
+    { value: 'Harian', label: 'Harian (per hari)' },
+    { value: 'Mingguan', label: 'Mingguan (per minggu)' },
+    { value: 'Bulanan', label: 'Bulanan (per bulan)' },
+    { value: 'Triwulan', label: 'Triwulan (per 3 bulan)' },
+    { value: 'Semester', label: 'Semester (per 6 bulan)' },
+    { value: 'Tahunan', label: 'Tahunan (per tahun)' }
+  ];
+
+  const selectProject = document.getElementById('selectProject');
+  const selectTahun = document.getElementById('selectTahun');
+  const loadingState = document.getElementById('loadingState');
+  const tableWrap = document.getElementById('tableWrap');
+  const tableBody = document.getElementById('tableBody');
+  const summaryRow = document.getElementById('summaryRow');
+  const projectDatesCard = document.getElementById('projectDatesCard');
+  const pdMulai = document.getElementById('pdMulai');
+  const pdSelesai = document.getElementById('pdSelesai');
+
+  let programItems = [];
+  let projectMap = {}; // id -> {tanggalMulaiProject, tanggalSelesaiProject, ...}
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    setupTahunOptions();
+    await loadProjects();
+    selectProject.addEventListener('change', loadProgram);
+    selectTahun.addEventListener('change', loadProgram);
+  });
+
+  function setupTahunOptions() {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 1; y <= now + 2; y++) {
+      opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    }
+    selectTahun.innerHTML = opts;
+  }
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      const projectList = data || [];
+      projectMap = {};
+      projectList.forEach(p => { projectMap[p.id] = p; });
+      selectProject.innerHTML = projectList.length === 0
+        ? '<option value="">Belum ada project aktif</option>'
+        : '<option value="">-- Pilih Project --</option>' +
+          projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+    }
+  }
+
+  async function loadProgram() {
+    const projectId = selectProject.value;
+    const tahun = selectTahun.value;
+    if (!projectId) {
+      tableWrap.style.display = 'none';
+      summaryRow.style.display = 'none';
+      projectDatesCard.style.display = 'none';
+      loadingState.style.display = 'block';
+      loadingState.textContent = 'Pilih project dulu buat mulai atur HSE Program-nya ya.';
+      return;
+    }
+    const proj = projectMap[projectId] || {};
+    pdMulai.value = proj.tanggalMulaiProject || '';
+    pdSelesai.value = proj.tanggalSelesaiProject || '';
+    projectDatesCard.style.display = 'block';
+    document.getElementById('pdSaveBtn').textContent = 'Simpan Durasi Project';
+    document.getElementById('pdSaveBtn').classList.remove('saved');
+
+    loadingState.style.display = 'block';
+    loadingState.textContent = 'Memuat HSE Program...';
+    tableWrap.style.display = 'none';
+    summaryRow.style.display = 'none';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_program', {
+        p_project_id: Number(projectId), p_tahun: Number(tahun)
+      });
+      if (error) throw error;
+      programItems = data || [];
+      renderTable();
+      loadingState.style.display = 'none';
+      tableWrap.style.display = 'block';
+      summaryRow.style.display = 'flex';
+    } catch (e) {
+      loadingState.textContent = 'Gagal memuat HSE Program: ' + (e.message || e);
+    }
+  }
+
+  async function saveProjectDates() {
+    const projectId = Number(selectProject.value);
+    if (!projectId) return;
+    const btn = document.getElementById('pdSaveBtn');
+    btn.textContent = 'Menyimpan...';
+    try {
+      const { error } = await supabaseClient.rpc('update_project_dates', {
+        p_project_id: projectId,
+        p_tanggal_mulai: pdMulai.value || null,
+        p_tanggal_selesai: pdSelesai.value || null
+      });
+      if (error) throw error;
+      if (projectMap[projectId]) {
+        projectMap[projectId].tanggalMulaiProject = pdMulai.value || null;
+        projectMap[projectId].tanggalSelesaiProject = pdSelesai.value || null;
+      }
+      btn.textContent = 'Tersimpan ✓';
+      btn.classList.add('saved');
+      respreadAllRows();
+    } catch (e) {
+      btn.textContent = 'Gagal, coba lagi';
+      alert('Gagal menyimpan durasi project: ' + (e.message || e));
+    }
+  }
+
+  // -------------------------------------------------------------------------------
+  // Spread Target (qty) + Frequency -> matrik 12 bulan, dibatasi tanggal mulai/
+  // selesai project. Perhitungan murni di client, hasilnya cuma ngisi 12 input
+  // bulan (masih bisa diedit manual sebelum Simpan).
+  // -------------------------------------------------------------------------------
+  function daysInMonthUTC(year, month) { // month 1-12
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  function computeSpread(tahun, targetQty, frequency, tglMulai, tglSelesai) {
+    const result = {};
+    for (let m = 1; m <= 12; m++) result[m] = 0;
+    if (!tglMulai || !tglSelesai || !targetQty || Number(targetQty) <= 0 || !frequency) return result;
+
+    const projStart = new Date(tglMulai + 'T00:00:00Z');
+    const projEnd = new Date(tglSelesai + 'T00:00:00Z');
+    const yearStart = new Date(Date.UTC(tahun, 0, 1));
+    const yearEnd = new Date(Date.UTC(tahun, 11, 31));
+    const effStart = projStart > yearStart ? projStart : yearStart;
+    const effEnd = projEnd < yearEnd ? projEnd : yearEnd;
+    if (effStart > effEnd) return result; // project gak nyentuh tahun ini sama sekali
+
+    const activeDays = {};
+    const activeMonths = [];
+    for (let m = 1; m <= 12; m++) {
+      const mStart = new Date(Date.UTC(tahun, m - 1, 1));
+      const mEnd = new Date(Date.UTC(tahun, m - 1, daysInMonthUTC(tahun, m)));
+      const aStart = mStart > effStart ? mStart : effStart;
+      const aEnd = mEnd < effEnd ? mEnd : effEnd;
+      const days = aStart <= aEnd ? Math.round((aEnd - aStart) / 86400000) + 1 : 0;
+      activeDays[m] = days;
+      if (days > 0) activeMonths.push(m);
+    }
+
+    const Q = Number(targetQty);
+
+    if (frequency === 'Harian') {
+      activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m]); });
+    } else if (frequency === 'Mingguan') {
+      activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m] / 7); });
+    } else if (frequency === 'Bulanan') {
+      activeMonths.forEach(m => { result[m] = Q; });
+    } else if (frequency === 'Triwulan') {
+      [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].forEach(qMonths => {
+        const activeInQ = qMonths.filter(m => activeMonths.includes(m));
+        if (activeInQ.length) result[activeInQ[activeInQ.length - 1]] = Q;
+      });
+    } else if (frequency === 'Semester') {
+      [[1,2,3,4,5,6],[7,8,9,10,11,12]].forEach(hMonths => {
+        const activeInH = hMonths.filter(m => activeMonths.includes(m));
+        if (activeInH.length) result[activeInH[activeInH.length - 1]] = Q;
+      });
+    } else if (frequency === 'Tahunan') {
+      if (activeMonths.length) result[activeMonths[activeMonths.length - 1]] = Q;
+    }
+    return result;
+  }
+
+  // trySpread: mesin sebenarnya, dipakai baik oleh klik ⚡ manual (silent:false,
+  // muncul alert kalau ada yang belum lengkap) maupun auto-trigger pas qty/frequency
+  // diubah atau tanggal project baru disimpan (silent:true, diem2 aja kalau belum lengkap).
+  function trySpread(itemId, opts) {
+    opts = opts || {};
+    const row = document.getElementById(`row-${itemId}`);
+    if (!row) return false;
+    const projectId = selectProject.value;
+    const proj = projectMap[projectId] || {};
+    if (!proj.tanggalMulaiProject || !proj.tanggalSelesaiProject) {
+      if (!opts.silent) alert('Isi & simpan dulu Tanggal Mulai/Selesai Project di atas ya, baru bisa di-spread.');
+      return false;
+    }
+    const qty = Number(row.querySelector('.qty-input').value) || 0;
+    const freq = row.querySelector('.freq-select').value;
+    if (!qty || !freq) {
+      if (!opts.silent) alert('Isi Target (qty) dan pilih Frequency dulu ya.');
+      return false;
+    }
+    const tahun = Number(selectTahun.value);
+    const spread = computeSpread(tahun, qty, freq, proj.tanggalMulaiProject, proj.tanggalSelesaiProject);
+    row.querySelectorAll('.mo-input').forEach(inp => {
+      inp.value = spread[Number(inp.dataset.bulan)] || 0;
+    });
+    return true;
+  }
+
+  // Klik tombol ⚡ manual -- kasih tau kalau ada yang belum lengkap.
+  function generateSpread(itemId) {
+    trySpread(itemId, { silent: false });
+    markDirty(itemId);
+  }
+
+  // Auto-trigger begitu Target (qty) atau Frequency diubah -- diem2 aja kalau
+  // tanggal project/qty/frequency belum lengkap (biar gak spam alert tiap ngetik).
+  function onQtyFreqChange(itemId) {
+    trySpread(itemId, { silent: true });
+    markDirty(itemId);
+  }
+
+  // Begitu Tanggal Mulai/Selesai Project baru disimpan, langsung re-generate
+  // semua baris yang statusnya Use dan udah punya qty+frequency -- gak perlu
+  // klik ⚡ manual lagi satu-satu.
+  function respreadAllRows() {
+    programItems.forEach(item => {
+      if (item.statusPakai !== 'Use') return;
+      const row = document.getElementById(`row-${item.itemId}`);
+      if (!row) return;
+      const qty = row.querySelector('.qty-input').value;
+      const freq = row.querySelector('.freq-select').value;
+      if (!qty || !freq) return;
+      if (trySpread(item.itemId, { silent: true })) markDirty(item.itemId);
+    });
+  }
+
+  function renderTable() {
+    tableBody.innerHTML = programItems.map(item => rowHtml(item)).join('');
+    updateSummary();
+  }
+
+  function rowHtml(item) {
+    const isUse = item.statusPakai === 'Use';
+    const monthInputs = BULAN_LABEL.map((_, idx) => {
+      const bulan = idx + 1;
+      const val = item.targetBulanan && item.targetBulanan[bulan] != null ? item.targetBulanan[bulan] : 0;
+      return `<td><input type="number" min="0" class="mo-input" data-item="${item.itemId}" data-bulan="${bulan}"
+        value="${val}" ${isUse ? '' : 'disabled'} onchange="markDirty(${item.itemId})"></td>`;
+    }).join('');
+    const realisasiTotal = item.realisasiTotal || 0;
+    const targetTotal = item.targetTotal || 0;
+    const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
+    const pctClass = !isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad');
+    const freqOptions = FREQUENCY_OPTIONS.map(f =>
+      `<option value="${f.value}" ${item.frequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('');
+    return `
+      <tr class="${isUse ? '' : 'na-row'}" id="row-${item.itemId}">
+        <td class="item-name">${escapeHtml(item.namaItem)}</td>
+        <td>
+          <div class="status-toggle">
+            <button type="button" class="${isUse ? 'active use' : ''}" onclick="setStatus(${item.itemId}, 'Use')">Use</button>
+            <button type="button" class="${!isUse ? 'active na' : ''}" onclick="setStatus(${item.itemId}, 'N/A')">N/A</button>
+          </div>
+        </td>
+        <td><input type="number" min="0" class="qty-input" value="${item.targetQty != null ? item.targetQty : ''}"
+          ${isUse ? '' : 'disabled'} onchange="onQtyFreqChange(${item.itemId})" placeholder="qty"></td>
+        <td><select class="freq-select" ${isUse ? '' : 'disabled'} onchange="onQtyFreqChange(${item.itemId})">${freqOptions}</select></td>
+        <td><button type="button" class="spread-btn" ${isUse ? '' : 'disabled'} onclick="generateSpread(${item.itemId})" title="Spread ke matrik bulan">⚡</button></td>
+        ${monthInputs}
+        <td class="total-target" id="target-total-${item.itemId}">${isUse ? targetTotal : '-'}</td>
+        <td class="total-realisasi">${realisasiTotal}</td>
+        <td class="pct-cell ${pctClass}" id="pct-${item.itemId}">${isUse ? pct + '%' : '-'}</td>
+        <td><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
+      </tr>`;
+  }
+
+  function findItem(itemId) {
+    return programItems.find(x => x.itemId === itemId);
+  }
+
+  function setStatus(itemId, status) {
+    const item = findItem(itemId);
+    if (!item) return;
+    item.statusPakai = status;
+    const row = document.getElementById(`row-${itemId}`);
+    row.className = status === 'Use' ? '' : 'na-row';
+    row.querySelectorAll('.mo-input').forEach(inp => { inp.disabled = status !== 'Use'; });
+    row.querySelector('.qty-input').disabled = status !== 'Use';
+    row.querySelector('.freq-select').disabled = status !== 'Use';
+    row.querySelector('.spread-btn').disabled = status !== 'Use';
+    row.querySelectorAll('.status-toggle button')[0].className = status === 'Use' ? 'active use' : '';
+    row.querySelectorAll('.status-toggle button')[1].className = status === 'N/A' ? 'active na' : '';
+    recalcRow(itemId);
+    markDirty(itemId);
+  }
+
+  function recalcRow(itemId) {
+    const item = findItem(itemId);
+    if (!item) return;
+    const row = document.getElementById(`row-${itemId}`);
+    const isUse = item.statusPakai === 'Use';
+    let targetTotal = 0;
+    row.querySelectorAll('.mo-input').forEach(inp => { targetTotal += Number(inp.value) || 0; });
+    document.getElementById(`target-total-${itemId}`).textContent = isUse ? targetTotal : '-';
+    const realisasiTotal = item.realisasiTotal || 0;
+    const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
+    const pctEl = document.getElementById(`pct-${itemId}`);
+    pctEl.textContent = isUse ? pct + '%' : '-';
+    pctEl.className = 'pct-cell ' + (!isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad'));
+  }
+
+  function markDirty(itemId) {
+    recalcRow(itemId);
+    const btn = document.getElementById(`save-${itemId}`);
+    btn.textContent = 'Simpan';
+    btn.classList.remove('saved');
+    updateSummary();
+  }
+
+  async function saveRow(itemId) {
+    const item = findItem(itemId);
+    if (!item) return;
+    const projectId = Number(selectProject.value);
+    const tahun = Number(selectTahun.value);
+    const row = document.getElementById(`row-${itemId}`);
+    const targetBulanan = {};
+    row.querySelectorAll('.mo-input').forEach(inp => {
+      targetBulanan[inp.dataset.bulan] = Number(inp.value) || 0;
+    });
+    const qtyVal = row.querySelector('.qty-input').value;
+    const targetQty = qtyVal === '' ? null : Number(qtyVal);
+    const frequency = row.querySelector('.freq-select').value || null;
+    const btn = document.getElementById(`save-${itemId}`);
+    btn.textContent = 'Menyimpan...';
+    try {
+      const { error } = await supabaseClient.rpc('upsert_hse_program_item', {
+        p_project_id: projectId, p_tahun: tahun, p_item_id: itemId,
+        p_status_pakai: item.statusPakai, p_target_bulanan: targetBulanan,
+        p_target_qty: targetQty, p_frequency: frequency
+      });
+      if (error) throw error;
+      item.targetBulanan = targetBulanan;
+      item.targetQty = targetQty;
+      item.frequency = frequency;
+      item.targetTotal = Object.values(targetBulanan).reduce((a, b) => a + Number(b), 0);
+      btn.textContent = 'Tersimpan ✓';
+      btn.classList.add('saved');
+      updateSummary();
+    } catch (e) {
+      btn.textContent = 'Gagal, coba lagi';
+      alert('Gagal menyimpan: ' + (e.message || e));
+    }
+  }
+
+  // Dihitung LIVE dari isi tabel di layar (bukan cuma data yang udah ke-Simpan),
+  // biar begitu di-spread atau diedit manual, ringkasan di atas langsung ke-update
+  // -- gak perlu klik Simpan dulu buat liat efeknya.
+  function updateSummary() {
+    let useCount = 0, sumTarget = 0, sumRealisasi = 0;
+    programItems.forEach(item => {
+      const row = document.getElementById(`row-${item.itemId}`);
+      if (!row || row.classList.contains('na-row')) return;
+      useCount++;
+      row.querySelectorAll('.mo-input').forEach(inp => { sumTarget += Number(inp.value) || 0; });
+      sumRealisasi += Number(item.realisasiTotal) || 0;
+    });
+    const pct = sumTarget > 0 ? Math.round((sumRealisasi / sumTarget) * 100) : 0;
+    document.getElementById('sumUseCount').textContent = useCount;
+    document.getElementById('sumTargetTotal').textContent = sumTarget;
+    document.getElementById('sumRealisasiTotal').textContent = sumRealisasi;
+    document.getElementById('sumPct').textContent = pct + '%';
+  }
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+</script>
+
+</body>
+</html>
