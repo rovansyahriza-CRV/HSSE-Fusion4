@@ -1,0 +1,16 @@
+Fix realisasi Internal Audit di HSE Program -- minimal Status "Selesai Audit"
+
+- sql/037_fix_hse_program_internal_audit_realisasi.sql (baru): redefine get_hse_program()
+  supaya branch INTERNAL_AUDIT cuma ngitung audit yang Status-nya minimal "Selesai Audit"
+  (Selesai Audit ATAU Ditutup), bulan realisasi diambil dari TanggalSelesaiAudit
+  (fallback TanggalDitutup). Semua branch modul lain (TBM, HSE Meeting, Inspeksi, CERMAT,
+  PTW, Incident, MWT) disalin persis dari sql/033, gak ada yang berubah.
+
+Latar belakang: kartu "Internal Audit HSSE" di HSE Program & Monitoring kemarin nunjukin
+Realisasi: 1 (100%) padahal Riwayat Internal Audit filter "Ditutup" masih kosong. Ternyata
+get_hse_program() versi lama (migrasi #033) ngitung SEMUA baris auditTbl apapun Status-nya
+-- begitu Rencana Audit baru dibikin (Status masih "Direncanakan", belum ada pelaksanaan
+sama sekali) udah langsung kehitung 1 realisasi.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
