@@ -177,7 +177,7 @@
       </div>
       <button type="button" class="pd-save-btn" id="pdSaveBtn" onclick="saveProjectDates()">Simpan Durasi Project</button>
     </div>
-    <div class="pd-hint">Isi & simpan ini dulu ya. Begitu tersimpan, semua baris yang udah keisi Target (qty) + Frequency otomatis ke-generate ke matrik bulan (gak perlu klik ⚡ manual lagi) -- tombol ⚡ tinggal buat generate ulang satu baris kalau perlu.</div>
+    <div class="pd-hint">Isi & simpan ini dulu ya. Begitu tersimpan, semua baris yang udah keisi Target (qty) + Frequency otomatis ke-generate ke matrik bulan (gak perlu klik ⚡ manual lagi) -- tombol ⚡ tinggal buat generate ulang satu baris kalau perlu. Khusus Triwulan/Semester/Tahunan, jatuh tempo di-anchor ke tanggal mulai project (bukan kalender Jan-Des) -- misal project mulai Agustus & Tahunan, jatuh tempo ke-1 otomatis di Juli tahun berikutnya.</div>
   </div>
 
   <div class="summary-row" id="summaryRow" style="display:none;">
@@ -361,44 +361,56 @@
 
     const projStart = new Date(tglMulai + 'T00:00:00Z');
     const projEnd = new Date(tglSelesai + 'T00:00:00Z');
-    const yearStart = new Date(Date.UTC(tahun, 0, 1));
-    const yearEnd = new Date(Date.UTC(tahun, 11, 31));
-    const effStart = projStart > yearStart ? projStart : yearStart;
-    const effEnd = projEnd < yearEnd ? projEnd : yearEnd;
-    if (effStart > effEnd) return result; // project gak nyentuh tahun ini sama sekali
-
-    const activeDays = {};
-    const activeMonths = [];
-    for (let m = 1; m <= 12; m++) {
-      const mStart = new Date(Date.UTC(tahun, m - 1, 1));
-      const mEnd = new Date(Date.UTC(tahun, m - 1, daysInMonthUTC(tahun, m)));
-      const aStart = mStart > effStart ? mStart : effStart;
-      const aEnd = mEnd < effEnd ? mEnd : effEnd;
-      const days = aStart <= aEnd ? Math.round((aEnd - aStart) / 86400000) + 1 : 0;
-      activeDays[m] = days;
-      if (days > 0) activeMonths.push(m);
-    }
-
     const Q = Number(targetQty);
 
-    if (frequency === 'Harian') {
-      activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m]); });
-    } else if (frequency === 'Mingguan') {
-      activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m] / 7); });
-    } else if (frequency === 'Bulanan') {
-      activeMonths.forEach(m => { result[m] = Q; });
-    } else if (frequency === 'Triwulan') {
-      [[1,2,3],[4,5,6],[7,8,9],[10,11,12]].forEach(qMonths => {
-        const activeInQ = qMonths.filter(m => activeMonths.includes(m));
-        if (activeInQ.length) result[activeInQ[activeInQ.length - 1]] = Q;
-      });
-    } else if (frequency === 'Semester') {
-      [[1,2,3,4,5,6],[7,8,9,10,11,12]].forEach(hMonths => {
-        const activeInH = hMonths.filter(m => activeMonths.includes(m));
-        if (activeInH.length) result[activeInH[activeInH.length - 1]] = Q;
-      });
-    } else if (frequency === 'Tahunan') {
-      if (activeMonths.length) result[activeMonths[activeMonths.length - 1]] = Q;
+    // Harian/Mingguan/Bulanan: cadence-nya emang per bulan kalender (proporsional
+    // hari aktif per bulan), jadi tetep dihitung per bulan kalender Jan-Des tahun ini.
+    if (frequency === 'Harian' || frequency === 'Mingguan' || frequency === 'Bulanan') {
+      const yearStart = new Date(Date.UTC(tahun, 0, 1));
+      const yearEnd = new Date(Date.UTC(tahun, 11, 31));
+      const effStart = projStart > yearStart ? projStart : yearStart;
+      const effEnd = projEnd < yearEnd ? projEnd : yearEnd;
+      if (effStart > effEnd) return result; // project gak nyentuh tahun ini sama sekali
+
+      const activeDays = {};
+      const activeMonths = [];
+      for (let m = 1; m <= 12; m++) {
+        const mStart = new Date(Date.UTC(tahun, m - 1, 1));
+        const mEnd = new Date(Date.UTC(tahun, m - 1, daysInMonthUTC(tahun, m)));
+        const aStart = mStart > effStart ? mStart : effStart;
+        const aEnd = mEnd < effEnd ? mEnd : effEnd;
+        const days = aStart <= aEnd ? Math.round((aEnd - aStart) / 86400000) + 1 : 0;
+        activeDays[m] = days;
+        if (days > 0) activeMonths.push(m);
+      }
+
+      if (frequency === 'Harian') {
+        activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m]); });
+      } else if (frequency === 'Mingguan') {
+        activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m] / 7); });
+      } else {
+        activeMonths.forEach(m => { result[m] = Q; });
+      }
+      return result;
+    }
+
+    // Triwulan/Semester/Tahunan: jatuh temponya di-ANCHOR ke tanggal mulai project
+    // (bukan kalender Jan-Des) -- kalau project mulai Agustus & frequency Tahunan
+    // (siklus 12 bulan), jatuh tempo ke-1 = ultah project dikurang 1 hari = 31 Juli
+    // tahun berikutnya. Begitu juga Triwulan (siklus 3 bulan) & Semester (6 bulan),
+    // titik jatuh temponya ngikutin bulan mulai project, bukan Mar/Jun/Sep/Des kalender.
+    const cycleMonths = { 'Triwulan': 3, 'Semester': 6, 'Tahunan': 12 }[frequency];
+    if (!cycleMonths) return result;
+
+    for (let k = 1; k <= 400; k++) {
+      const anniversary = new Date(Date.UTC(
+        projStart.getUTCFullYear(), projStart.getUTCMonth() + cycleMonths * k, projStart.getUTCDate()
+      ));
+      const due = new Date(anniversary.getTime() - 86400000); // H-1 dari ultah siklus = akhir periode berjalan
+      if (due > projEnd) break;
+      if (due.getUTCFullYear() === tahun) {
+        result[due.getUTCMonth() + 1] = Q;
+      }
     }
     return result;
   }
