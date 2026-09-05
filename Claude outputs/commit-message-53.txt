@@ -1,0 +1,8 @@
+Fix urutan CREATE INDEX vs ALTER TABLE di sql/033 (MWT)
+
+- sql/033_mwt_schema.sql: pindahin blok ALTER TABLE ADD COLUMN (yang nambahin AreaRencana/TanggalRencana/Status/KunjunganList dst ke tabel mwtTbl lama) supaya jalan SEBELUM CREATE INDEX idx_mwt_status ON ("Status") -- sebelumnya kebalik, jadi kalau mwtTbl udah ada duluan (CREATE TABLE IF NOT EXISTS jadi no-op), CREATE INDEX gagal dengan "column Status does not exist" karena kolomnya belum sempat ditambah pas index-nya mau dibikin.
+
+Latar belakang: ketauan pas user coba jalanin sql/033 di Supabase -- tabel mwtTbl di database itu emang udah ke-create dari skema pertama sebelum sql/033 v2 sempat dijalankan.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

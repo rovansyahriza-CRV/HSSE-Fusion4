@@ -49,12 +49,13 @@ CREATE TABLE IF NOT EXISTS "mwtTbl" (
     "CreatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_mwt_project ON "mwtTbl" ("ProjectId");
-CREATE INDEX IF NOT EXISTS idx_mwt_status ON "mwtTbl" ("Status");
-
 -- Kalau tabel ini sebelumnya ke-create dari versi PERTAMA migrasi ini (kolom lama:
 -- AreaKunjungan, NamaManagement, dst di level tabel, bukan di dalam KunjunganList),
 -- baris di bawah nambahin kolom2 baru yang belum ada -- aman dijalankan berkali-kali.
+-- PENTING: ini harus jalan SEBELUM bikin index di bawah -- kalau tabelnya udah ada
+-- duluan (CREATE TABLE IF NOT EXISTS di atas jadi no-op), kolom "Status" belum tentu
+-- ada sebelum baris ALTER ini dieksekusi, jadi CREATE INDEX ON ("Status") bakal gagal
+-- "column Status does not exist" kalau urutannya kebalik.
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "AreaRencana" TEXT;
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "TanggalRencana" DATE;
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "CatatanRencana" TEXT DEFAULT '';
@@ -63,6 +64,9 @@ ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "AdminQrCodeId" TEXT DEFAULT '';
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "Status" TEXT DEFAULT 'Terjadwal';
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "KunjunganList" JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE "mwtTbl" ADD COLUMN IF NOT EXISTS "TanggalDitutup" TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_mwt_project ON "mwtTbl" ("ProjectId");
+CREATE INDEX IF NOT EXISTS idx_mwt_status ON "mwtTbl" ("Status");
 
 
 -- -------------------------------------------------------------------------------------
