@@ -1,0 +1,7 @@
+Pisahkan section HSE Program & Monitor dari daftar modul pelaporan harian
+
+- index.html: HSE Program, Monitor HSE Program, dan Statistik & KPI HSSE dipindah keluar dari card "Modul" (yang isinya modul pelaporan harian: CERMAT, Incident, Inspeksi, PTW, TBM, HSE Meeting, Internal Audit) ke card baru "Manajemen & KPI HSSE" tersendiri di bawahnya. Alasannya: HSE Program/Monitor itu alat kerja HSE Officer/Management buat atur target & pantau capaian, bukan form lapor kejadian harian, jadi dipisah biar gak nyampur.
+- style.css: nambah style aksen kuning safety (border-left var(--safety-yellow)) khusus buat card item di section "Manajemen & KPI HSSE" (class .mgmt), biar keliatan beda dari item modul pelaporan yang aksennya navy.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

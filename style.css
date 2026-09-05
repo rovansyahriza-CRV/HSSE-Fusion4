@@ -87,6 +87,15 @@ body {
 .module-item .module-name { font-size: 13.5px; font-weight: 700; }
 .module-item .module-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
+/* Item "Manajemen & KPI" (HSE Program, Monitor, Statistik) dikasih aksen warna beda
+   (kuning safety, bukan navy) biar keliatan jelas ini bukan modul pelaporan harian. */
+.module-item.mgmt.done:not(.sub) {
+  background: linear-gradient(135deg, #FFF8EA 0%, #FDFBF6 100%);
+  border-color: #F0DFB8;
+  border-left: 4px solid var(--safety-yellow);
+}
+.module-item.mgmt.done:not(.sub) .module-name { color: var(--navy-dark); }
+
 .badge-todo {
   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
   background: #FDF3E3; color: var(--safety-yellow); margin-left: auto; white-space: nowrap;
