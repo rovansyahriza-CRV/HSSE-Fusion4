@@ -1,0 +1,8 @@
+Desain ulang header index.html (menu utama) pakai HTML/CSS asli, bukan gambar flat
+
+- index.html: header banner di menu utama sekarang dibangun dari HTML/CSS asli (div + teks + 2 gambar kecil: logo BiMa & icon Powered by), bukan 1 gambar besar header-banner.png. Isinya sama persis (judul, subjudul, logo, Powered by), cuma sekarang gak akan pernah ada masalah shadow/halo kebakar kayak sebelumnya karena background birunya emang CSS gradient, teksnya emang teks asli.
+- powered-by-icon.png (baru): crop bersih dari icon partner yang tadinya nempel di header-banner.png, dipakai di header baru ini.
+- style.css: nambah style .hero-banner dkk buat header baru di index.html. Halaman lain (cermat-report.html dst) masih pakai header-banner.png yang lama (sudah dibersihin shadow-nya di commit sebelumnya) -- gak diubah, sesuai yang diminta cuma buat menu utama dulu.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

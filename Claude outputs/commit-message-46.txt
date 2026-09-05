@@ -1,0 +1,7 @@
+Rapikan shadow header-banner biar nyatu ke background halaman
+
+- header-banner.png: hapus halo/shadow abu-abu yang kebakar di pinggir kanan & bawah gambar (bikin transparan), jadi kotak biru mudanya langsung nyatu bersih ke background halaman, gak ada lagi garis abu-abu yang keliatan kepotong.
+- style.css: hapus box-shadow custom yang tadinya nambahin efek shadow lagi di atas gambar (jadi dobel sama shadow yang udah kebakar di gambar) -- sekarang header-banner gak ada shadow tambahan sama sekali, konsisten sama card lain di halaman yang emang gak pake shadow.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
