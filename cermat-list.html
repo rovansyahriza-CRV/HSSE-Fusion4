@@ -106,6 +106,7 @@
   <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
 
   <div class="header">
+    <img src="header-banner.jpg" class="header-banner" alt="Smart HSSE Reporting System">
     <div class="header-top">
       <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
       <div>
@@ -168,14 +169,31 @@
   let currentStatusFilter = '';
   let reports = [];
   let departmentList = [];
+  let authorMap = {}; // qrCodeId -> Author gabungan (karyawanTbl + paswordTbl di Fusion4)
   let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap renderReports()
   let pendingApproval = {}; // { idx: {nama, qrCodeId} } -- identitas yg lolos cek Author utk kartu ini, direset tiap renderReports()
   let rejectingIdx = null; // idx kartu yang lagi nunjukin form catatan penolakan (Review -> reject)
 
+  let reportsLoadFailed = false;
   document.addEventListener('DOMContentLoaded', async () => {
-    loadDepartments();
-    loadReports();
+    await Promise.all([loadDepartments(), loadAuthorMap(), loadReports()]);
+    if (!reportsLoadFailed) renderReports(); // pastiin ke-render ulang pakai authorMap yg udah lengkap, gak peduli mana yg lebih dulu selesai
   });
+
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '';
+  }
 
   async function loadDepartments() {
     // Master Divisi/Departemen sekarang diambil dari FUSION4 (departemenTbl), bukan
@@ -232,6 +250,7 @@
       reports = data || [];
       renderReports();
     } catch (e) {
+      reportsLoadFailed = true;
       container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
     }
   }
@@ -377,7 +396,7 @@
             <div>
               <div class="report-no">${r.noLaporan}</div>
               <div class="report-title">${r.jenisTemuan} — ${r.lokasiArea}</div>
-              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}${r.sourceInspeksiNoLaporan ? ' • 🔍 Dari Inspeksi ' + escapeHtml(r.sourceInspeksiNoLaporan) : ''}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${authorFor(r.pelaporQrCodeId) ? ' (' + escapeHtml(authorFor(r.pelaporQrCodeId)) + ')' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}${r.sourceInspeksiNoLaporan ? ' • 🔍 Dari Inspeksi ' + escapeHtml(r.sourceInspeksiNoLaporan) : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <div style="display:flex; gap:6px;">
@@ -390,14 +409,14 @@
         </div>
         <div class="detail-panel" id="detail-${idx}">
           <div class="detail-row"><b>Deskripsi</b>${escapeHtml(r.deskripsi)}</div>
-          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})</div>` : ''}
+          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})${authorFor(r.pelaporQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.pelaporQrCodeId)) : ''}</div>` : ''}
           ${photoGalleryHtml('Foto Temuan', r.fotoList)}
           ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
           ${r.rekomendasi ? `<div class="detail-row"><b>Rekomendasi</b>${escapeHtml(r.rekomendasi)}</div>` : ''}
-          ${r.verifikatorOleh ? `<div class="detail-row"><b>Diverifikasi &amp; Diarahkan Oleh (HSE)</b>✅ ${escapeHtml(r.verifikatorOleh)} (${escapeHtml(r.verifikatorQrCodeId || '')}) — ${formatDate(r.tanggalVerifikasi)} → Dept: ${escapeHtml(deptDisplay(r))}</div>` : ''}
-          ${r.followupOleh ? `<div class="detail-row"><b>Followup Oleh (Dept)</b>✅ ${escapeHtml(r.followupOleh)} (${escapeHtml(r.followupQrCodeId || '')}) — ${formatDate(r.tanggalFollowup)}${r.catatanFollowup ? ': ' + escapeHtml(r.catatanFollowup) : ''}</div>` : ''}
+          ${r.verifikatorOleh ? `<div class="detail-row"><b>Diverifikasi &amp; Diarahkan Oleh (HSE)</b>✅ ${escapeHtml(r.verifikatorOleh)} (${escapeHtml(r.verifikatorQrCodeId || '')})${authorFor(r.verifikatorQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.verifikatorQrCodeId)) : ''} — ${formatDate(r.tanggalVerifikasi)} → Dept: ${escapeHtml(deptDisplay(r))}</div>` : ''}
+          ${r.followupOleh ? `<div class="detail-row"><b>Followup Oleh (Dept)</b>✅ ${escapeHtml(r.followupOleh)} (${escapeHtml(r.followupQrCodeId || '')})${authorFor(r.followupQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.followupQrCodeId)) : ''} — ${formatDate(r.tanggalFollowup)}${r.catatanFollowup ? ': ' + escapeHtml(r.catatanFollowup) : ''}</div>` : ''}
           ${photoGalleryHtml('Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList)}
-          ${r.ditutupOleh ? `<div class="detail-row"><b>Ditutup Oleh (HSE)</b>✅ ${escapeHtml(r.ditutupOleh)} (${escapeHtml(r.ditutupQrCodeId || '')}) — ${formatDate(r.tanggalClosed)}</div>` : ''}
+          ${r.ditutupOleh ? `<div class="detail-row"><b>Ditutup Oleh (HSE)</b>✅ ${escapeHtml(r.ditutupOleh)} (${escapeHtml(r.ditutupQrCodeId || '')})${authorFor(r.ditutupQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.ditutupQrCodeId)) : ''} — ${formatDate(r.tanggalClosed)}</div>` : ''}
           ${stageAreaHtml(r, idx)}
         </div>
       </div>

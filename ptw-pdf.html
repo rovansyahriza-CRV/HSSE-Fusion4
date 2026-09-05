@@ -282,6 +282,22 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let authorMap = {}; // qrCodeId -> string Author gabungan (karyawanTbl + paswordTbl di Fusion4)
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '-';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
 
   function driveThumbSrc(f) {
     if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
@@ -407,7 +423,10 @@
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_ptw_by_id', { p_id: id });
+      const [{ data: r, error }] = await Promise.all([
+        supabaseClient.rpc('get_ptw_by_id', { p_id: id }),
+        loadAuthorMap(),
+      ]);
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
@@ -426,7 +445,8 @@
       document.getElementById('fJenis').innerText = r.jenisPekerjaan;
       document.getElementById('fRequester').innerHTML = escapeHtml(r.namaRequester) +
         (r.requesterQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.requesterQrCodeId ? `QrCodeId: ${r.requesterQrCodeId}` : '';
+      document.getElementById('fQrCodeId').innerText = r.requesterQrCodeId
+        ? `QrCodeId: ${r.requesterQrCodeId} · Author: ${authorFor(r.requesterQrCodeId)}` : '';
       document.getElementById('fLokasi').innerText = r.lokasiArea;
       document.getElementById('fJadwal').innerText =
         `${r.tanggalMulaiKerja ? formatDate(r.tanggalMulaiKerja) : '-'} s/d ${r.tanggalSelesaiKerja ? formatDate(r.tanggalSelesaiKerja) : '-'}`;
@@ -458,11 +478,14 @@
       renderRiwayat(r);
 
       document.getElementById('fSignRequester').innerText = r.namaRequester || '';
-      document.getElementById('fSignRequesterSub').innerText = r.requesterQrCodeId || '';
+      document.getElementById('fSignRequesterSub').innerText = r.requesterQrCodeId
+        ? `${r.requesterQrCodeId} · Author: ${authorFor(r.requesterQrCodeId)}` : '';
       document.getElementById('fSignHse').innerText = r.hseReviewOleh || '';
-      document.getElementById('fSignHseSub').innerText = r.hseReviewOleh ? (r.hseReviewQrCodeId || '') : 'Nama & Tanda Tangan';
+      document.getElementById('fSignHseSub').innerText = r.hseReviewOleh
+        ? `${r.hseReviewQrCodeId || ''} · Author: ${authorFor(r.hseReviewQrCodeId)}` : 'Nama & Tanda Tangan';
       document.getElementById('fSignArea').innerText = r.areaAuthorityOleh || '';
-      document.getElementById('fSignAreaSub').innerText = r.areaAuthorityOleh ? (r.areaAuthorityQrCodeId || '') : 'Nama & Tanda Tangan';
+      document.getElementById('fSignAreaSub').innerText = r.areaAuthorityOleh
+        ? `${r.areaAuthorityQrCodeId || ''} · Author: ${authorFor(r.areaAuthorityQrCodeId)}` : 'Nama & Tanda Tangan';
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Update header banner aplikasi & ganti logo-bima.png' -m '- header-banner.jpg (baru): banner "SMART HSSE REPORTING SYSTEM" ditaruh di atas header biru di SEMUA halaman aplikasi (index.html + semua Lapor/Riwayat) -- judul spesifik tiap halaman tetap ada di bawah banner, gak diganti.' -m '- logo-bima.png: diganti pakai logo BiMa versi baru (transparan) -- otomatis kepakai di mana aja file ini direferensikan, baik logo kecil di header dalam-app maupun logo di semua dokumen PDF cetak (*-pdf.html).' -m '- style.css: nambah class .header-banner (lebar penuh, rounded, margin bawah) buat nampilin banner barunya.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push

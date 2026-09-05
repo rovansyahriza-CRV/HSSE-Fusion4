@@ -46,6 +46,7 @@
     padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
   .peserta-row:last-child { border-bottom: none; }
   .peserta-nama { font-weight: 600; }
+  .peserta-nama .jabatan { color: var(--muted); font-weight: 500; }
   .peserta-jam { flex-shrink: 0; font-size: 11.5px; color: var(--muted); font-family: monospace; }
 </style>
 </head>
@@ -56,6 +57,7 @@
   <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
 
   <div class="header">
+    <img src="header-banner.jpg" class="header-banner" alt="Smart HSSE Reporting System">
     <div class="header-top">
       <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
       <div>
@@ -81,12 +83,31 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
   let currentStatusFilter = '';
   let reports = [];
+  let authorMap = {}; // qrCodeId -> Author gabungan (karyawanTbl + paswordTbl di Fusion4)
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadReports();
+  let reportsLoadFailed = false;
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadAuthorMap(), loadReports()]);
+    if (!reportsLoadFailed) renderReports(); // pastiin ke-render ulang pakai authorMap yg udah lengkap, gak peduli mana yg lebih dulu selesai
   });
+
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '';
+  }
 
   async function loadReports() {
     const container = document.getElementById('reportContainer');
@@ -99,6 +120,7 @@
       reports = data || [];
       renderReports();
     } catch (e) {
+      reportsLoadFailed = true;
       container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
     }
   }
@@ -128,7 +150,7 @@
     const sorted = [...pesertaList].sort((a, b) => new Date(b.jamAbsen) - new Date(a.jamAbsen));
     return sorted.map(p => `
       <div class="peserta-row">
-        <span class="peserta-nama">${escapeHtml(p.nama)}${p.qrCodeId ? ' ✅' : ''}</span>
+        <span class="peserta-nama">${escapeHtml(p.nama)}${p.qrCodeId ? ' ✅' : ''}${authorFor(p.qrCodeId) ? ' <span class="jabatan">[' + escapeHtml(authorFor(p.qrCodeId)) + ']</span>' : ''}</span>
         <span class="peserta-jam">${formatTime(p.jamAbsen)}</span>
       </div>
     `).join('');
@@ -151,7 +173,7 @@
               <div class="report-no">${r.noSesi}</div>
               <div class="report-title">${escapeHtml(r.topikBriefing)}</div>
               <div class="report-meta">${formatDate(r.tanggalMulai)} • ${escapeHtml(r.lokasiArea)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)})</div>
-              <div class="report-meta">Leader: ${escapeHtml(r.leaderNama)}${r.leaderQrCodeId ? ' ✅' : ''}</div>
+              <div class="report-meta">Leader: ${escapeHtml(r.leaderNama)}${r.leaderQrCodeId ? ' ✅' : ''}${authorFor(r.leaderQrCodeId) ? ' (' + escapeHtml(authorFor(r.leaderQrCodeId)) + ')' : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               ${statusBadgeHtml(r)}

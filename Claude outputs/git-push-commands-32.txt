@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Lengkapin legenda Author tag per modul di index.html' -m '- index.html: kartu Riwayat CERMAT & Incident/Accident sekarang nyebutin Author tag yang dibutuhin tiap tahap (CERMAT: "Verifikasi Cermat" + "{Dept} Admin"; Incident: "Investigate/Review/Approved Incident/Accident") -- sebelumnya cuma PTW/TBM/HSE Meeting/Internal Audit yang ada catatan Author-nya di menu utama. Kartu Riwayat PTW juga ditambahin "Review Permit to Work" & "Approve Permit to Work" biar lengkap satu alur.' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push

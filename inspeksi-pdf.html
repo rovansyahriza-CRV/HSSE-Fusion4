@@ -254,6 +254,22 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let authorMap = {}; // qrCodeId -> string Author gabungan (karyawanTbl + paswordTbl di Fusion4)
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '-';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
 
   function driveThumbSrc(f) {
     if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
@@ -329,7 +345,10 @@
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_inspeksi_report_by_id', { p_id: id });
+      const [{ data: r, error }] = await Promise.all([
+        supabaseClient.rpc('get_inspeksi_report_by_id', { p_id: id }),
+        loadAuthorMap(),
+      ]);
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
@@ -345,7 +364,8 @@
       document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
       document.getElementById('fInspektor').innerHTML = escapeHtml(r.namaInspektor) +
         (r.inspektorQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.inspektorQrCodeId ? `QrCodeId: ${r.inspektorQrCodeId}` : '';
+      document.getElementById('fQrCodeId').innerText = r.inspektorQrCodeId
+        ? `QrCodeId: ${r.inspektorQrCodeId} · Author: ${authorFor(r.inspektorQrCodeId)}` : '';
       document.getElementById('fJenis').innerHTML = `<span class="badge ${r.jenis === 'Observasi' ? 'badge-observasi' : 'badge-inspeksi'}">${r.jenis === 'Observasi' ? '👀' : '🔧'} ${r.jenis}</span>`;
       document.getElementById('fLokasi').innerText = r.lokasiArea;
       document.getElementById('fCermatNo').innerText = r.cermatNoLaporan || '-';
@@ -381,7 +401,8 @@
       );
 
       document.getElementById('fSignInspektor').innerText = r.namaInspektor;
-      document.getElementById('fSignQrCodeId').innerText = r.inspektorQrCodeId || '';
+      document.getElementById('fSignQrCodeId').innerText = r.inspektorQrCodeId
+        ? `${r.inspektorQrCodeId} · Author: ${authorFor(r.inspektorQrCodeId)}` : '';
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

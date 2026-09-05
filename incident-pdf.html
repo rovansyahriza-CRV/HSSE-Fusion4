@@ -310,6 +310,22 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let authorMap = {}; // qrCodeId -> string Author gabungan (karyawanTbl + paswordTbl di Fusion4)
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '-';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
 
   const KLAS_CLASS = {
     'Near Miss': 'klas-nearmiss',
@@ -364,7 +380,7 @@
     const subEl = document.getElementById(subId);
     if (!nama) return; // biarin default: garis kosong + "Nama & Tanda Tangan" (belum lewat tahap ini)
     lineEl.innerText = nama;
-    subEl.innerHTML = `&#10003; Verifikasi digital${qrCodeId ? ' — ' + escapeHtml(qrCodeId) : ''}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
+    subEl.innerHTML = `&#10003; Verifikasi digital${qrCodeId ? ' — ' + escapeHtml(qrCodeId) + ' — Author: ' + escapeHtml(authorFor(qrCodeId)) : ''}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
   }
 
   function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
@@ -390,7 +406,10 @@
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_incident_report_by_id', { p_id: id });
+      const [{ data: r, error }] = await Promise.all([
+        supabaseClient.rpc('get_incident_report_by_id', { p_id: id }),
+        loadAuthorMap(),
+      ]);
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
@@ -406,7 +425,8 @@
       document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
       document.getElementById('fPelapor').innerHTML = escapeHtml(r.namaPelapor) +
         (r.pelaporQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId ? `QrCodeId: ${r.pelaporQrCodeId}` : '';
+      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId
+        ? `QrCodeId: ${r.pelaporQrCodeId} · Author: ${authorFor(r.pelaporQrCodeId)}` : '';
       document.getElementById('fKlasifikasi').innerHTML = `<span class="badge klas-badge ${KLAS_CLASS[r.klasifikasi] || ''}">${escapeHtml(r.klasifikasi)}</span>`;
       document.getElementById('fLokasi').innerText = r.lokasiArea;
       document.getElementById('fHariKerjaHilang').innerText = r.hariKerjaHilang != null ? `${r.hariKerjaHilang} hari` : '—';
@@ -469,7 +489,8 @@
       }
 
       document.getElementById('fSignPelapor').innerText = r.namaPelapor;
-      document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId || '';
+      document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId
+        ? `${r.pelaporQrCodeId} · Author: ${authorFor(r.pelaporQrCodeId)}` : '';
 
       fillSignatureBox('fSignInvestigasi', 'fSignInvestigasiSub', r.investigasiOleh, r.investigasiQrCodeId, r.tanggalInvestigasi);
       fillSignatureBox('fSignReview', 'fSignReviewSub', r.reviewOleh, r.reviewQrCodeId, r.tanggalReview);

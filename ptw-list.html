@@ -118,6 +118,7 @@
   <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
 
   <div class="header">
+    <img src="header-banner.jpg" class="header-banner" alt="Smart HSSE Reporting System">
     <div class="header-top">
       <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
       <div>
@@ -184,10 +185,28 @@
   let rejectingIdx = null;
   let rejectingStage = null; // 'hse' | 'areaAuthority' | 'closing'
   let closingPhotoSlots = {}; // { idx-slotIdx: File }
+  let authorMap = {}; // qrCodeId -> Author gabungan (karyawanTbl + paswordTbl di Fusion4)
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadReports();
+  let reportsLoadFailed = false;
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadAuthorMap(), loadReports()]);
+    if (!reportsLoadFailed) renderReports(); // pastiin ke-render ulang pakai authorMap yg udah lengkap, gak peduli mana yg lebih dulu selesai
   });
+
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '';
+  }
 
   async function loadReports() {
     const container = document.getElementById('reportContainer');
@@ -205,6 +224,7 @@
       reports = data || [];
       renderReports();
     } catch (e) {
+      reportsLoadFailed = true;
       container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
     }
   }
@@ -408,7 +428,7 @@
             <div>
               <div class="report-no">${r.noPermit}${r.woNo ? ' • WO: ' + escapeHtml(r.woNo) : ''}</div>
               <div class="report-title">${escapeHtml(r.jenisPekerjaan)} — ${escapeHtml(r.lokasiArea)}</div>
-              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Requester: ${escapeHtml(r.namaRequester)}${r.requesterQrCodeId ? ' ✅' : ''}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Requester: ${escapeHtml(r.namaRequester)}${r.requesterQrCodeId ? ' ✅' : ''}${authorFor(r.requesterQrCodeId) ? ' (' + escapeHtml(authorFor(r.requesterQrCodeId)) + ')' : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <span class="status-badge ${statusBadgeClass(r.status)}">${r.status}</span>
@@ -424,10 +444,10 @@
           <div class="detail-row"><b>Hazard Checklist</b>${hazardReviewHtml(r.hazardChecklist)}</div>
           ${photoGalleryHtml('Foto Lampiran', r.fotoList)}
           ${lampiranListHtml('Lampiran Dokumen Pendukung', r.lampiranList)}
-          ${r.hseReviewOleh ? `<div class="detail-row"><b>Direview HSE Officer</b>✅ ${escapeHtml(r.hseReviewOleh)} (${escapeHtml(r.hseReviewQrCodeId || '')}) — ${formatDate(r.tanggalHseReview)}</div>` : ''}
-          ${r.areaAuthorityOleh ? `<div class="detail-row"><b>Disetujui Area Authority</b>✅ ${escapeHtml(r.areaAuthorityOleh)} (${escapeHtml(r.areaAuthorityQrCodeId || '')}) — ${formatDate(r.tanggalAreaAuthority)}</div>` : ''}
-          ${r.penutupanDiajukanOleh ? `<div class="detail-row"><b>Penutupan Diajukan Oleh</b>✅ ${escapeHtml(r.penutupanDiajukanOleh)} (${escapeHtml(r.penutupanQrCodeId || '')}) — ${formatDate(r.tanggalPenutupanDiajukan)}${r.catatanPenutupanDiajukan ? ': ' + escapeHtml(r.catatanPenutupanDiajukan) : ''}</div>` : ''}
-          ${r.ditutupOleh ? `<div class="detail-row"><b>Ditutup Oleh HSE Officer</b>✅ ${escapeHtml(r.ditutupOleh)} (${escapeHtml(r.ditutupQrCodeId || '')}) — ${formatDate(r.tanggalDitutup)}</div>` : ''}
+          ${r.hseReviewOleh ? `<div class="detail-row"><b>Direview HSE Officer</b>✅ ${escapeHtml(r.hseReviewOleh)} (${escapeHtml(r.hseReviewQrCodeId || '')})${authorFor(r.hseReviewQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.hseReviewQrCodeId)) : ''} — ${formatDate(r.tanggalHseReview)}</div>` : ''}
+          ${r.areaAuthorityOleh ? `<div class="detail-row"><b>Disetujui Area Authority</b>✅ ${escapeHtml(r.areaAuthorityOleh)} (${escapeHtml(r.areaAuthorityQrCodeId || '')})${authorFor(r.areaAuthorityQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.areaAuthorityQrCodeId)) : ''} — ${formatDate(r.tanggalAreaAuthority)}</div>` : ''}
+          ${r.penutupanDiajukanOleh ? `<div class="detail-row"><b>Penutupan Diajukan Oleh</b>✅ ${escapeHtml(r.penutupanDiajukanOleh)} (${escapeHtml(r.penutupanQrCodeId || '')})${authorFor(r.penutupanQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.penutupanQrCodeId)) : ''} — ${formatDate(r.tanggalPenutupanDiajukan)}${r.catatanPenutupanDiajukan ? ': ' + escapeHtml(r.catatanPenutupanDiajukan) : ''}</div>` : ''}
+          ${r.ditutupOleh ? `<div class="detail-row"><b>Ditutup Oleh HSE Officer</b>✅ ${escapeHtml(r.ditutupOleh)} (${escapeHtml(r.ditutupQrCodeId || '')})${authorFor(r.ditutupQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.ditutupQrCodeId)) : ''} — ${formatDate(r.tanggalDitutup)}</div>` : ''}
           ${stageAreaHtml(r, idx)}
         </div>
       </div>

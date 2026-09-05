@@ -109,6 +109,7 @@
   <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
 
   <div class="header">
+    <img src="header-banner.jpg" class="header-banner" alt="Smart HSSE Reporting System">
     <div class="header-top">
       <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
       <div>
@@ -173,10 +174,28 @@
   let reports = [];
   let closurePhotoSlots = {}; // { "temuanId-0": File }, direset tiap renderReports()
   let closureCatatan = {}; // { temuanId: string }
+  let authorMap = {}; // qrCodeId -> Author gabungan (karyawanTbl + paswordTbl di Fusion4)
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadReports();
+  let reportsLoadFailed = false;
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadAuthorMap(), loadReports()]);
+    if (!reportsLoadFailed) renderReports(); // pastiin ke-render ulang pakai authorMap yg udah lengkap, gak peduli mana yg lebih dulu selesai
   });
+
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '';
+  }
 
   async function loadReports() {
     const container = document.getElementById('reportContainer');
@@ -191,6 +210,7 @@
       reports = data || [];
       renderReports();
     } catch (e) {
+      reportsLoadFailed = true;
       container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
     }
   }
@@ -251,7 +271,7 @@
           <div class="capa-review-row"><b>Rencana Tindakan:</b> ${escapeHtml(it.capa.rencanaTindakan) || '-'}</div>
           <div class="capa-review-row"><b>PIC:</b> ${escapeHtml(it.capa.picNama) || '-'} • <b>Tenggat:</b> ${formatDateOnly(it.capa.tenggat)}</div>
           ${isClosed ? `
-            <div class="capa-review-row"><b>Diverifikasi Oleh:</b> ${escapeHtml(it.capa.verifikatorNama)} (${escapeHtml(it.capa.verifikatorQrCodeId || '')}) -- ${formatDate(it.capa.tanggalVerifikasi)}</div>
+            <div class="capa-review-row"><b>Diverifikasi Oleh:</b> ${escapeHtml(it.capa.verifikatorNama)} (${escapeHtml(it.capa.verifikatorQrCodeId || '')})${authorFor(it.capa.verifikatorQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(it.capa.verifikatorQrCodeId)) : ''} -- ${formatDate(it.capa.tanggalVerifikasi)}</div>
             ${it.capa.catatanVerifikasi ? `<div class="capa-review-row"><b>Catatan Verifikasi:</b> ${escapeHtml(it.capa.catatanVerifikasi)}</div>` : ''}
             ${photoGalleryHtml('Bukti Closure', it.capa.buktiFotoList)}
           ` : `
@@ -304,7 +324,7 @@
             <div>
               <div class="report-no">${r.noAudit}</div>
               <div class="report-title">${escapeHtml(r.judulAudit)}</div>
-              <div class="report-meta">${formatDateOnly(r.tanggalRencana)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Lead Auditor: ${escapeHtml(r.leadAuditor)}${r.leadAuditorQrCodeId ? ' ✅' : ''}</div>
+              <div class="report-meta">${formatDateOnly(r.tanggalRencana)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Lead Auditor: ${escapeHtml(r.leadAuditor)}${r.leadAuditorQrCodeId ? ' ✅' : ''}${authorFor(r.leadAuditorQrCodeId) ? ' (' + escapeHtml(authorFor(r.leadAuditorQrCodeId)) + ')' : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <span class="status-badge ${statusBadgeClass(r.status)}">${statusIcon(r.status)} ${r.status}</span>

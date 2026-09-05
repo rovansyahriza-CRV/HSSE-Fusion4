@@ -250,6 +250,22 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let authorMap = {}; // qrCodeId -> string Author gabungan (karyawanTbl + paswordTbl di Fusion4)
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '-';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
 
   function driveThumbSrc(f) {
     if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
@@ -308,7 +324,7 @@
           <div class="capa-row"><b>Akar Masalah:</b> ${escapeHtml(it.capa.akarMasalah) || '-'}</div>
           <div class="capa-row"><b>Rencana Tindakan:</b> ${escapeHtml(it.capa.rencanaTindakan) || '-'}</div>
           <div class="capa-row"><b>PIC:</b> ${escapeHtml(it.capa.picNama) || '-'} &nbsp;•&nbsp; <b>Tenggat:</b> ${formatDateOnly(it.capa.tenggat)}</div>
-          ${isClosed ? `<div class="capa-row"><b>Diverifikasi:</b> ${escapeHtml(it.capa.verifikatorNama)} -- ${formatDate(it.capa.tanggalVerifikasi)}</div>` : ''}
+          ${isClosed ? `<div class="capa-row"><b>Diverifikasi:</b> ${escapeHtml(it.capa.verifikatorNama)}${authorFor(it.capa.verifikatorQrCodeId) !== '-' ? ' -- Author: ' + escapeHtml(authorFor(it.capa.verifikatorQrCodeId)) : ''} -- ${formatDate(it.capa.tanggalVerifikasi)}</div>` : ''}
         </div>`;
       }
       return `
@@ -344,7 +360,10 @@
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_audit_by_id', { p_id: id });
+      const [{ data: r, error }] = await Promise.all([
+        supabaseClient.rpc('get_audit_by_id', { p_id: id }),
+        loadAuthorMap(),
+      ]);
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
@@ -365,7 +384,8 @@
         `${formatDateOnly(r.tanggalRencana)}${r.tanggalPelaksanaan ? ' (dilaksanakan ' + formatDate(r.tanggalPelaksanaan) + ')' : ''}`;
       document.getElementById('fLeadAuditor').innerHTML = escapeHtml(r.leadAuditor) +
         (r.leadAuditorQrCodeId ? ' <span class="badge badge-ditutup" style="font-size:8px;">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.leadAuditorQrCodeId ? `QrCodeId: ${r.leadAuditorQrCodeId}` : '';
+      document.getElementById('fQrCodeId').innerText = r.leadAuditorQrCodeId
+        ? `QrCodeId: ${r.leadAuditorQrCodeId} · Author: ${authorFor(r.leadAuditorQrCodeId)}` : '';
       const timNames = (r.timAuditorList || []).map(t => t.nama).filter(Boolean);
       document.getElementById('fTimAuditor').innerText = timNames.length ? timNames.join(', ') : '-';
       const auditeeList = r.auditeeList || [];

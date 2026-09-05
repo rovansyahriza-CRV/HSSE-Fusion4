@@ -249,6 +249,22 @@
 
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  let authorMap = {}; // qrCodeId -> string Author gabungan (karyawanTbl + paswordTbl di Fusion4)
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '-';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
 
   function driveThumbSrc(f) {
     if (f.fileId) return `https://drive.google.com/thumbnail?id=${f.fileId}&sz=w800`;
@@ -315,13 +331,14 @@
     // QrCodeId&NoMeeting biar unik per orang DAN per dokumen (gak bisa dipakai ulang
     // buat notulen lain).
     body.innerHTML = `<table class="peserta-table">
-      <thead><tr><th style="width:22px;">No</th><th>Nama</th><th>Jabatan</th><th style="width:50px;">Jam Hadir</th><th style="width:100px;">TTD Digital</th></tr></thead>
+      <thead><tr><th style="width:22px;">No</th><th>Nama</th><th>Jabatan</th><th>Author</th><th style="width:50px;">Jam Hadir</th><th style="width:100px;">TTD Digital</th></tr></thead>
       <tbody>${sorted.map((p, i) => {
         const code = p.qrCodeId ? `${p.qrCodeId}&${noMeeting}` : '';
         return `<tr>
           <td>${i + 1}</td>
           <td>${escapeHtml(p.nama)}</td>
           <td>${escapeHtml(p.jabatan) || '-'}</td>
+          <td>${escapeHtml(authorFor(p.qrCodeId))}</td>
           <td>${p.jamHadir ? formatJamOnly(p.jamHadir) : '-'}</td>
           <td class="ttd-digital">${code ? `<canvas class="ttd-barcode" data-code="${escapeHtml(code)}"></canvas><span class="ttd-digital-code">${escapeHtml(code)}</span>` : '-'}</td>
         </tr>`;
@@ -385,7 +402,10 @@
     }
 
     try {
-      const { data: r, error } = await supabaseClient.rpc('get_hse_meeting_by_id', { p_id: id });
+      const [{ data: r, error }] = await Promise.all([
+        supabaseClient.rpc('get_hse_meeting_by_id', { p_id: id }),
+        loadAuthorMap(),
+      ]);
       if (error) throw error;
       if (!r) {
         document.getElementById('loadingState').style.display = 'none';
@@ -401,7 +421,8 @@
       document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
       document.getElementById('fPemimpin').innerHTML = escapeHtml(r.namaPemimpin) +
         (r.pemimpinQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.pemimpinQrCodeId ? `QrCodeId: ${r.pemimpinQrCodeId}` : '';
+      document.getElementById('fQrCodeId').innerText = r.pemimpinQrCodeId
+        ? `QrCodeId: ${r.pemimpinQrCodeId} · Author: ${authorFor(r.pemimpinQrCodeId)}` : '';
       const statusBadge = r.status === 'Berlangsung'
         ? '<span class="badge badge-berlangsung">🔴 Berlangsung</span>'
         : '<span class="badge badge-selesai-status">✅ Selesai</span>';

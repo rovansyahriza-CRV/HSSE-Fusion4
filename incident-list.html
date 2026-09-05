@@ -129,6 +129,7 @@
   <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
 
   <div class="header">
+    <img src="header-banner.jpg" class="header-banner" alt="Smart HSSE Reporting System">
     <div class="header-top">
       <img src="logo-bima.png" class="header-logo" alt="Logo BiMa">
       <div>
@@ -190,6 +191,7 @@
   const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
   let currentStatusFilter = '';
   let reports = [];
+  let authorMap = {}; // qrCodeId -> Author gabungan (karyawanTbl + paswordTbl di Fusion4)
   let followupPhotoSlots = {}; // { "idx-slotIdx": File }, direset tiap loadReports()
   let lampiranFiles = {}; // { idx: File[] } -- lampiran bebas (dokumen apa aja), direset tiap loadReports()
   let pendingApproval = {}; // { idx: {nama, qrCodeId} } -- identitas yg lolos cek Author utk tahap kartu ini
@@ -207,7 +209,26 @@
     'Keamanan/Security': 'klas-security',
   };
 
-  document.addEventListener('DOMContentLoaded', () => loadReports());
+  let reportsLoadFailed = false;
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadAuthorMap(), loadReports()]);
+    if (!reportsLoadFailed) renderReports(); // pastiin ke-render ulang pakai authorMap yg udah lengkap, gak peduli mana yg lebih dulu selesai
+  });
+
+  async function loadAuthorMap() {
+    try {
+      const { data, error } = await fusion4Client.rpc('get_all_karyawan_author');
+      if (error) throw error;
+      authorMap = {};
+      (data || []).forEach(x => { if (x.qrCodeId) authorMap[x.qrCodeId] = x.author || ''; });
+    } catch (e) {
+      console.error('Gagal memuat data Author dari Fusion4:', e.message);
+    }
+  }
+  function authorFor(qrCodeId) {
+    if (!qrCodeId) return '';
+    return authorMap[String(qrCodeId).toUpperCase().trim()] || '';
+  }
 
   async function loadReports() {
     const container = document.getElementById('reportContainer');
@@ -225,6 +246,7 @@
       reports = data || [];
       renderReports();
     } catch (e) {
+      reportsLoadFailed = true;
       container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${e.message}</div>`;
     }
   }
@@ -419,7 +441,7 @@
             <div>
               <div class="report-no">${r.noLaporan}</div>
               <div class="report-title">${r.klasifikasi} — ${r.lokasiArea}</div>
-              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${authorFor(r.pelaporQrCodeId) ? ` (${escapeHtml(authorFor(r.pelaporQrCodeId))})` : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <div style="display:flex; gap:6px;">
@@ -432,7 +454,7 @@
         </div>
         <div class="detail-panel" id="detail-${idx}">
           <div class="detail-row"><b>Kronologi</b>${escapeHtml(r.kronologi)}</div>
-          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})</div>` : ''}
+          ${r.pelaporQrCodeId ? `<div class="detail-row"><b>Pelapor Terverifikasi</b>✅ ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.pelaporQrCodeId)})${authorFor(r.pelaporQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.pelaporQrCodeId)) : ''}</div>` : ''}
           ${r.namaKorban ? `<div class="detail-row"><b>Korban / Yang Terlibat</b>${escapeHtml(r.namaKorban)}${r.jabatanPerusahaanKorban ? ' — ' + escapeHtml(r.jabatanPerusahaanKorban) : ''}${r.hariKerjaHilang != null ? ` (Hari Kerja Hilang: ${r.hariKerjaHilang})` : ''}</div>` : ''}
           ${photoGalleryHtml('Foto Bukti', r.fotoList)}
           ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
@@ -440,10 +462,10 @@
           ${r.tindakanKorektif ? `<div class="detail-row"><b>Tindakan Korektif</b>${escapeHtml(r.tindakanKorektif)}</div>` : ''}
           ${photoGalleryHtml('Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList)}
           ${lampiranListHtml(r.lampiranList)}
-          ${r.investigasiOleh ? `<div class="detail-row"><b>Investigasi Oleh</b>✅ ${escapeHtml(r.investigasiOleh)} (${escapeHtml(r.investigasiQrCodeId || '')}) — ${formatDate(r.tanggalInvestigasi)}</div>` : ''}
-          ${r.reviewOleh ? `<div class="detail-row"><b>Direview Oleh</b>✅ ${escapeHtml(r.reviewOleh)} (${escapeHtml(r.reviewQrCodeId || '')}) — ${formatDate(r.tanggalReview)}</div>` : ''}
+          ${r.investigasiOleh ? `<div class="detail-row"><b>Investigasi Oleh</b>✅ ${escapeHtml(r.investigasiOleh)} (${escapeHtml(r.investigasiQrCodeId || '')})${authorFor(r.investigasiQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.investigasiQrCodeId)) : ''} — ${formatDate(r.tanggalInvestigasi)}</div>` : ''}
+          ${r.reviewOleh ? `<div class="detail-row"><b>Direview Oleh</b>✅ ${escapeHtml(r.reviewOleh)} (${escapeHtml(r.reviewQrCodeId || '')})${authorFor(r.reviewQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.reviewQrCodeId)) : ''} — ${formatDate(r.tanggalReview)}</div>` : ''}
           ${r.lessonLearned ? `<div class="detail-row"><b>Lesson Learned</b>${escapeHtml(r.lessonLearned)}</div>` : ''}
-          ${r.approvedOleh ? `<div class="detail-row"><b>Disetujui &amp; Ditutup Oleh</b>✅ ${escapeHtml(r.approvedOleh)} (${escapeHtml(r.approvedQrCodeId || '')}) — ${formatDate(r.tanggalApproved)}</div>` : ''}
+          ${r.approvedOleh ? `<div class="detail-row"><b>Disetujui &amp; Ditutup Oleh</b>✅ ${escapeHtml(r.approvedOleh)} (${escapeHtml(r.approvedQrCodeId || '')})${authorFor(r.approvedQrCodeId) ? ' -- Author: ' + escapeHtml(authorFor(r.approvedQrCodeId)) : ''} — ${formatDate(r.tanggalApproved)}</div>` : ''}
           ${r.status === 'Closed' && r.catatanClosed ? `<div class="detail-row"><b>Catatan Penutupan</b>${escapeHtml(r.catatanClosed)}</div>` : ''}
 
           ${stageAreaHtml(r, idx)}

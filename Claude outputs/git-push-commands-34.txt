@@ -1,0 +1,4 @@
+cd "D:\Bima\Access Aplication\Access Aplication\VS Code\HSSE-Fusion4"
+git add -A
+git commit -m 'Fix double banner -- header jadi satu banner aja' -m '- style.css: kotak navy tua di header dihapus (background/gradient/box-shadow-nya), jadi cuma header-banner.jpg yang tampil sebagai banner. Judul & deskripsi tiap halaman di bawahnya sekarang teks polos (navy/abu-abu) langsung di atas background halaman, bukan kotak biru terpisah lagi. Logo kecil header-top disembunyikan (logo-nya udah ada di banner, biar gak dobel).' -m 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' -m 'Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy'
+git push
