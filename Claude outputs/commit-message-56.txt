@@ -1,0 +1,17 @@
+Tambah export/cetak PDF buat HSE Program & Monitoring
+
+- hse-program-pdf.html (baru): lembar laporan A4 landscape siap cetak/save-as-PDF buat
+  HSE Program -- info project, ringkasan capaian (Item Dipakai, Total Target, Total
+  Realisasi, %Capaian), dan matriks Target/Realisasi per bulan (Jan-Des) buat semua item
+  HSE Program, termasuk kolom tanda tangan HSE Officer & Project Manager. Bisa diakses
+  langsung dengan pilih project+tahun sendiri, atau dibuka dari tombol di
+  hse-program-monitor.html. Item Incident/Accident (lagging indicator, zero target)
+  ditampilkan beda -- warna hijau/merah dibalik (zero kejadian = hijau) dan gak dihitung %.
+- hse-program-monitor.html: nambah tombol "🖨️ Cetak / Export Laporan PDF" yang muncul
+  begitu project dipilih, buka hse-program-pdf.html?project_id=&tahun= sesuai filter yang
+  lagi aktif di monitor.
+- README.md: dokumentasiin fitur cetak PDF ini + catatan fix realisasi Internal Audit
+  (sql/037) yang belum sempat ditulis di commit sebelumnya.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

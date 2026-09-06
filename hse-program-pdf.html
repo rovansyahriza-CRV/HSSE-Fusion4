@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan HSE Program — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  /* ===== Toolbar (gak ikut kecetak) ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .selector-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; max-width: 297mm; margin: 14px auto 0; padding: 0 16px;
+  }
+  .selector-bar .field { flex: 1; min-width: 180px; }
+  .selector-bar label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .selector-bar select {
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-weight: 600; background: #fff; color: var(--text);
+  }
+  .selector-bar button {
+    padding: 9px 16px; border-radius: 8px; border: none; background: var(--navy); color: #fff;
+    font-weight: 700; font-size: 13px; cursor: pointer; height: 38px;
+  }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  /* ===== Lembar laporan (dicetak) -- landscape A4 ===== */
+  .sheet {
+    max-width: 297mm; margin: 16px auto; background: #fff; padding: 10mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 12px;
+  }
+  .doc-header .brand img { width: 66px; height: 66px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 18px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .sub { font-size: 10.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+  .info-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+  }
+  .info-cell { padding: 7px 12px; border-right: 1px solid var(--border); }
+  .info-cell:last-child { border-right: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .summary-strip { display: flex; gap: 8px; margin-bottom: 12px; }
+  .summary-box {
+    flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; text-align: center;
+  }
+  .summary-box .label { font-size: 7.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-box .value { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .summary-box .value.ok { color: var(--success); }
+  .summary-box .value.warn { color: #8A6100; }
+  .summary-box .value.bad { color: var(--accent); }
+
+  .prog-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .prog-table th, .prog-table td { border: 1px solid var(--border); text-align: center; padding: 3px 2px; }
+  .prog-table thead th {
+    background: var(--navy-dark); color: #fff; font-size: 7.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.02em; padding: 5px 2px;
+  }
+  .prog-table col.col-no { width: 3%; }
+  .prog-table col.col-item { width: 15%; }
+  .prog-table col.col-freq { width: 7%; }
+  .prog-table col.col-bulan { width: 5.08%; }
+  .prog-table col.col-total { width: 6%; }
+  .prog-table col.col-pct { width: 5%; }
+  .prog-table td.item-name { text-align: left; font-weight: 700; font-size: 9px; padding-left: 6px; }
+  .prog-table td.item-freq { font-size: 7.5px; color: var(--muted); }
+  .prog-table tbody tr.na-row td { color: var(--muted); font-style: italic; background: #FAFAFC; }
+  .prog-table td.cell-bulan { font-size: 7px; line-height: 1.35; white-space: nowrap; }
+  .prog-table td.cell-bulan .r { font-weight: 800; }
+  .prog-table td.cell-bulan .t { color: var(--muted); }
+  .prog-table td.cell-bulan.ok .r { color: var(--success); }
+  .prog-table td.cell-bulan.bad .r { color: var(--accent); }
+  .prog-table td.cell-total { font-weight: 800; font-size: 9px; }
+  .prog-table td.cell-pct { font-weight: 800; font-size: 9px; }
+  .prog-table td.cell-pct.ok { color: var(--success); }
+  .prog-table td.cell-pct.warn { color: #8A6100; }
+  .prog-table td.cell-pct.bad { color: var(--accent); }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 8.5px; color: var(--muted); }
+  .legend span.dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 26px; max-width: 420px; margin-left: auto; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+  .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 4mm 6mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4 landscape; margin: 8mm; }
+  }
+
+  @media screen and (max-width: 900px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 3vw 10mm; overflow-x: auto; }
+    .prog-table { min-width: 900px; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(2) { border-right: none; }
+    .info-cell:nth-child(3), .info-cell:nth-child(4) { border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="hse-program-monitor.html">⬅ Kembali ke Monitor</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, orientasi Landscape, dan aktifkan opsi "Background graphics" biar warna-warnanya ikut kecetak.</div>
+
+<div class="selector-bar no-print">
+  <div class="field">
+    <label>Project / Kontrak</label>
+    <select id="selectProject"><option value="">Memuat...</option></select>
+  </div>
+  <div class="field">
+    <label>Tahun</label>
+    <select id="selectTahun"></select>
+  </div>
+  <button onclick="loadReport()">Tampilkan</button>
+</div>
+
+<div id="loadingState" class="loading">Pilih project &amp; tahun, terus klik Tampilkan.</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan HSE Program &amp; Monitoring</h1>
+      <div class="sub" id="fPeriode"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Project</div>
+      <div class="value" id="fProject"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">No. Kontrak</div>
+      <div class="value" id="fKontrak"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Tahun Program</div>
+      <div class="value" id="fTahun"></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Tanggal Cetak</div>
+      <div class="value" id="fTglCetak"></div>
+    </div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-box">
+      <div class="label">Item Dipakai (Use)</div>
+      <div class="value" id="sumUseCount">0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">Total Target Setahun</div>
+      <div class="value" id="sumTargetTotal">0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">Total Realisasi</div>
+      <div class="value" id="sumRealisasiTotal">0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">% Capaian Keseluruhan</div>
+      <div class="value" id="sumPct">0%</div>
+    </div>
+  </div>
+
+  <table class="prog-table">
+    <colgroup>
+      <col class="col-no"><col class="col-item"><col class="col-freq">
+      <col class="col-bulan"><col class="col-bulan"><col class="col-bulan"><col class="col-bulan">
+      <col class="col-bulan"><col class="col-bulan"><col class="col-bulan"><col class="col-bulan">
+      <col class="col-bulan"><col class="col-bulan"><col class="col-bulan"><col class="col-bulan">
+      <col class="col-total"><col class="col-total"><col class="col-pct">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>No</th><th>Item HSE Program</th><th>Frekuensi</th>
+        <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>Mei</th><th>Jun</th>
+        <th>Jul</th><th>Agu</th><th>Sep</th><th>Okt</th><th>Nov</th><th>Des</th>
+        <th>Target</th><th>Realisasi</th><th>%</th>
+      </tr>
+    </thead>
+    <tbody id="tblBody"></tbody>
+  </table>
+
+  <div class="legend">
+    <div><span class="dot" style="background:var(--success);"></span>Realisasi mencapai/lebih dari target bulan itu</div>
+    <div><span class="dot" style="background:var(--accent);"></span>Realisasi di bawah target bulan itu</div>
+    <div><span class="dot" style="background:var(--muted);"></span>Item Incident/Accident: sifatnya lagging indicator (zero target) -- semakin sedikit semakin baik, tidak dihitung %</div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dibuat Oleh (HSE Officer)</div>
+      <div class="line">&nbsp;</div>
+      <div class="sub">Nama &amp; Tanda Tangan</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Diketahui Oleh (Project Manager)</div>
+      <div class="line">&nbsp;</div>
+      <div class="sub">Nama &amp; Tanda Tangan</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const REVERSED_TARGET_ITEMS = ['INCIDENT'];
+
+  const selectProject = document.getElementById('selectProject');
+  const selectTahun = document.getElementById('selectTahun');
+  let projectMap = {};
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    setupTahunOptions();
+    await loadProjects();
+
+    const params = new URLSearchParams(window.location.search);
+    const pProject = params.get('project_id');
+    const pTahun = params.get('tahun');
+    if (pProject) selectProject.value = pProject;
+    if (pTahun) selectTahun.value = pTahun;
+
+    if (pProject && projectMap[pProject]) {
+      await loadReport();
+    } else {
+      document.getElementById('loadingState').textContent = 'Pilih project & tahun, terus klik Tampilkan.';
+    }
+  });
+
+  function setupTahunOptions() {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 1; y <= now + 2; y++) {
+      opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    }
+    selectTahun.innerHTML = opts;
+  }
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      const projectList = data || [];
+      projectMap = {};
+      projectList.forEach(p => { projectMap[p.id] = p; });
+      selectProject.innerHTML = projectList.length === 0
+        ? '<option value="">Belum ada project aktif</option>'
+        : '<option value="">-- Pilih Project --</option>' +
+          projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+    }
+  }
+
+  function pctClassFor(pct) {
+    return pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : 'bad';
+  }
+
+  async function loadReport() {
+    const projectId = selectProject.value;
+    const tahun = selectTahun.value;
+    const sheet = document.getElementById('sheet');
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+
+    sheet.style.display = 'none';
+    errorState.style.display = 'none';
+
+    if (!projectId) {
+      loadingState.style.display = 'block';
+      loadingState.textContent = 'Pilih project dulu, terus klik Tampilkan.';
+      return;
+    }
+
+    loadingState.style.display = 'block';
+    loadingState.textContent = 'Memuat data laporan...';
+
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_program', {
+        p_project_id: Number(projectId), p_tahun: Number(tahun)
+      });
+      if (error) throw error;
+      const items = data || [];
+      const proj = projectMap[projectId] || {};
+
+      // Update URL biar bisa di-share/bookmark langsung ke laporan project+tahun ini.
+      const newUrl = `${window.location.pathname}?project_id=${projectId}&tahun=${tahun}`;
+      window.history.replaceState({}, '', newUrl);
+
+      document.title = `Laporan HSE Program ${proj.namaProject || ''} ${tahun} — HSSE-Fusion4`;
+      document.getElementById('fProject').innerText = proj.namaProject || '-';
+      document.getElementById('fKontrak').innerText = proj.noKontrak || '-';
+      document.getElementById('fTahun').innerText = tahun;
+      document.getElementById('fPeriode').innerText = `Tahun Program ${tahun}`;
+      document.getElementById('fTglCetak').innerText = formatDateOnly(new Date().toISOString());
+      document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
+
+      renderSummary(items);
+      renderTable(items);
+
+      loadingState.style.display = 'none';
+      sheet.style.display = 'block';
+    } catch (e) {
+      loadingState.style.display = 'none';
+      errorState.style.display = 'block';
+      errorState.innerText = '❌ Gagal memuat data: ' + (e.message || e);
+    }
+  }
+
+  function renderSummary(items) {
+    let useCount = 0, sumTarget = 0, sumRealisasi = 0;
+    items.forEach(item => {
+      if (REVERSED_TARGET_ITEMS.includes(item.kodeItem)) return;
+      if (item.statusPakai !== 'Use') return;
+      useCount++;
+      sumTarget += Number(item.targetTotal) || 0;
+      sumRealisasi += Number(item.realisasiTotal) || 0;
+    });
+    const pct = sumTarget > 0 ? Math.round((sumRealisasi / sumTarget) * 100) : 0;
+    document.getElementById('sumUseCount').textContent = useCount;
+    document.getElementById('sumTargetTotal').textContent = sumTarget;
+    document.getElementById('sumRealisasiTotal').textContent = sumRealisasi;
+    const pctEl = document.getElementById('sumPct');
+    pctEl.textContent = pct + '%';
+    pctEl.className = 'value ' + pctClassFor(pct);
+  }
+
+  function renderTable(items) {
+    const useItems = items.filter(x => x.statusPakai === 'Use');
+    const naItems = items.filter(x => x.statusPakai !== 'Use');
+    const tbody = document.getElementById('tblBody');
+
+    if (useItems.length === 0 && naItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="18" style="padding:16px; color:var(--muted);">Belum ada item HSE Program buat project &amp; tahun ini.</td></tr>`;
+      return;
+    }
+
+    let html = useItems.map((item, idx) => rowHtml(item, idx + 1)).join('');
+    if (naItems.length) {
+      html += naItems.map((item, idx) => naRowHtml(item, useItems.length + idx + 1)).join('');
+    }
+    tbody.innerHTML = html;
+  }
+
+  function rowHtml(item, no) {
+    const isReversed = REVERSED_TARGET_ITEMS.includes(item.kodeItem);
+    const realisasiBulanan = item.realisasiBulanan || {};
+    const targetBulanan = item.targetBulanan || {};
+    const realisasiTotal = item.realisasiTotal || 0;
+    const targetTotal = item.targetTotal || 0;
+
+    const freqLabel = isReversed
+      ? 'Zero target'
+      : (item.frequency ? `${item.frequency}${item.targetQty != null ? ' · ' + item.targetQty + ' ' + (item.satuanTarget || 'kali') : ''}` : 'Manual/bulan');
+
+    const bulanCells = BULAN_LABEL.map((_, idx) => {
+      const bulan = idx + 1;
+      const r = Number(realisasiBulanan[bulan]) || 0;
+      if (isReversed) {
+        const cls = r > 0 ? 'bad' : 'ok';
+        return `<td class="cell-bulan ${cls}"><span class="r">${r}</span></td>`;
+      }
+      const t = Number(targetBulanan[bulan]) || 0;
+      const cls = t === 0 ? (r > 0 ? 'ok' : '') : (r >= t ? 'ok' : 'bad');
+      return `<td class="cell-bulan ${cls}"><span class="r">${r}</span><span class="t">/${t}</span></td>`;
+    }).join('');
+
+    let totalCells, pctCell;
+    if (isReversed) {
+      totalCells = `<td class="cell-total">-</td><td class="cell-total">${realisasiTotal}</td>`;
+      pctCell = `<td class="cell-pct">-</td>`;
+    } else {
+      const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
+      totalCells = `<td class="cell-total">${targetTotal}</td><td class="cell-total">${realisasiTotal}</td>`;
+      pctCell = `<td class="cell-pct ${pctClassFor(pct)}">${pct}%</td>`;
+    }
+
+    return `<tr>
+      <td>${no}</td>
+      <td class="item-name">${escapeHtml(item.namaItem)}</td>
+      <td class="item-freq">${escapeHtml(freqLabel)}</td>
+      ${bulanCells}
+      ${totalCells}
+      ${pctCell}
+    </tr>`;
+  }
+
+  function naRowHtml(item, no) {
+    return `<tr class="na-row">
+      <td>${no}</td>
+      <td class="item-name">${escapeHtml(item.namaItem)}</td>
+      <td class="item-freq" colspan="16">N/A -- item tidak dipakai buat project &amp; tahun ini</td>
+    </tr>`;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  }
+  function formatDateOnly(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+</script>
+
+</body>
+</html>

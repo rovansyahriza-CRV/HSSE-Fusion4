@@ -65,6 +65,11 @@
     padding: 3px 10px; border-radius: 999px; background: #EAF1FD; color: #2A5CCB;
     text-decoration: none; white-space: nowrap; margin-top: 10px;
   }
+  .cetak-pdf-link {
+    display: none; align-items: center; gap: 6px; font-size: 13px; font-weight: 700;
+    padding: 9px 16px; border-radius: 10px; background: var(--navy-dark); color: #fff;
+    text-decoration: none; white-space: nowrap; margin-bottom: 16px;
+  }
 </style>
 </head>
 <body>
@@ -107,6 +112,8 @@
     </div>
   </div>
 
+  <a href="#" id="btnCetakPdf" class="cetak-pdf-link" target="_blank">🖨️ Cetak / Export Laporan PDF</a>
+
   <div class="summary-row" id="summaryRow" style="display:none;">
     <div class="summary-card">
       <div class="label">Item Dipakai (Use)</div>
@@ -142,6 +149,7 @@
   const loadingState = document.getElementById('loadingState');
   const summaryRow = document.getElementById('summaryRow');
   const itemCards = document.getElementById('itemCards');
+  const btnCetakPdf = document.getElementById('btnCetakPdf');
 
   let charts = []; // simpan instance Chart.js biar bisa di-destroy pas reload
   let projectMap = {}; // id -> {tanggalMulaiProject, tanggalSelesaiProject, ...}
@@ -187,12 +195,14 @@
       itemCards.innerHTML = '';
       loadingState.style.display = 'block';
       loadingState.textContent = 'Pilih project dulu buat lihat monitor-nya ya.';
+      btnCetakPdf.style.display = 'none';
       return;
     }
     loadingState.style.display = 'block';
     loadingState.textContent = 'Memuat data...';
     summaryRow.style.display = 'none';
     itemCards.innerHTML = '';
+    btnCetakPdf.style.display = 'none';
     try {
       const { data, error } = await supabaseClient.rpc('get_hse_program', {
         p_project_id: Number(projectId), p_tahun: Number(tahun)
@@ -203,6 +213,8 @@
       renderCards(items);
       loadingState.style.display = 'none';
       summaryRow.style.display = 'flex';
+      btnCetakPdf.href = `hse-program-pdf.html?project_id=${projectId}&tahun=${tahun}`;
+      btnCetakPdf.style.display = 'inline-flex';
     } catch (e) {
       loadingState.textContent = 'Gagal memuat data: ' + (e.message || e);
     }
