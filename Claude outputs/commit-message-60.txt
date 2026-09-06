@@ -1,0 +1,22 @@
+Tambah Penilaian Risiko (HIRARC) di JSA -- Permit to Work
+
+- sql/040_jsa_risk_assessment.sql: tambah 4 kolom skor risiko (Likelihood/
+  Severity, Awal & Sisa) di ptwJsaTemplateTbl, isi estimasi wajar utk 21
+  baris template yang sudah ada, dan update get_ptw_jsa_template() biar
+  ikut balikin skornya. ptwTbl.JsaItems tetap JSONB bebas bentuk, gak
+  perlu ALTER -- field baru otomatis kesimpen krn submit_ptw sudah
+  passthrough JSONB apa adanya.
+- ptw-report.html: tiap baris JSA sekarang ada 2 blok Penilaian Risiko
+  (sebelum & sesudah pengendalian) -- dropdown Kemungkinan x Keparahan
+  (skala 1-5) dengan badge Tingkat Risiko (Rendah/Sedang/Tinggi/Ekstrem)
+  yang otomatis kehitung & warnanya berubah. Prefill dari template ikut
+  bawa skor risikonya, tetap bisa diedit manual sesuai kondisi lapangan.
+- ptw-pdf.html: tabel JSA di laporan cetak nambah 2 kolom (Risiko Awal,
+  Risiko Sisa) dengan badge warna senada. JSA lama (sebelum fitur ini
+  ada) tetap tampil rapi dengan tanda "-" di kolom risiko.
+- Matriks skor -> Tingkat Risiko (5x5 standar HIRARC) ditanam di kode,
+  belum jadi master table -- gampang diubah ke configurable nanti kalau
+  perlu.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

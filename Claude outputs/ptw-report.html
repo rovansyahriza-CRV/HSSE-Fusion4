@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permit to Work — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  select, input, textarea {
+    width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: inherit; font-size: 13.5px; background: var(--surface); color: var(--text);
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .form-row > * { flex: 1; min-width: 140px; }
+  .btn-block {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  #formBody { display: none; }
+  #hazardArea, #jsaArea { display: none; }
+
+  /* ===== Jenis Pekerjaan -- combobox multi-pilih bisa dicari (dynamic filter) ===== */
+  .searchable-select { position: relative; }
+  .searchable-select-input-row { position: relative; }
+  .searchable-select input[type="text"] { padding-right: 34px; }
+  .searchable-select input[type="text"]:disabled { background: var(--bg); color: var(--muted); }
+  .searchable-select-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border: none; background: var(--bg); border-radius: 999px;
+    color: var(--muted); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .jenis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .jenis-chips:empty { display: none; }
+  .jenis-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: #EEF2FC; color: var(--navy-dark);
+    border: 1px solid #CFD9F5; border-radius: 999px; padding: 5px 8px 5px 12px; font-size: 12.5px; font-weight: 700;
+  }
+  .jenis-chip button {
+    border: none; background: rgba(45,60,115,0.14); color: var(--navy-dark); width: 18px; height: 18px; border-radius: 50%;
+    font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .hazard-group-title {
+    font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase; letter-spacing: 0.04em;
+    margin: 14px 0 4px; padding-top: 10px; border-top: 1px dashed var(--border);
+  }
+  .hazard-group-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .searchable-select-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    max-height: 260px; overflow-y: auto; box-shadow: 0 8px 24px rgba(20,25,50,0.14);
+  }
+  .searchable-select-dropdown.open { display: block; }
+  .searchable-select-option {
+    padding: 11px 14px; font-size: 13.5px; cursor: pointer; border-bottom: 1px solid var(--border);
+  }
+  .searchable-select-option:last-child { border-bottom: none; }
+  .searchable-select-option:hover, .searchable-select-option.highlight { background: var(--bg); }
+  .searchable-select-option.selected { background: #EEF2FC; font-weight: 700; color: var(--navy-dark); }
+  .searchable-select-empty { padding: 14px; font-size: 12.5px; color: var(--muted); text-align: center; }
+
+  /* ===== JSA table (dinamis, tambah baris) ===== */
+  .jsa-row { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative; }
+  .jsa-row-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .jsa-row textarea { min-height: 46px; font-size: 12.5px; margin-bottom: 6px; }
+  .jsa-row textarea:last-child { margin-bottom: 0; }
+  .jsa-row .jsa-mini-label { font-size: 10.5px; font-weight: 700; color: var(--muted); margin-bottom: 3px; display: block; }
+  .btn-remove-row {
+    position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: #FCEAE8; color: var(--accent); font-weight: 800; font-size: 13px; cursor: pointer;
+  }
+  .btn-add-row {
+    width: 100%; padding: 10px; border: 1.5px dashed var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
+  }
+
+  /* ===== Penilaian Risiko per baris JSA (HIRARC -- Kemungkinan x Keparahan) ===== */
+  .jsa-risk-block { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .jsa-risk-group { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  .jsa-risk-group-title { font-size: 10.5px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .jsa-risk-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .jsa-risk-field { flex: 1; min-width: 120px; }
+  .jsa-risk-field select { padding: 8px 9px; font-size: 12px; }
+  .jsa-risk-badge-wrap { flex: 0 0 auto; min-width: 90px; text-align: center; }
+  .risk-badge {
+    display: inline-block; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .risk-badge.risk-rendah { background: var(--success-bg); color: var(--success); }
+  .risk-badge.risk-sedang { background: #FDF3E3; color: var(--safety-yellow); }
+  .risk-badge.risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-badge.risk-ekstrem { background: #FCEAE8; color: var(--accent); }
+
+  /* ===== Hazard checklist (checkbox per item) ===== */
+  .hazard-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .hazard-item:last-child { border-bottom: none; }
+  .hazard-item input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; accent-color: var(--success); }
+  .hazard-item-body { flex: 1; }
+  .hazard-item-label { font-size: 13px; font-weight: 600; }
+  .hazard-item input[type="text"] { margin-top: 6px; font-size: 12px; padding: 7px 10px; }
+
+  /* ===== Lampiran dokumen pendukung (foto/PDF, jumlah bebas) ===== */
+  .lampiran-item {
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1.5px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px; font-size: 12.5px; background: var(--surface);
+  }
+  .lampiran-item .lampiran-icon { font-size: 17px; flex-shrink: 0; }
+  .lampiran-item .lampiran-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .lampiran-item .lampiran-remove {
+    border: none; background: #FCEAE8; color: var(--accent); width: 24px; height: 24px; border-radius: 50%;
+    font-weight: 800; font-size: 12px; cursor: pointer; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page" style="max-width:520px;">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Permit to Work</h1>
+      </div>
+    </div>
+    <p>Izin kerja + JSA (Job Safety Analysis) jadi satu form. Diajukan Requester, direview HSE Officer, disetujui Area Authority.</p>
+  </div>
+
+  <div id="statusMsg" class="status-msg"></div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Identifikasi Requester</h2>
+    <p style="margin-bottom:10px;">Scan QR badge, wajah, atau input PIN kamu. Form ini butuh detail teknis izin kerja &amp; JSA, jadi cuma yang punya izin Author <b>"Permit &amp; JSA"</b> yang bisa lanjut isi.</p>
+
+    <div class="id-gate-buttons" id="idGateButtons">
+      <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
+      <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+      <button type="button" id="btnIdUsePin">🔢 Input PIN</button>
+    </div>
+
+    <div class="cam-wrap" id="idCamWrap">
+      <video id="idVideo" autoplay muted playsinline></video>
+      <canvas id="idCanvas" style="display:none;"></canvas>
+      <div class="cam-face-oval" id="idFaceOval"></div>
+      <div class="cam-qr-box" id="idQrBox"></div>
+    </div>
+    <div id="idCamStatus" class="status-msg"></div>
+    <button type="button" id="btnIdScanFace" class="btn-block btn-primary" style="display:none; margin-bottom:8px;">📸 Scan Wajah</button>
+    <button type="button" id="btnIdSwitchCam" class="btn-block" style="display:none; background:var(--bg); color:var(--text); margin-bottom:8px;">🔄 Ganti Kamera</button>
+
+    <form class="id-pin-form" id="idPinForm" onsubmit="return false;">
+      <input type="password" inputmode="numeric" id="idPinInput" placeholder="Masukkan PIN">
+      <button type="button" class="btn-block btn-primary" id="btnIdPinSubmit">Verifikasi PIN</button>
+      <button type="button" class="id-pin-cancel" id="btnIdPinCancel">Batal</button>
+    </form>
+
+    <div class="id-result-banner" id="idResultBanner">
+      <span class="id-name">✅ <span id="idName"></span></span>
+      <button type="button" onclick="resetIdentification()">Ganti</button>
+    </div>
+  </div>
+
+  <div id="formBody">
+
+  <div class="card">
+    <div class="form-group">
+      <label for="jenisPekerjaanInput">Jenis Pekerjaan (bisa pilih lebih dari satu)</label>
+      <div class="searchable-select" id="jenisPekerjaanBox">
+        <div class="jenis-chips" id="jenisChips"></div>
+        <div class="searchable-select-input-row">
+          <input type="text" id="jenisPekerjaanInput" placeholder="Memuat daftar jenis pekerjaan..." autocomplete="off" disabled
+            oninput="onJenisPekerjaanSearch()" onfocus="openJenisPekerjaanDropdown()" onkeydown="onJenisPekerjaanKeydown(event)">
+          <button type="button" class="searchable-select-clear" id="btnClearJenis" onclick="clearAllJenisPekerjaan()" style="display:none;" title="Hapus semua pilihan">✕</button>
+        </div>
+        <div class="searchable-select-dropdown" id="jenisPekerjaanDropdown"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="txtWoNo">No. WO / Work Order (opsional)</label>
+      <input type="text" id="txtWoNo" placeholder="Contoh: WO-2026-00123">
+    </div>
+
+    <div class="form-group">
+      <label for="selectProject">Project / Kontrak</label>
+      <select id="selectProject">
+        <option value="">-- Memuat daftar project... --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="txtLokasi">Lokasi / Area Kerja</label>
+      <input type="text" id="txtLokasi" placeholder="Contoh: Area Wellpad-3, dekat separator">
+    </div>
+
+    <div class="form-group">
+      <label for="txtDeskripsi">Deskripsi Pekerjaan</label>
+      <textarea id="txtDeskripsi" placeholder="Jelaskan pekerjaan yang akan dilakukan..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="txtAlat">Alat yang Dipakai (opsional)</label>
+      <input type="text" id="txtAlat" placeholder="Contoh: Mesin las, gerinda, tangga lipat">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="numJumlahPekerja">Jumlah Pekerja (opsional)</label>
+        <input type="number" id="numJumlahPekerja" min="1" placeholder="Misal: 4">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="dtMulai">Rencana Mulai Kerja</label>
+        <input type="datetime-local" id="dtMulai">
+      </div>
+      <div class="form-group">
+        <label for="dtSelesai">Rencana Selesai Kerja</label>
+        <input type="datetime-local" id="dtSelesai">
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="jsaArea">
+    <h2 style="margin-bottom:4px;" id="jsaTitle">JSA -- Job Safety Analysis</h2>
+    <p style="margin-bottom:12px;" id="jsaHint">Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.</p>
+    <div id="jsaRows"></div>
+    <button type="button" class="btn-add-row" onclick="addJsaRow()">+ Tambah Langkah Kerja</button>
+  </div>
+
+  <div class="card" id="hazardArea">
+    <h2 style="margin-bottom:4px;" id="hazardTitle">Hazard Checklist</h2>
+    <p style="margin-bottom:10px;">Konfirmasi semua pengendalian di bawah sudah terpenuhi sebelum kerja dimulai.</p>
+    <div id="hazardBody">Memuat checklist...</div>
+  </div>
+
+  <div class="card" id="fotoArea" style="display:none;">
+    <div class="form-group">
+      <label>Foto Lampiran (opsional, bisa sampai 3)</label>
+      <div class="photo-slots">
+        <div class="photo-slot" id="slot0">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 0)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(0, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot1">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 1)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(1, event)">✕</button>
+        </div>
+        <div class="photo-slot" id="slot2">
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoSlot(event, 2)">
+          <div class="slot-placeholder">📷</div>
+          <img class="slot-preview">
+          <button type="button" class="slot-remove" onclick="removePhotoSlot(2, event)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Lampiran Dokumen Pendukung (opsional -- Surat WO, Prosedur Kerja/SOP, dst. Foto atau PDF, bisa lebih dari satu)</label>
+      <div id="lampiranList"></div>
+      <label for="inputLampiran" class="btn-add-row" style="display:block; text-align:center;">+ Tambah Lampiran (Foto / PDF)</label>
+      <input type="file" id="inputLampiran" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleLampiranPicked(event)">
+    </div>
+
+    <button type="button" id="btnSubmit" class="btn-block btn-primary" onclick="submitPtw()">
+      <span>📤 Ajukan Permit</span>
+    </button>
+  </div>
+
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+
+  let photoSlots = [null, null, null];
+  let projectList = [];
+  let jenisPekerjaanList = [];
+  let selectedJenisList = []; // bisa lebih dari 1 Jenis Pekerjaan per permit
+  let jenisPekerjaanFiltered = [];
+  let jenisPekerjaanHighlight = -1;
+  let hazardTemplate = []; // [{id, item, jenis}]
+  let hazardState = {}; // { itemId: { item, terpenuhi, keterangan } }
+  let jsaRowCount = 0;
+  let jsaTemplate = []; // [{langkah, bahaya, pengendalian}] -- contoh generik per Jenis Pekerjaan
+  let lampiranFiles = []; // [{ id, file }] -- dokumen pendukung (foto/PDF), jumlah bebas (dibatasi MAX_LAMPIRAN)
+  let lampiranIdCounter = 0;
+  const MAX_LAMPIRAN = 5;
+
+  const statusMsg = document.getElementById('statusMsg');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const selectProject = document.getElementById('selectProject');
+  const jenisPekerjaanBox = document.getElementById('jenisPekerjaanBox');
+  const jenisPekerjaanInput = document.getElementById('jenisPekerjaanInput');
+  const jenisPekerjaanDropdown = document.getElementById('jenisPekerjaanDropdown');
+  const jenisChips = document.getElementById('jenisChips');
+  const btnClearJenis = document.getElementById('btnClearJenis');
+  const formBody = document.getElementById('formBody');
+  const jsaArea = document.getElementById('jsaArea');
+  const jsaRows = document.getElementById('jsaRows');
+  const hazardArea = document.getElementById('hazardArea');
+  const hazardBody = document.getElementById('hazardBody');
+  const fotoArea = document.getElementById('fotoArea');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([loadProjects(), loadJenisPekerjaan()]);
+    // Baris JSA baru diisi setelah Jenis Pekerjaan dipilih (lihat onJenisPekerjaanChange) --
+    // biar bisa auto-terisi contoh generik sesuai jenis pekerjaannya.
+  });
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+      if (projectList.length === 0) {
+        selectProject.innerHTML = '<option value="">Belum ada project aktif -- hubungi admin</option>';
+        return;
+      }
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+      setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');
+    }
+  }
+
+  async function loadJenisPekerjaan() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_jenis_pekerjaan_list');
+      if (error) throw error;
+      jenisPekerjaanList = data || [];
+      if (jenisPekerjaanList.length === 0) {
+        jenisPekerjaanInput.placeholder = 'Belum ada jenis pekerjaan -- hubungi admin';
+        return;
+      }
+      jenisPekerjaanInput.placeholder = 'Cari / pilih Jenis Pekerjaan...';
+      jenisPekerjaanInput.disabled = false;
+    } catch (e) {
+      jenisPekerjaanInput.placeholder = 'Gagal memuat jenis pekerjaan';
+      setStatus('❌ Gagal memuat jenis pekerjaan: ' + e.message, 'error');
+    }
+  }
+
+  // ===== Jenis Pekerjaan -- combobox multi-pilih + pencarian (dynamic filter) =====
+  // Daftar Jenis Pekerjaan makin banyak (16+), jadi dropdown biasa diganti input yang
+  // bisa diketik buat nyaring list-nya. Bisa pilih lebih dari satu (kerjaan gabungan,
+  // misal ngelas di atas scaffolding yang di ketinggian) -- Hazard Checklist & contoh
+  // JSA dari SEMUA jenis yang dipilih otomatis digabung jadi satu form.
+  function renderJenisPekerjaanOptions(filterText) {
+    const filter = (filterText || '').trim().toLowerCase();
+    const available = jenisPekerjaanList.filter(j => !selectedJenisList.includes(j));
+    jenisPekerjaanFiltered = filter ? available.filter(j => j.toLowerCase().includes(filter)) : available;
+    jenisPekerjaanHighlight = jenisPekerjaanFiltered.length > 0 ? 0 : -1;
+    renderJenisPekerjaanDropdown();
+  }
+
+  function renderJenisPekerjaanDropdown() {
+    if (jenisPekerjaanFiltered.length === 0) {
+      const msg = jenisPekerjaanList.length > 0 && jenisPekerjaanList.length === selectedJenisList.length
+        ? 'Semua Jenis Pekerjaan udah dipilih.'
+        : 'Gak ketemu -- coba kata kunci lain.';
+      jenisPekerjaanDropdown.innerHTML = `<div class="searchable-select-empty">${msg}</div>`;
+      return;
+    }
+    jenisPekerjaanDropdown.innerHTML = jenisPekerjaanFiltered.map((j, i) => `
+      <div class="searchable-select-option${i === jenisPekerjaanHighlight ? ' highlight' : ''}"
+        data-jenis="${escapeHtml(j)}">${escapeHtml(j)}</div>
+    `).join('');
+  }
+
+  jenisPekerjaanDropdown.addEventListener('click', (e) => {
+    const opt = e.target.closest('.searchable-select-option[data-jenis]');
+    if (!opt) return;
+    addJenisPekerjaan(opt.dataset.jenis);
+  });
+
+  jenisChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-remove-jenis]');
+    if (!btn) return;
+    removeJenisPekerjaan(btn.dataset.removeJenis);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (jenisPekerjaanBox.contains(e.target)) return;
+    jenisPekerjaanDropdown.classList.remove('open');
+    jenisPekerjaanInput.value = ''; // buang ketikan yang belum dipilih
+  });
+
+  function openJenisPekerjaanDropdown() {
+    if (jenisPekerjaanList.length === 0) return;
+    renderJenisPekerjaanOptions(jenisPekerjaanInput.value);
+    jenisPekerjaanDropdown.classList.add('open');
+  }
+
+  function onJenisPekerjaanSearch() {
+    renderJenisPekerjaanOptions(jenisPekerjaanInput.value);
+    jenisPekerjaanDropdown.classList.add('open');
+  }
+
+  function onJenisPekerjaanKeydown(e) {
+    if (e.key === 'Backspace' && jenisPekerjaanInput.value === '' && selectedJenisList.length > 0) {
+      removeJenisPekerjaan(selectedJenisList[selectedJenisList.length - 1]);
+      return;
+    }
+    if (!jenisPekerjaanDropdown.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (jenisPekerjaanFiltered.length === 0) return;
+      jenisPekerjaanHighlight = (jenisPekerjaanHighlight + 1) % jenisPekerjaanFiltered.length;
+      renderJenisPekerjaanDropdown();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (jenisPekerjaanFiltered.length === 0) return;
+      jenisPekerjaanHighlight = (jenisPekerjaanHighlight - 1 + jenisPekerjaanFiltered.length) % jenisPekerjaanFiltered.length;
+      renderJenisPekerjaanDropdown();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (jenisPekerjaanHighlight >= 0 && jenisPekerjaanFiltered[jenisPekerjaanHighlight]) {
+        addJenisPekerjaan(jenisPekerjaanFiltered[jenisPekerjaanHighlight]);
+      }
+    } else if (e.key === 'Escape') {
+      jenisPekerjaanDropdown.classList.remove('open');
+      jenisPekerjaanInput.value = '';
+      jenisPekerjaanInput.blur();
+    }
+  }
+
+  function renderJenisPekerjaanChips() {
+    jenisChips.innerHTML = selectedJenisList.map(j => `
+      <span class="jenis-chip">${escapeHtml(j)}<button type="button" data-remove-jenis="${escapeHtml(j)}">✕</button></span>
+    `).join('');
+    btnClearJenis.style.display = selectedJenisList.length > 0 ? 'flex' : 'none';
+  }
+
+  function addJenisPekerjaan(jenis) {
+    if (!selectedJenisList.includes(jenis)) selectedJenisList.push(jenis);
+    jenisPekerjaanInput.value = '';
+    renderJenisPekerjaanChips();
+    renderJenisPekerjaanOptions(''); // refresh sisa opsi yang belum dipilih, dropdown tetap kebuka biar enak nambah lagi
+    jenisPekerjaanInput.focus();
+    onJenisPekerjaanChange();
+  }
+
+  function removeJenisPekerjaan(jenis) {
+    selectedJenisList = selectedJenisList.filter(j => j !== jenis);
+    renderJenisPekerjaanChips();
+    onJenisPekerjaanChange();
+  }
+
+  function clearAllJenisPekerjaan() {
+    selectedJenisList = [];
+    jenisPekerjaanInput.value = '';
+    renderJenisPekerjaanChips();
+    onJenisPekerjaanChange();
+  }
+
+  async function onJenisPekerjaanChange() {
+    if (selectedJenisList.length === 0) {
+      hazardArea.style.display = 'none';
+      jsaArea.style.display = 'none';
+      fotoArea.style.display = 'none';
+      return;
+    }
+    const gabungan = selectedJenisList.join(', ');
+    jsaArea.style.display = 'block';
+    hazardArea.style.display = 'block';
+    hazardBody.innerHTML = 'Memuat checklist...';
+    document.getElementById('hazardTitle').innerText = `Hazard Checklist -- ${gabungan}`;
+    hazardState = {};
+
+    await Promise.all([loadJsaTemplate(selectedJenisList), loadHazardTemplate(selectedJenisList)]);
+    fotoArea.style.display = 'block';
+  }
+
+  // Ambil Hazard Checklist buat SETIAP Jenis Pekerjaan yang dipilih, lalu digabung jadi
+  // 1 checklist (dikelompokkan per jenis biar jelas asalnya). Id item unik se-tabel jadi
+  // aman digabung tanpa bentrok.
+  async function loadHazardTemplate(jenisArr) {
+    try {
+      const results = await Promise.all(jenisArr.map(j =>
+        supabaseClient.rpc('get_ptw_hazard_checklist_template', { p_jenis_pekerjaan: j })
+          .then(r => ({ jenis: j, data: r.data, error: r.error }))
+      ));
+      hazardTemplate = [];
+      results.forEach(r => {
+        if (r.error) throw r.error;
+        (r.data || []).forEach(it => hazardTemplate.push({ id: it.id, item: it.item, jenis: r.jenis }));
+      });
+      if (hazardTemplate.length === 0) {
+        hazardBody.innerHTML = '<p style="color:var(--muted); font-size:13px;">Belum ada checklist buat jenis pekerjaan yang dipilih -- hubungi admin.</p>';
+        return;
+      }
+      hazardTemplate.forEach(it => {
+        hazardState[it.id] = { item: it.item, terpenuhi: false, keterangan: '' };
+      });
+      renderHazardChecklist();
+    } catch (e) {
+      hazardBody.innerHTML = '';
+      setStatus('❌ Gagal memuat hazard checklist: ' + e.message, 'error');
+    }
+  }
+
+  // JSA -- ambil contoh generik (Langkah Kerja / Bahaya / Pengendalian) buat SETIAP Jenis
+  // Pekerjaan yang dipilih, dari tabel master "ptwJsaTemplateTbl" (bisa diedit/ditambah
+  // lewat Table Editor Supabase), digabung jadi satu daftar baris JSA.
+  // Tetap bisa diedit/ditambah/dihapus manual di form -- cuma titik awal biar gak dari nol.
+  async function loadJsaTemplate(jenisArr) {
+    const gabungan = jenisArr.join(', ');
+    document.getElementById('jsaTitle').innerText = `JSA -- Job Safety Analysis -- ${gabungan}`;
+    jsaRows.innerHTML = '';
+    jsaRowCount = 0;
+    jsaTemplate = [];
+    try {
+      const results = await Promise.all(jenisArr.map(j =>
+        supabaseClient.rpc('get_ptw_jsa_template', { p_jenis_pekerjaan: j })
+          .then(r => ({ data: r.data, error: r.error }))
+      ));
+      results.forEach(r => {
+        if (r.error) throw r.error;
+        jsaTemplate.push(...(r.data || []));
+      });
+      if (jsaTemplate.length > 0) {
+        jsaTemplate.forEach(it => addJsaRow(it));
+        document.getElementById('jsaHint').innerHTML = `Contoh langkah kerja umum buat <b>${escapeHtml(gabungan)}</b> udah keisi otomatis -- edit, tambah, atau hapus baris sesuai kondisi kerja yang sebenarnya.`;
+        return;
+      }
+    } catch (e) {
+      setStatus('❌ Gagal memuat contoh JSA: ' + e.message, 'error');
+    }
+    // Belum ada template buat jenis-jenis ini (atau gagal ambil) -- mulai dari 1 baris kosong seperti biasa.
+    document.getElementById('jsaHint').innerText = 'Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.';
+    addJsaRow();
+  }
+
+  function renderHazardChecklist() {
+    let lastJenis = null;
+    hazardBody.innerHTML = hazardTemplate.map(it => {
+      let header = '';
+      if (it.jenis !== lastJenis) {
+        header = `<div class="hazard-group-title">${escapeHtml(it.jenis)}</div>`;
+        lastJenis = it.jenis;
+      }
+      return `${header}
+      <div class="hazard-item">
+        <input type="checkbox" id="hazard-check-${it.id}" onchange="setHazardTerpenuhi(${it.id}, this.checked)">
+        <div class="hazard-item-body">
+          <label class="hazard-item-label" for="hazard-check-${it.id}">${escapeHtml(it.item)}</label>
+          <input type="text" placeholder="Keterangan (opsional)" oninput="setHazardKeterangan(${it.id}, this.value)">
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function setHazardTerpenuhi(itemId, checked) {
+    hazardState[itemId].terpenuhi = checked;
+  }
+  function setHazardKeterangan(itemId, val) {
+    hazardState[itemId].keterangan = val;
+  }
+
+  // =====================================================================================
+  // JSA -- tabel dinamis, tambah/hapus baris Langkah Kerja / Bahaya / Pengendalian
+  // + Penilaian Risiko (HIRARC: Kemungkinan x Keparahan, skala 1-5, dihitung 2x --
+  //   sebelum & sesudah pengendalian). Matriks skor -> Tingkat Risiko ditanam di kode
+  //   (lihat getRiskLevel) -- disepakati simpel dulu, bisa diubah kalau nanti perlu
+  //   configurable lewat master table.
+  // =====================================================================================
+  const LIKELIHOOD_LABELS = {
+    1: 'Hampir Tidak Mungkin', 2: 'Jarang Terjadi', 3: 'Kadang Terjadi',
+    4: 'Sering Terjadi', 5: 'Hampir Pasti Terjadi'
+  };
+  const SEVERITY_LABELS = {
+    1: 'Tidak Signifikan', 2: 'Kecil (P3K)', 3: 'Sedang (Medis)',
+    4: 'Berat (Cacat)', 5: 'Fatal'
+  };
+
+  function riskSelectOptions(labels, selected) {
+    return Object.keys(labels).map(k =>
+      `<option value="${k}" ${Number(selected) === Number(k) ? 'selected' : ''}>${k} - ${labels[k]}</option>`
+    ).join('');
+  }
+
+  function getRiskLevel(likelihood, severity) {
+    const score = Number(likelihood) * Number(severity);
+    if (score <= 4) return { label: 'Rendah', cls: 'risk-rendah' };
+    if (score <= 9) return { label: 'Sedang', cls: 'risk-sedang' };
+    if (score <= 15) return { label: 'Tinggi', cls: 'risk-tinggi' };
+    return { label: 'Ekstrem', cls: 'risk-ekstrem' };
+  }
+
+  function updateJsaRiskBadge(rowId, phase) {
+    const l = document.getElementById(`jsa-l${phase}-${rowId}`).value;
+    const s = document.getElementById(`jsa-s${phase}-${rowId}`).value;
+    const badge = document.getElementById(`jsa-badge-${phase}-${rowId}`);
+    const risk = getRiskLevel(l, s);
+    badge.textContent = `${risk.label} (${l}x${s}=${l * s})`;
+    badge.className = `risk-badge ${risk.cls}`;
+  }
+
+  function addJsaRow(prefill) {
+    const rowId = jsaRowCount++;
+    const div = document.createElement('div');
+    div.className = 'jsa-row';
+    div.id = `jsa-row-${rowId}`;
+    const lAwal = prefill?.likelihoodAwal || 1, sAwal = prefill?.severityAwal || 1;
+    const lSisa = prefill?.likelihoodSisa || 1, sSisa = prefill?.severitySisa || 1;
+    div.innerHTML = `
+      <div class="jsa-row-label">Langkah ${jsaRows.children.length + 1}</div>
+      <button type="button" class="btn-remove-row" onclick="removeJsaRow(${rowId})">✕</button>
+      <span class="jsa-mini-label">Langkah Kerja</span>
+      <textarea id="jsa-langkah-${rowId}" placeholder="Uraikan langkah kerjanya..."></textarea>
+      <span class="jsa-mini-label">Potensi Bahaya</span>
+      <textarea id="jsa-bahaya-${rowId}" placeholder="Bahaya yang mungkin timbul di langkah ini..."></textarea>
+      <span class="jsa-mini-label">Pengendalian Risiko</span>
+      <textarea id="jsa-pengendalian-${rowId}" placeholder="Cara mengendalikan bahaya tersebut..."></textarea>
+      <div class="jsa-risk-block">
+        <div class="jsa-risk-group">
+          <div class="jsa-risk-group-title">Penilaian Risiko Awal (sebelum pengendalian)</div>
+          <div class="jsa-risk-row">
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Kemungkinan</span>
+              <select id="jsa-lawal-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'awal')">${riskSelectOptions(LIKELIHOOD_LABELS, lAwal)}</select>
+            </div>
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Keparahan</span>
+              <select id="jsa-sawal-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'awal')">${riskSelectOptions(SEVERITY_LABELS, sAwal)}</select>
+            </div>
+            <div class="jsa-risk-badge-wrap">
+              <span class="jsa-mini-label">Tingkat Risiko</span>
+              <span class="risk-badge" id="jsa-badge-awal-${rowId}">-</span>
+            </div>
+          </div>
+        </div>
+        <div class="jsa-risk-group">
+          <div class="jsa-risk-group-title">Penilaian Risiko Sisa (sesudah pengendalian)</div>
+          <div class="jsa-risk-row">
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Kemungkinan</span>
+              <select id="jsa-lsisa-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'sisa')">${riskSelectOptions(LIKELIHOOD_LABELS, lSisa)}</select>
+            </div>
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Keparahan</span>
+              <select id="jsa-ssisa-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'sisa')">${riskSelectOptions(SEVERITY_LABELS, sSisa)}</select>
+            </div>
+            <div class="jsa-risk-badge-wrap">
+              <span class="jsa-mini-label">Tingkat Risiko</span>
+              <span class="risk-badge" id="jsa-badge-sisa-${rowId}">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    jsaRows.appendChild(div);
+    if (prefill) {
+      div.querySelector(`#jsa-langkah-${rowId}`).value = prefill.langkah || '';
+      div.querySelector(`#jsa-bahaya-${rowId}`).value = prefill.bahaya || '';
+      div.querySelector(`#jsa-pengendalian-${rowId}`).value = prefill.pengendalian || '';
+    }
+    updateJsaRiskBadge(rowId, 'awal');
+    updateJsaRiskBadge(rowId, 'sisa');
+  }
+
+  function removeJsaRow(rowId) {
+    const el = document.getElementById(`jsa-row-${rowId}`);
+    if (!el) return;
+    if (jsaRows.children.length <= 1) return alert('Minimal harus ada 1 langkah kerja di JSA.');
+    el.remove();
+    // Renumber label "Langkah N" biar urut.
+    Array.from(jsaRows.children).forEach((row, i) => {
+      row.querySelector('.jsa-row-label').innerText = `Langkah ${i + 1}`;
+    });
+  }
+
+  function collectJsaItems() {
+    return Array.from(jsaRows.children).map(row => {
+      const rowId = row.id.replace('jsa-row-', '');
+      return {
+        langkah: document.getElementById(`jsa-langkah-${rowId}`).value.trim(),
+        bahaya: document.getElementById(`jsa-bahaya-${rowId}`).value.trim(),
+        pengendalian: document.getElementById(`jsa-pengendalian-${rowId}`).value.trim(),
+        likelihoodAwal: Number(document.getElementById(`jsa-lawal-${rowId}`).value),
+        severityAwal: Number(document.getElementById(`jsa-sawal-${rowId}`).value),
+        likelihoodSisa: Number(document.getElementById(`jsa-lsisa-${rowId}`).value),
+        severitySisa: Number(document.getElementById(`jsa-ssisa-${rowId}`).value),
+      };
+    });
+  }
+
+  function handlePhotoSlot(event, idx) {
+    const file = event.target.files[0];
+    if (!file) return;
+    photoSlots[idx] = file;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removePhotoSlot(idx, evt) {
+    if (evt) evt.stopPropagation();
+    photoSlots[idx] = null;
+    const slotEl = document.getElementById('slot' + idx);
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  // =====================================================================================
+  // LAMPIRAN DOKUMEN PENDUKUNG -- foto ATAU PDF, jumlah bebas (dibatasi MAX_LAMPIRAN).
+  // Beda dari "Foto Lampiran" di atas (3 slot, khusus dokumentasi kondisi lapangan) --
+  // ini buat Surat WO, Prosedur Kerja/SOP, dst.
+  // =====================================================================================
+  function handleLampiranPicked(event) {
+    const files = Array.from(event.target.files || []);
+    for (const file of files) {
+      if (lampiranFiles.length >= MAX_LAMPIRAN) {
+        setStatus(`⚠️ Maksimal ${MAX_LAMPIRAN} lampiran.`, 'error');
+        break;
+      }
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isImage = file.type.startsWith('image/');
+      if (!isPdf && !isImage) {
+        setStatus(`⚠️ "${file.name}" dilewati -- cuma foto atau PDF yang bisa diupload.`, 'error');
+        continue;
+      }
+      lampiranFiles.push({ id: lampiranIdCounter++, file });
+    }
+    event.target.value = '';
+    renderLampiranList();
+  }
+
+  function removeLampiran(id) {
+    lampiranFiles = lampiranFiles.filter(l => l.id !== id);
+    renderLampiranList();
+  }
+
+  function renderLampiranList() {
+    const listEl = document.getElementById('lampiranList');
+    listEl.innerHTML = lampiranFiles.map(l => {
+      const isPdf = l.file.type === 'application/pdf' || l.file.name.toLowerCase().endsWith('.pdf');
+      return `
+        <div class="lampiran-item">
+          <span class="lampiran-icon">${isPdf ? '📄' : '🖼️'}</span>
+          <span class="lampiran-name">${escapeHtml(l.file.name)}</span>
+          <button type="button" class="lampiran-remove" onclick="removeLampiran(${l.id})">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function setStatus(text, kind) {
+    statusMsg.className = 'status-msg ' + (kind || 'info');
+    statusMsg.innerText = text;
+    statusMsg.style.display = 'block';
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // =====================================================================================
+  // IDENTIFIKASI REQUESTER -- pola sama persis dengan form lain di HSSE-Fusion4.
+  // =====================================================================================
+  const FACE_MATCH_THRESHOLD = 0.45;
+  const FACE_AMBIGUITY_MARGIN = 0.12;
+  const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
+  // Cuma yang punya izin Author ini yang boleh isi/ajukan Permit to Work & JSA --
+  // form ini butuh pemahaman teknis, gak sembarangan orang.
+  const REQUIRED_TAG = 'Permit & JSA';
+
+  let identifiedNama = null;
+  let identifiedQrCodeId = null;
+  let idFacingMode = "environment";
+  let idQrScanning = false;
+  let idFaceModelsLoaded = false;
+  let allFaceDataCache = null;
+
+  const idGateButtons = document.getElementById('idGateButtons');
+  const idCamWrap = document.getElementById('idCamWrap');
+  const idVideo = document.getElementById('idVideo');
+  const idCanvas = document.getElementById('idCanvas');
+  const idFaceOval = document.getElementById('idFaceOval');
+  const idQrBox = document.getElementById('idQrBox');
+  const idCamStatus = document.getElementById('idCamStatus');
+  const btnIdScanFace = document.getElementById('btnIdScanFace');
+  const btnIdSwitchCam = document.getElementById('btnIdSwitchCam');
+  const idPinForm = document.getElementById('idPinForm');
+  const idPinInput = document.getElementById('idPinInput');
+  const idResultBanner = document.getElementById('idResultBanner');
+  const idNameEl = document.getElementById('idName');
+
+  function getPersonField(person, fieldNames, fallback) {
+    if (person) {
+      const candidates = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+      for (const fieldName of candidates) {
+        if (person[fieldName] !== undefined && person[fieldName] !== null && person[fieldName] !== "") {
+          return person[fieldName];
+        }
+        const target = fieldName.toLowerCase();
+        const key = Object.keys(person).find(k => k.toLowerCase() === target);
+        if (key && person[key] !== undefined && person[key] !== null && person[key] !== "") {
+          return person[key];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function hasAuthorTag(person, tag) {
+    const raw = getPersonField(person, ['author'], null);
+    if (!raw) return false;
+    const target = tag.trim().toLowerCase();
+    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
+    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+  }
+
+  async function ensureAllFaceData() {
+    if (allFaceDataCache) return allFaceDataCache;
+    const { data, error } = await fusion4Client.rpc('get_all_face_data');
+    if (error) throw new Error(error.message);
+    allFaceDataCache = data || [];
+    return allFaceDataCache;
+  }
+
+  function setIdStatus(text, kind) {
+    if (!text) { idCamStatus.style.display = 'none'; return; }
+    idCamStatus.className = 'status-msg ' + (kind || 'info');
+    idCamStatus.innerText = text;
+    idCamStatus.style.display = 'block';
+  }
+
+  async function ensureIdCamera(facingMode) {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    idVideo.srcObject = stream;
+    await idVideo.play();
+    idCanvas.width = idVideo.videoWidth;
+    idCanvas.height = idVideo.videoHeight;
+    idCamWrap.style.display = 'block';
+  }
+
+  function stopIdCamera() {
+    if (idVideo.srcObject) {
+      idVideo.srcObject.getTracks().forEach(t => t.stop());
+      idVideo.srcObject = null;
+    }
+    idQrScanning = false;
+    idCamWrap.style.display = 'none';
+    idFaceOval.style.display = 'none';
+    idQrBox.style.display = 'none';
+    btnIdScanFace.style.display = 'none';
+    btnIdSwitchCam.style.display = 'none';
+  }
+
+  document.getElementById('btnIdScanQr').onclick = startIdQr;
+  document.getElementById('btnIdScanFaceStart').onclick = startIdFace;
+  btnIdScanFace.onclick = doIdFaceScan;
+  btnIdSwitchCam.onclick = async () => {
+    idFacingMode = idFacingMode === 'user' ? 'environment' : 'user';
+    try {
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal ganti kamera: ' + e.message, 'error');
+    }
+  };
+
+  document.getElementById('btnIdUsePin').onclick = () => {
+    idGateButtons.style.display = 'none';
+    idPinForm.style.display = 'block';
+    idPinInput.value = '';
+    setIdStatus('', null);
+    idPinInput.focus();
+  };
+
+  document.getElementById('btnIdPinCancel').onclick = () => {
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    idGateButtons.style.display = 'flex';
+    setIdStatus('', null);
+  };
+
+  document.getElementById('btnIdPinSubmit').onclick = async () => {
+    const pin = idPinInput.value.trim();
+    if (!pin) return setIdStatus('❌ Isi PIN dulu.', 'error');
+    setIdStatus('Mengecek PIN...', 'info');
+    try {
+      const people = await ensureAllFaceData();
+      const match = people.find(p => {
+        const pinValue = getPersonField(p, ['digitalPin'], null);
+        return pinValue !== null && String(pinValue).trim() === pin;
+      });
+      if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
+      const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
+      if (!hasAuthorTag(match, REQUIRED_TAG)) {
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+      }
+      confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
+    } catch (e) {
+      setIdStatus('❌ Gagal cek PIN: ' + e.message, 'error');
+    }
+  };
+
+  async function startIdQr() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Menyiapkan kamera...', 'info');
+    try {
+      idFacingMode = 'environment';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    idQrBox.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Arahkan QR badge ke kamera...', 'info');
+    idQrScanning = true;
+    idQrLoop();
+  }
+
+  async function idQrLoop() {
+    const ctx = idCanvas.getContext('2d', { willReadFrequently: true });
+    while (idQrScanning) {
+      if (idVideo.readyState === idVideo.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(idVideo, 0, 0, idCanvas.width, idCanvas.height);
+        const imageData = ctx.getImageData(0, 0, idCanvas.width, idCanvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          idQrScanning = false;
+          await handleQrScanned(code.data.trim());
+          return;
+        }
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+  }
+
+  async function handleQrScanned(rawData) {
+    let extractedId = rawData;
+    try {
+      const url = new URL(rawData);
+      const paramId = url.searchParams.get('QrCodeId') || url.searchParams.get('qrCodeId') || url.searchParams.get('qrcodeid');
+      if (paramId) extractedId = paramId;
+    } catch (e) { /* bukan URL, pakai apa adanya */ }
+    const qrId = extractedId.trim().toUpperCase();
+
+    setIdStatus('✅ QR terbaca: ' + qrId + ' -- mengambil data karyawan...', 'info');
+    try {
+      const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qrId });
+      if (error) throw new Error(error.message);
+      if (!data || data.status === 'NOT_FOUND' || data.status === 'REJECTED' || !data.person) {
+        setIdStatus('❌ ' + (data && data.message ? data.message : 'QR tidak dikenali') + '. Coba lagi.', 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
+      if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
+        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+        stopIdCamera();
+        idGateButtons.style.display = 'flex';
+        return;
+      }
+      confirmIdentity(nama, qrId);
+    } catch (e) {
+      setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
+      stopIdCamera();
+      idGateButtons.style.display = 'flex';
+    }
+  }
+
+  async function loadFaceModelsOnce() {
+    if (idFaceModelsLoaded) return;
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    idFaceModelsLoaded = true;
+  }
+
+  async function startIdFace() {
+    idGateButtons.style.display = 'none';
+    setIdStatus('Memuat model wajah...', 'info');
+    try {
+      await loadFaceModelsOnce();
+    } catch (e) {
+      setIdStatus('❌ Gagal memuat model wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    setIdStatus('Mengambil data karyawan...', 'info');
+    try {
+      await ensureAllFaceData();
+    } catch (e) {
+      setIdStatus('❌ Gagal ambil data wajah: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+    if (allFaceDataCache.length === 0) {
+      setIdStatus('❌ Belum ada data wajah terdaftar. Pakai Scan QR Code atau Input PIN.', 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    try {
+      idFacingMode = 'user';
+      await ensureIdCamera(idFacingMode);
+    } catch (e) {
+      setIdStatus('❌ Gagal akses kamera: ' + e.message, 'error');
+      idGateButtons.style.display = 'flex';
+      return;
+    }
+
+    idFaceOval.style.display = 'block';
+    btnIdScanFace.style.display = 'block';
+    btnIdSwitchCam.style.display = 'block';
+    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+  }
+
+  async function doIdFaceScan() {
+    btnIdScanFace.disabled = true;
+    setIdStatus('Mendeteksi wajah...', 'info');
+
+    let detection;
+    try {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = idVideo.videoWidth || 640;
+      snapCanvas.height = idVideo.videoHeight || 480;
+      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
+      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    } catch (e) {
+      setIdStatus('❌ ' + e.message, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    if (!detection) {
+      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    const sorted = allFaceDataCache.map(p => ({
+      person: p,
+      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
+    })).sort((a, b) => a.distance - b.distance);
+
+    const best = sorted[0];
+    const secondBest = sorted[1];
+    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
+    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+
+    if (!withinThreshold) {
+      setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code / PIN.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (isAmbiguous) {
+      setIdStatus(`⚠️ Wajah mirip lebih dari satu orang terdaftar. Demi keamanan, pakai QR Code atau PIN untuk kepastian.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+    if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+      btnIdScanFace.disabled = false;
+      return;
+    }
+
+    confirmIdentity(getPersonField(best.person, ['nama'], ''), getPersonField(best.person, ['qrCodeId'], ''));
+  }
+
+  function confirmIdentity(nama, qrCodeId) {
+    identifiedNama = nama;
+    identifiedQrCodeId = qrCodeId;
+    stopIdCamera();
+    setIdStatus('', null);
+    idNameEl.innerText = `${nama} (${qrCodeId})`;
+    idResultBanner.style.display = 'flex';
+    formBody.style.display = 'block';
+  }
+
+  function resetIdentification() {
+    identifiedNama = null;
+    identifiedQrCodeId = null;
+    idResultBanner.style.display = 'none';
+    formBody.style.display = 'none';
+    idGateButtons.style.display = 'flex';
+    idPinForm.style.display = 'none';
+    idPinInput.value = '';
+    setIdStatus('', null);
+  }
+
+  // =====================================================================================
+  // SUBMIT PERMIT
+  // =====================================================================================
+  async function submitPtw() {
+    if (!identifiedQrCodeId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return setStatus('❌ Identifikasi Requester dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
+    }
+
+    const jenisPekerjaan = selectedJenisList.join(', '); // gabungan kalau lebih dari 1 dipilih
+    const woNo = document.getElementById('txtWoNo').value.trim();
+    const projectId = selectProject.value;
+    const lokasi = document.getElementById('txtLokasi').value.trim();
+    const deskripsi = document.getElementById('txtDeskripsi').value.trim();
+    const alat = document.getElementById('txtAlat').value.trim();
+    const jumlahPekerjaRaw = document.getElementById('numJumlahPekerja').value;
+    const jumlahPekerja = jumlahPekerjaRaw ? Number(jumlahPekerjaRaw) : null;
+    const dtMulai = document.getElementById('dtMulai').value || null;
+    const dtSelesai = document.getElementById('dtSelesai').value || null;
+
+    if (selectedJenisList.length === 0) return setStatus('❌ Pilih minimal 1 jenis pekerjaan dulu.', 'error');
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    if (!lokasi) return setStatus('❌ Lokasi/area kerja wajib diisi.', 'error');
+    if (!deskripsi) return setStatus('❌ Deskripsi pekerjaan wajib diisi.', 'error');
+
+    const jsaItems = collectJsaItems();
+    const jsaKosong = jsaItems.filter(r => !r.langkah || !r.bahaya || !r.pengendalian);
+    if (jsaKosong.length > 0) {
+      window.scrollTo({ top: jsaArea.offsetTop - 20, behavior: 'smooth' });
+      return setStatus('❌ Semua baris JSA (Langkah Kerja, Bahaya, Pengendalian) wajib diisi lengkap.', 'error');
+    }
+
+    const hazardItems = Object.entries(hazardState);
+    const belumTerpenuhi = hazardItems.filter(([id, st]) => !st.terpenuhi);
+    if (belumTerpenuhi.length > 0) {
+      window.scrollTo({ top: hazardArea.offsetTop - 20, behavior: 'smooth' });
+      return setStatus(`❌ Masih ada ${belumTerpenuhi.length} item hazard checklist yang belum dicentang "terpenuhi". Semua wajib terpenuhi sebelum permit bisa diajukan.`, 'error');
+    }
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
+
+    try {
+      let fotoList = [];
+      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+      if (filledSlots.length > 0) {
+        setStatus(`📤 Mengupload ${filledSlots.length} foto...`, 'info');
+        for (const slot of filledSlots) {
+          const fileName = `PTW_${Date.now()}_${slot.idx + 1}.jpg`;
+          const uploaded = await uploadPhotoToDrive(slot.file, fileName);
+          fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+        }
+      }
+
+      const hazardChecklistPayload = hazardItems.map(([id, st]) => ({
+        id: Number(id), item: st.item, terpenuhi: st.terpenuhi, keterangan: st.keterangan || '',
+      }));
+
+      let lampiranList = [];
+      if (lampiranFiles.length > 0) {
+        setStatus(`📤 Mengupload ${lampiranFiles.length} lampiran...`, 'info');
+        for (const l of lampiranFiles) {
+          const uploaded = await uploadLampiranToDrive(l.file);
+          lampiranList.push({ fileId: uploaded.fileId, url: uploaded.directUrl, fileName: uploaded.fileName, mimeType: uploaded.mimeType });
+        }
+      }
+
+      setStatus('📤 Mengajukan permit...', 'info');
+      const { data, error } = await supabaseClient.rpc('submit_ptw', {
+        p_jenis_pekerjaan: jenisPekerjaan,
+        p_project_id: projectId,
+        p_nama_requester: identifiedNama,
+        p_lokasi_area: lokasi,
+        p_deskripsi_pekerjaan: deskripsi,
+        p_jsa_items: jsaItems,
+        p_hazard_checklist: hazardChecklistPayload,
+        p_requester_qrcode: identifiedQrCodeId,
+        p_alat_yang_dipakai: alat,
+        p_jumlah_pekerja: jumlahPekerja,
+        p_tanggal_mulai: dtMulai,
+        p_tanggal_selesai: dtSelesai,
+        p_foto_list: fotoList,
+        p_wo_no: woNo,
+        p_lampiran_list: lampiranList,
+      });
+      if (error) throw error;
+
+      setStatus(`✅ Permit berhasil diajukan! No. Permit: ${data.noPermit} -- menunggu review HSE Officer.`, 'success');
+      resetForm();
+    } catch (e) {
+      setStatus('❌ Gagal mengajukan permit: ' + e.message, 'error');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>📤 Ajukan Permit</span>';
+    }
+  }
+
+  function resetForm() {
+    // Identitas Requester SENGAJA tidak direset -- biar 1 orang bisa ajukan beberapa
+    // permit berturut-turut tanpa scan ulang.
+    selectedJenisList = [];
+    jenisPekerjaanInput.value = '';
+    renderJenisPekerjaanChips();
+    jenisPekerjaanDropdown.classList.remove('open');
+    document.getElementById('txtWoNo').value = '';
+    selectProject.value = '';
+    document.getElementById('txtLokasi').value = '';
+    document.getElementById('txtDeskripsi').value = '';
+    document.getElementById('txtAlat').value = '';
+    document.getElementById('numJumlahPekerja').value = '';
+    document.getElementById('dtMulai').value = '';
+    document.getElementById('dtSelesai').value = '';
+    jsaRows.innerHTML = '';
+    jsaRowCount = 0;
+    addJsaRow();
+    hazardArea.style.display = 'none';
+    jsaArea.style.display = 'none';
+    fotoArea.style.display = 'none';
+    hazardTemplate = [];
+    hazardState = {};
+    jsaTemplate = [];
+    for (let i = 0; i < 3; i++) removePhotoSlot(i, null);
+    lampiranFiles = [];
+    renderLampiranList();
+  }
+</script>
+
+</body>
+</html>
