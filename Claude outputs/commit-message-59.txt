@@ -1,0 +1,15 @@
+Ganti Banner header dan Logo Report dengan aset baru dari CRV
+
+- Banner header (index.html + 20 halaman modul lain): ganti komposisi
+  HTML/CSS .hero-banner dengan gambar flat header-banner.png (PNG
+  transparan di pinggir, gak ada masalah shadow/halo kebakar seperti
+  versi lama). Class .hero-banner disimpan di style.css buat referensi,
+  tapi udah gak dipakai.
+- Logo di 7 laporan PDF (audit, cermat, hse-meeting, hse-program,
+  incident, inspeksi, ptw): ganti isi logo-bima.png dengan logo baru
+  (watercolor HSSE + BiMa), sekalian benerin ukuran box logo di
+  .doc-header .brand img biar gak kepotong/letterbox (fixed width,
+  height: auto, object-fit: contain) sesuai rasio gambar baru.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

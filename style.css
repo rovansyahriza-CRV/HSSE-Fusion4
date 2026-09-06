@@ -29,15 +29,16 @@ body {
 .header {
   margin-bottom: 20px;
 }
-/* header-banner.png gak dipakai lagi di halaman manapun -- diganti .hero-banner di bawah.
-   Class ini disimpan aja siapa tau masih kepake buat referensi lama. */
+/* Banner header -- dipakai di semua halaman (index.html & modul lain), gambar flat
+   (header-banner.png) yang PNG-nya transparan di pinggir jadi gak ada masalah
+   shadow/halo kebakar. Gambar baru per request CRV (05 Sep 2026), gantiin versi
+   HTML/CSS (.hero-banner dkk di bawah, disimpan aja buat referensi lama). */
 .header-banner {
   display: block; width: 100%; height: auto; border-radius: 20px; margin-bottom: 16px;
 }
 
-/* ===== Hero banner -- dipakai di semua halaman (index.html & modul lain), native
-   HTML/CSS, bukan gambar flat, biar gak ada masalah shadow/halo kebakar kayak
-   header-banner.png yang lama. ===== */
+/* ===== Hero banner lama (HTML/CSS, bukan gambar flat) -- GAK DIPAKAI LAGI, disimpan
+   aja siapa tau masih kepake buat referensi. ===== */
 .hero-banner {
   background: linear-gradient(135deg, #E9EFFC 0%, #D9E3F7 100%);
   border-radius: 20px;
