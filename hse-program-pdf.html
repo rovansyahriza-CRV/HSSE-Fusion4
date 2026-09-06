@@ -39,7 +39,7 @@
   .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
 
   .selector-bar {
-    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; max-width: 297mm; margin: 14px auto 0; padding: 0 16px;
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; max-width: 420mm; margin: 14px auto 0; padding: 0 16px;
   }
   .selector-bar .field { flex: 1; min-width: 180px; }
   .selector-bar label {
@@ -57,9 +57,10 @@
 
   .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
 
-  /* ===== Lembar laporan (dicetak) -- landscape A4 ===== */
+  /* ===== Lembar laporan (dicetak) -- landscape A3 (23 item / 6 kategori gak muat
+     lagi di A4 sejak HSE Program disinkronin sama Standard Pelaporan) ===== */
   .sheet {
-    max-width: 297mm; margin: 16px auto; background: #fff; padding: 10mm 12mm;
+    max-width: 420mm; margin: 16px auto; background: #fff; padding: 10mm 12mm;
     border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
   }
   .doc-header {
@@ -107,6 +108,10 @@
   .prog-table td.item-name { text-align: left; font-weight: 700; font-size: 9px; padding-left: 6px; }
   .prog-table td.item-freq { font-size: 7.5px; color: var(--muted); }
   .prog-table tbody tr.na-row td { color: var(--muted); font-style: italic; background: #FAFAFC; }
+  .prog-table tbody tr.kategori-row td {
+    background: var(--navy); color: #fff; text-align: left; font-size: 8.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 6px;
+  }
   .prog-table td.cell-bulan { font-size: 7px; line-height: 1.35; white-space: nowrap; }
   .prog-table td.cell-bulan .r { font-weight: 800; }
   .prog-table td.cell-bulan .t { color: var(--muted); }
@@ -137,7 +142,7 @@
     body { background: #fff; }
     .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 4mm 6mm; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    @page { size: A4 landscape; margin: 8mm; }
+    @page { size: A3 landscape; margin: 8mm; }
   }
 
   @media screen and (max-width: 900px) {
@@ -395,20 +400,35 @@
     pctEl.className = 'value ' + pctClassFor(pct);
   }
 
+  // Item HSE Program dikelompokkan per Kategori (sinkron sama tabel Standard Pelaporan
+  // HSSE PT BIMA) -- urutan kategori & item di dalamnya ngikutin "urutan" dari RPC
+  // (udah di-ORDER BY di server). Tiap kategori dikasih header baris sendiri, dan di
+  // dalam 1 kategori, item "Use" ditampilin duluan baru item "N/A".
   function renderTable(items) {
-    const useItems = items.filter(x => x.statusPakai === 'Use');
-    const naItems = items.filter(x => x.statusPakai !== 'Use');
     const tbody = document.getElementById('tblBody');
-
-    if (useItems.length === 0 && naItems.length === 0) {
+    if (items.length === 0) {
       tbody.innerHTML = `<tr><td colspan="18" style="padding:16px; color:var(--muted);">Belum ada item HSE Program buat project &amp; tahun ini.</td></tr>`;
       return;
     }
 
-    let html = useItems.map((item, idx) => rowHtml(item, idx + 1)).join('');
-    if (naItems.length) {
-      html += naItems.map((item, idx) => naRowHtml(item, useItems.length + idx + 1)).join('');
-    }
+    const kategoriList = [];
+    const byKategori = {};
+    items.forEach(item => {
+      const kat = item.kategori || 'Lainnya';
+      if (!byKategori[kat]) { byKategori[kat] = []; kategoriList.push(kat); }
+      byKategori[kat].push(item);
+    });
+
+    let no = 1;
+    let html = '';
+    kategoriList.forEach(kat => {
+      html += `<tr class="kategori-row"><td colspan="18">${escapeHtml(kat)}</td></tr>`;
+      const groupItems = byKategori[kat];
+      const useItems = groupItems.filter(x => x.statusPakai === 'Use');
+      const naItems = groupItems.filter(x => x.statusPakai !== 'Use');
+      useItems.forEach(item => { html += rowHtml(item, no++); });
+      naItems.forEach(item => { html += naRowHtml(item, no++); });
+    });
     tbody.innerHTML = html;
   }
 

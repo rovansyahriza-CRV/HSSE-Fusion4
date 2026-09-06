@@ -74,6 +74,23 @@
   table.hp-table thead th:first-child { position: sticky; left: 0; z-index: 2; }
   table.hp-table tr.na-row td.item-name { color: var(--muted); }
   table.hp-table tr.na-row { background: #FAFAFB; }
+  table.hp-table tr.kategori-row td {
+    background: var(--navy); color: #fff; text-align: left; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; position: static;
+  }
+  table.hp-table tr.manual-row td { background: #FFF8E8; border-top: none; }
+  table.hp-table tr.manual-row td.manual-label {
+    text-align: left; font-size: 10.5px; font-weight: 700; color: #8A6100; white-space: normal;
+    position: sticky; left: 0; background: #FFF8E8; z-index: 1;
+  }
+  table.hp-table tr.manual-row.na-row td.manual-label { color: var(--muted); }
+  .re-input {
+    width: 56px; padding: 5px 3px; border: 1.5px solid #E9CB84; border-radius: 7px;
+    font-size: 12px; text-align: center; font-weight: 600; background: #fff;
+  }
+  .re-input:disabled { background: #F3F4F6; color: #B0B4BD; border-color: var(--border); }
+  .re-input::-webkit-outer-spin-button, .re-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .re-input { -moz-appearance: textfield; }
 
   .status-toggle {
     display: inline-flex; border-radius: 999px; overflow: hidden; border: 1.5px solid var(--border);
@@ -526,8 +543,22 @@
     });
   }
 
+  // Item dikelompokkan per Kategori (sinkron sama Standard Pelaporan HSSE PT BIMA) --
+  // urutan kategori & item di dalamnya ngikutin "urutan" dari RPC (server udah ORDER BY).
   function renderTable() {
-    tableBody.innerHTML = programItems.map(item => rowHtml(item)).join('');
+    const kategoriList = [];
+    const byKategori = {};
+    programItems.forEach(item => {
+      const kat = item.kategori || 'Lainnya';
+      if (!byKategori[kat]) { byKategori[kat] = []; kategoriList.push(kat); }
+      byKategori[kat].push(item);
+    });
+    let html = '';
+    kategoriList.forEach(kat => {
+      html += `<tr class="kategori-row"><td colspan="21">${escapeHtml(kat)}</td></tr>`;
+      byKategori[kat].forEach(item => { html += rowHtml(item); });
+    });
+    tableBody.innerHTML = html;
     updateSummary();
   }
 
@@ -577,7 +608,9 @@
     const pctClass = !isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad');
     const freqOptions = FREQUENCY_OPTIONS.map(f =>
       `<option value="${f.value}" ${item.frequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('');
-    return `
+
+    const isManual = item.sumberRealisasi === 'MANUAL';
+    const mainRow = `
       <tr class="${isUse ? '' : 'na-row'}" id="row-${item.itemId}">
         <td class="item-name">${escapeHtml(item.namaItem)}</td>
         <td>
@@ -592,10 +625,29 @@
         <td><button type="button" class="spread-btn" ${isUse ? '' : 'disabled'} onclick="generateSpread(${item.itemId})" title="Spread ke matrik bulan">⚡</button></td>
         ${monthInputs}
         <td class="total-target" id="target-total-${item.itemId}">${isUse ? targetTotal : '-'}</td>
-        <td class="total-realisasi">${realisasiTotal}</td>
+        <td class="total-realisasi" id="realisasi-total-${item.itemId}">${realisasiTotal}</td>
         <td class="pct-cell ${pctClass}" id="pct-${item.itemId}">${isUse ? pct + '%' : '-'}</td>
         <td><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
       </tr>`;
+
+    if (!isManual) return mainRow;
+
+    // Item MANUAL (modul otomatisnya belum ada) -- baris tambahan buat isi Realisasi
+    // Aktual per bulan sendiri (bukan ditarik dari tabel modul kayak item OTOMATIS).
+    const realisasiBulanan = item.realisasiBulanan || {};
+    const realInputs = BULAN_LABEL.map((_, idx) => {
+      const bulan = idx + 1;
+      const val = realisasiBulanan[bulan] != null ? realisasiBulanan[bulan] : 0;
+      return `<td><input type="number" min="0" class="re-input" data-real-item="${item.itemId}" data-bulan="${bulan}"
+        value="${val}" ${isUse ? '' : 'disabled'} onchange="markDirty(${item.itemId})"></td>`;
+    }).join('');
+    const manualRow = `
+      <tr class="manual-row ${isUse ? '' : 'na-row'}" id="realrow-${item.itemId}">
+        <td class="manual-label" colspan="5">↳ Realisasi Aktual (isi manual per bulan -- modul belum tersedia)</td>
+        ${realInputs}
+        <td colspan="4"></td>
+      </tr>`;
+    return mainRow + manualRow;
   }
 
   function findItem(itemId) {
@@ -619,6 +671,14 @@
     if (spreadBtn) spreadBtn.disabled = status !== 'Use';
     row.querySelectorAll('.status-toggle button')[0].className = status === 'Use' ? 'active use' : '';
     row.querySelectorAll('.status-toggle button')[1].className = status === 'N/A' ? 'active na' : '';
+
+    // Item MANUAL punya baris ke-2 (Realisasi Aktual) -- ikutan di-toggle disabled/na.
+    const realRow = document.getElementById(`realrow-${itemId}`);
+    if (realRow) {
+      realRow.className = 'manual-row ' + (status === 'Use' ? '' : 'na-row');
+      realRow.querySelectorAll('.re-input').forEach(inp => { inp.disabled = status !== 'Use'; });
+    }
+
     recalcRow(itemId);
     markDirty(itemId);
   }
@@ -641,7 +701,19 @@
     let targetTotal = 0;
     row.querySelectorAll('.mo-input').forEach(inp => { targetTotal += Number(inp.value) || 0; });
     document.getElementById(`target-total-${itemId}`).textContent = isUse ? targetTotal : '-';
-    const realisasiTotal = item.realisasiTotal || 0;
+
+    // Item MANUAL: Realisasi Total dihitung LIVE dari input di baris "Realisasi Aktual"
+    // (bukan dari item.realisasiTotal yang statis), biar %Capaian langsung ke-update
+    // begitu HSE Admin ngetik angka -- sama kayak Target Total dari .mo-input di atas.
+    let realisasiTotal = item.realisasiTotal || 0;
+    if (item.sumberRealisasi === 'MANUAL') {
+      realisasiTotal = 0;
+      const realRow = document.getElementById(`realrow-${itemId}`);
+      if (realRow) realRow.querySelectorAll('.re-input').forEach(inp => { realisasiTotal += Number(inp.value) || 0; });
+      const realTotalEl = document.getElementById(`realisasi-total-${itemId}`);
+      if (realTotalEl) realTotalEl.textContent = realisasiTotal;
+    }
+
     const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
     pctEl.textContent = isUse ? pct + '%' : '-';
     pctEl.className = 'pct-cell ' + (!isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad'));
@@ -679,19 +751,39 @@
       targetQty = qtyVal === '' ? null : Number(qtyVal);
       frequency = row.querySelector('.freq-select').value || null;
     }
+
+    // Item MANUAL (modul otomatisnya belum ada) -- ikutan kirim Realisasi Aktual yang
+    // diisi manual di baris ke-2. Item OTOMATIS gak kirim ini (tetep null), biar RPC
+    // gak nimpa RealisasiManualBulanan yang emang gak relevan buat item itu.
+    let realisasiManualBulanan = null;
+    if (item.sumberRealisasi === 'MANUAL') {
+      realisasiManualBulanan = {};
+      const realRow = document.getElementById(`realrow-${itemId}`);
+      if (realRow) {
+        realRow.querySelectorAll('.re-input').forEach(inp => {
+          realisasiManualBulanan[inp.dataset.bulan] = Number(inp.value) || 0;
+        });
+      }
+    }
+
     const btn = document.getElementById(`save-${itemId}`);
     btn.textContent = 'Menyimpan...';
     try {
       const { error } = await supabaseClient.rpc('upsert_hse_program_item', {
         p_project_id: projectId, p_tahun: tahun, p_item_id: itemId,
         p_status_pakai: item.statusPakai, p_target_bulanan: targetBulanan,
-        p_target_qty: targetQty, p_frequency: frequency
+        p_target_qty: targetQty, p_frequency: frequency,
+        p_realisasi_manual_bulanan: realisasiManualBulanan
       });
       if (error) throw error;
       item.targetBulanan = targetBulanan;
       item.targetQty = targetQty;
       item.frequency = frequency;
       item.targetTotal = Object.values(targetBulanan).reduce((a, b) => a + Number(b), 0);
+      if (realisasiManualBulanan) {
+        item.realisasiBulanan = realisasiManualBulanan;
+        item.realisasiTotal = Object.values(realisasiManualBulanan).reduce((a, b) => a + Number(b), 0);
+      }
       btn.textContent = 'Tersimpan ✓';
       btn.classList.add('saved');
       updateSummary();
@@ -717,7 +809,12 @@
       if (!row || row.classList.contains('na-row')) return;
       useCount++;
       row.querySelectorAll('.mo-input').forEach(inp => { sumTarget += Number(inp.value) || 0; });
-      sumRealisasi += Number(item.realisasiTotal) || 0;
+      if (item.sumberRealisasi === 'MANUAL') {
+        const realRow = document.getElementById(`realrow-${item.itemId}`);
+        if (realRow) realRow.querySelectorAll('.re-input').forEach(inp => { sumRealisasi += Number(inp.value) || 0; });
+      } else {
+        sumRealisasi += Number(item.realisasiTotal) || 0;
+      }
     });
     const pct = sumTarget > 0 ? Math.round((sumRealisasi / sumTarget) * 100) : 0;
     document.getElementById('sumUseCount').textContent = useCount;

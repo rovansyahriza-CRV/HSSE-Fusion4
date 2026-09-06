@@ -1,0 +1,25 @@
+Sinkronkan HSE Program dengan Standard Pelaporan HSSE (kategori + realisasi manual)
+
+- sql/039: HSE Program sekarang dikelompokkan jadi 6 kategori sesuai "Standard Pelaporan"
+  HSSE PT BIMA (Permit to Work & JSA/HIRADC, Emergency Preparedness, Training &
+  Kompetensi, Observasi & Intervensi Perilaku, Compliance Monitoring, Administrasi &
+  Evaluasi). PTW & JSA/HIRADC digabung jadi 1 baris ("Permit to Work & JSA") karena
+  emang udah 1 alur di modul PTW. Nambah 14 item standar yang modulnya belum dibangun
+  (Emergency Response Plan Review, Medical Emergency Response Drill, Safety Drill,
+  Safety Induction, MCU, Sertifikasi Kompetensi, HSSE Culture Training, Safety
+  Campaign, PPE/PTW/Tools & Equipment Compliance, CLSR, P2K3 Meeting Bulanan, SWA
+  Implementation) -- semua default N/A biar gak ganggu laporan project yang udah
+  jalan. Realisasi item-item ini diisi MANUAL oleh HSE Admin (bukan ditarik otomatis
+  dari tabel modul kayak 9 item lainnya) sampai modulnya beneran dibangun nanti.
+  Kalau Compliance Monitoring belakangan terkonfirmasi gabung ke Inspeksi &
+  Observasi, 4 item itu bisa dihapus kapan aja tanpa ganggu item lain.
+- hse-program.html: tabel dikelompokkan per kategori (header baris per kategori),
+  dan item yang realisasinya manual dapet baris tambahan "Realisasi Aktual" buat
+  HSE Admin isi angka per bulan sendiri -- %Capaian & ringkasan atas langsung
+  ke-update live pas diisi, disimpan bareng target lewat 1 tombol Simpan yang sama.
+- hse-program-pdf.html: tabel laporan ikut dikelompokkan per kategori, dan halaman
+  cetak diganti dari A4 ke A3 landscape karena item-nya nambah banyak (24 baris,
+  6 kategori) jadi gak muat lagi di A4.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy
