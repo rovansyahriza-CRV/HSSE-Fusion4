@@ -1,0 +1,20 @@
+Aktifkan QR Code TTD Digital di semua laporan PDF + fix Author dobel
+
+- ptw-pdf.html, cermat-pdf.html, incident-pdf.html, inspeksi-pdf.html: tanda tangan
+  digital (TTD Digital) di tiap kotak signature sekarang beneran nge-generate gambar
+  QR Code (pakai qrcode.js), bukan cuma teks polos kayak sebelumnya. Format yang
+  di-encode: QrCodeId&NoDocument (misal 14ANE22062026&PTW-2026-001), sama persis kayak
+  pola yang udah jalan di hse-meeting-pdf.html & audit-pdf.html. Teks di bawah QR juga
+  dirapiin jadi "TTD Digital: {kode} / Author: {tag}".
+- sql/038: fix get_all_karyawan_author() -- Author kadang muncul DOBEL (misal
+  "Verifikasi Cermat, ..., Verifikasi Cermat, ...") kalau ada tag yang kebetulan sama
+  persis di karyawanTbl.Author DAN paswordTbl.Author. Sebabnya query lama gabung 2
+  STRING UTUH baru di-dedupe, padahal harusnya dedupe di level TAG INDIVIDUAL dulu baru
+  digabung. Sekarang tiap tag dipecah & dikumpulin ke satu set sebelum digabung jadi
+  string lagi, jadi gak ada lagi tag yang kebawa dobel dari sumber manapun. Udah
+  ditest manual pakai 5 skenario data (tag dobel di 2 sumber, tag beda di 2 sumber,
+  cuma ada di satu sumber, gak ada Author sama sekali, baris paswordTbl yang non-aktif)
+  dan semua hasilnya bener.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016qHKeqGBJhcBKUCHoj3jQy

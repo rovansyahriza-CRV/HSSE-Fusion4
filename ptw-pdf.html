@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cetak Permit to Work — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
@@ -121,6 +122,8 @@
   .signature-box .role { font-size: 8.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 30px; }
   .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9px; font-weight: 700; }
   .signature-box .sub { font-size: 7.5px; color: var(--muted); margin-top: 1px; }
+  .signature-box .sub.ttd-digital-sub { font-family: 'Courier New', monospace; font-weight: 700; color: var(--navy-dark); word-break: break-all; }
+  .ttd-barcode { display: block; margin: 4px auto 0; }
 
   .doc-footer {
     margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -259,17 +262,20 @@
     <div class="signature-box">
       <div class="role">Diajukan Oleh (Requester)</div>
       <div class="line" id="fSignRequester">&nbsp;</div>
-      <div class="sub" id="fSignRequesterSub">&nbsp;</div>
+      <canvas id="fSignRequesterBarcode" class="ttd-barcode"></canvas>
+      <div class="sub ttd-digital-sub" id="fSignRequesterSub">&nbsp;</div>
     </div>
     <div class="signature-box">
       <div class="role">Direview Oleh (HSE Officer)</div>
       <div class="line" id="fSignHse">&nbsp;</div>
-      <div class="sub" id="fSignHseSub">&nbsp;</div>
+      <canvas id="fSignHseBarcode" class="ttd-barcode"></canvas>
+      <div class="sub ttd-digital-sub" id="fSignHseSub">&nbsp;</div>
     </div>
     <div class="signature-box">
       <div class="role">Disetujui Oleh (Area Authority)</div>
       <div class="line" id="fSignArea">&nbsp;</div>
-      <div class="sub" id="fSignAreaSub">&nbsp;</div>
+      <canvas id="fSignAreaBarcode" class="ttd-barcode"></canvas>
+      <div class="sub ttd-digital-sub" id="fSignAreaSub">&nbsp;</div>
     </div>
   </div>
 
@@ -297,6 +303,24 @@
   function authorFor(qrCodeId) {
     if (!qrCodeId) return '-';
     return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
+
+  // TTD Digital -- render QR code (QrCodeId&NoDocument, sama format-nya kayak modul HSE
+  // Meeting/Internal Audit) + teks kode di bawahnya buat 1 signature-box. Kalau orangnya
+  // belum ngisi tahap ini (qrCodeId kosong), biarin default "Nama & Tanda Tangan".
+  function renderTtdSignature(barcodeId, subId, qrCodeId, noDocument) {
+    const subEl = document.getElementById(subId);
+    if (!qrCodeId || !subEl) return;
+    const code = `${qrCodeId}&${noDocument}`;
+    subEl.innerHTML = `TTD Digital: ${escapeHtml(code)}<br>Author: ${escapeHtml(authorFor(qrCodeId))}`;
+    try {
+      if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
+      QRCode.toCanvas(document.getElementById(barcodeId), code, { width: 70, margin: 1 }, (err) => {
+        if (err) console.error('Gagal generate QR code TTD Digital:', err);
+      });
+    } catch (e) {
+      console.error('Gagal generate QR code TTD Digital:', e);
+    }
   }
 
   function driveThumbSrc(f) {
@@ -478,14 +502,11 @@
       renderRiwayat(r);
 
       document.getElementById('fSignRequester').innerText = r.namaRequester || '';
-      document.getElementById('fSignRequesterSub').innerText = r.requesterQrCodeId
-        ? `${r.requesterQrCodeId} · Author: ${authorFor(r.requesterQrCodeId)}` : '';
+      renderTtdSignature('fSignRequesterBarcode', 'fSignRequesterSub', r.requesterQrCodeId, r.noPermit);
       document.getElementById('fSignHse').innerText = r.hseReviewOleh || '';
-      document.getElementById('fSignHseSub').innerText = r.hseReviewOleh
-        ? `${r.hseReviewQrCodeId || ''} · Author: ${authorFor(r.hseReviewQrCodeId)}` : 'Nama & Tanda Tangan';
+      renderTtdSignature('fSignHseBarcode', 'fSignHseSub', r.hseReviewQrCodeId, r.noPermit);
       document.getElementById('fSignArea').innerText = r.areaAuthorityOleh || '';
-      document.getElementById('fSignAreaSub').innerText = r.areaAuthorityOleh
-        ? `${r.areaAuthorityQrCodeId || ''} · Author: ${authorFor(r.areaAuthorityQrCodeId)}` : 'Nama & Tanda Tangan';
+      renderTtdSignature('fSignAreaBarcode', 'fSignAreaSub', r.areaAuthorityQrCodeId, r.noPermit);
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

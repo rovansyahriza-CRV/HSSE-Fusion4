@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cetak Laporan CERMAT — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
@@ -104,6 +105,8 @@
   .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
   .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
   .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+  .signature-box .sub.ttd-digital-sub { font-family: 'Courier New', monospace; font-weight: 700; color: var(--navy-dark); word-break: break-all; }
+  .ttd-barcode { display: block; margin: 4px auto 0; }
 
   .doc-footer {
     margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -252,16 +255,19 @@
     <div class="signature-box">
       <div class="role">Dibuat Oleh (Pelapor)</div>
       <div class="line" id="fSignPelapor">&nbsp;</div>
-      <div class="sub" id="fSignQrCodeId">&nbsp;</div>
+      <canvas id="fSignPelaporBarcode" class="ttd-barcode"></canvas>
+      <div class="sub ttd-digital-sub" id="fSignQrCodeId">&nbsp;</div>
     </div>
     <div class="signature-box">
       <div class="role">Diperiksa Oleh (HSSE)</div>
       <div class="line" id="fSignDiperiksa">&nbsp;</div>
+      <canvas id="fSignDiperiksaBarcode" class="ttd-barcode"></canvas>
       <div class="sub" id="fSignDiperiksaSub">Nama &amp; Tanda Tangan</div>
     </div>
     <div class="signature-box">
       <div class="role">Disetujui Oleh</div>
       <div class="line" id="fSignDisetujui">&nbsp;</div>
+      <canvas id="fSignDisetujuiBarcode" class="ttd-barcode"></canvas>
       <div class="sub" id="fSignDisetujuiSub">Nama &amp; Tanda Tangan</div>
     </div>
   </div>
@@ -323,12 +329,31 @@
     return 'badge-closed';
   }
 
-  function fillSignatureBox(lineId, subId, nama, qrCodeId, tanggal) {
+  // TTD Digital -- render QR code (QrCodeId&NoDocument, format sama kayak modul HSE
+  // Meeting/Internal Audit) + teks kode di bawahnya buat 1 signature-box. barcodeId boleh
+  // null (dulu dipanggil tanpa canvas), nama kosong = biarin default "Nama & Tanda Tangan"
+  // (belum lewat tahap ini / tanda tangan basah manual).
+  function fillSignatureBox(lineId, subId, barcodeId, nama, qrCodeId, noDocument, tanggal) {
     const lineEl = document.getElementById(lineId);
     const subEl = document.getElementById(subId);
-    if (!nama) return; // biarin default: garis kosong + "Nama & Tanda Tangan" (tanda tangan basah manual)
+    if (!nama) return;
     lineEl.innerText = nama;
-    subEl.innerHTML = `&#10003; Verifikasi digital${qrCodeId ? ' — ' + escapeHtml(qrCodeId) + ' · Author: ' + escapeHtml(authorFor(qrCodeId)) : ''}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
+    if (!qrCodeId) {
+      subEl.innerHTML = `&#10003; Verifikasi digital${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
+      return;
+    }
+    const code = `${qrCodeId}&${noDocument}`;
+    subEl.classList.add('ttd-digital-sub');
+    subEl.innerHTML = `TTD Digital: ${escapeHtml(code)}<br>Author: ${escapeHtml(authorFor(qrCodeId))}${tanggal ? ' — ' + formatDate(tanggal) : ''}`;
+    if (!barcodeId) return;
+    try {
+      if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
+      QRCode.toCanvas(document.getElementById(barcodeId), code, { width: 70, margin: 1 }, (err) => {
+        if (err) console.error('Gagal generate QR code TTD Digital:', err);
+      });
+    } catch (e) {
+      console.error('Gagal generate QR code TTD Digital:', e);
+    }
   }
 
   function renderPhotoGrid(gridEl, sectionEl, titleEl, titleText, fotoArr) {
@@ -403,16 +428,15 @@
         document.getElementById('fotoTindakLanjutTitle'), 'Foto Tindak Lanjut / Bukti Perbaikan', r.fotoTindakLanjutList
       );
 
-      document.getElementById('fSignPelapor').innerText = r.namaPelapor;
-      document.getElementById('fSignQrCodeId').innerText = r.pelaporQrCodeId ? `${r.pelaporQrCodeId} · Author: ${authorFor(r.pelaporQrCodeId)}` : '';
+      fillSignatureBox('fSignPelapor', 'fSignQrCodeId', 'fSignPelaporBarcode', r.namaPelapor, r.pelaporQrCodeId, r.noLaporan, r.tanggalWaktu);
 
       // Diperiksa/Disetujui: kalau udah diverifikasi digital (scan wajah/PIN, lihat
       // cermat-list.html), tampilin nama + tanggal verifikasi. Kalau belum, biarin garis
       // kosong buat tanda tangan basah manual (fallback, misal laporan lama sebelum fitur ini ada).
       // "Diperiksa Oleh (HSSE)" = HSE Admin yang verifikasi & arahkan ke Dept (VerifikatorOleh).
       // "Disetujui Oleh" = HSE Admin yang approve/tutup laporan di tahap Review (DitutupOleh).
-      fillSignatureBox('fSignDiperiksa', 'fSignDiperiksaSub', r.verifikatorOleh, r.verifikatorQrCodeId, r.tanggalVerifikasi);
-      fillSignatureBox('fSignDisetujui', 'fSignDisetujuiSub', r.ditutupOleh, r.ditutupQrCodeId, r.tanggalClosed);
+      fillSignatureBox('fSignDiperiksa', 'fSignDiperiksaSub', 'fSignDiperiksaBarcode', r.verifikatorOleh, r.verifikatorQrCodeId, r.noLaporan, r.tanggalVerifikasi);
+      fillSignatureBox('fSignDisetujui', 'fSignDisetujuiSub', 'fSignDisetujuiBarcode', r.ditutupOleh, r.ditutupQrCodeId, r.noLaporan, r.tanggalClosed);
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 

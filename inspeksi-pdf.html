@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cetak Laporan Inspeksi/Observasi — HSSE-Fusion4</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <style>
@@ -121,6 +122,8 @@
   .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
   .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
   .signature-box .sub { font-size: 8px; color: var(--muted); margin-top: 1px; }
+  .signature-box .sub.ttd-digital-sub { font-family: 'Courier New', monospace; font-weight: 700; color: var(--navy-dark); word-break: break-all; }
+  .ttd-barcode { display: block; margin: 4px auto 0; }
 
   .doc-footer {
     margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -236,6 +239,7 @@
     <div class="signature-box">
       <div class="role">Dilaporkan Oleh (Inspektor / Observer)</div>
       <div class="line" id="fSignInspektor">&nbsp;</div>
+      <canvas id="fSignInspektorBarcode" class="ttd-barcode"></canvas>
       <div class="sub" id="fSignQrCodeId">&nbsp;</div>
     </div>
     <div class="signature-box">
@@ -269,6 +273,24 @@
   function authorFor(qrCodeId) {
     if (!qrCodeId) return '-';
     return authorMap[String(qrCodeId).toUpperCase().trim()] || '-';
+  }
+
+  // TTD Digital -- render QR code (QrCodeId&NoDocument, format sama kayak modul HSE
+  // Meeting/Internal Audit) + teks kode di bawahnya buat 1 signature-box.
+  function renderTtdSignature(barcodeId, subId, qrCodeId, noDocument) {
+    const subEl = document.getElementById(subId);
+    if (!qrCodeId || !subEl) return;
+    const code = `${qrCodeId}&${noDocument}`;
+    subEl.classList.add('ttd-digital-sub');
+    subEl.innerHTML = `TTD Digital: ${escapeHtml(code)}<br>Author: ${escapeHtml(authorFor(qrCodeId))}`;
+    try {
+      if (typeof QRCode === 'undefined') throw new Error('Library QRCode belum termuat');
+      QRCode.toCanvas(document.getElementById(barcodeId), code, { width: 80, margin: 1 }, (err) => {
+        if (err) console.error('Gagal generate QR code TTD Digital:', err);
+      });
+    } catch (e) {
+      console.error('Gagal generate QR code TTD Digital:', e);
+    }
   }
 
   function driveThumbSrc(f) {
@@ -401,8 +423,7 @@
       );
 
       document.getElementById('fSignInspektor').innerText = r.namaInspektor;
-      document.getElementById('fSignQrCodeId').innerText = r.inspektorQrCodeId
-        ? `${r.inspektorQrCodeId} · Author: ${authorFor(r.inspektorQrCodeId)}` : '';
+      renderTtdSignature('fSignInspektorBarcode', 'fSignQrCodeId', r.inspektorQrCodeId, r.noLaporan);
 
       document.getElementById('fCetakInfo').innerText = `Dicetak: ${formatDate(new Date().toISOString())}`;
 
