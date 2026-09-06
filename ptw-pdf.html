@@ -98,6 +98,14 @@
   .jsa-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 10.5px; }
   .jsa-table th, .jsa-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
   .jsa-table th { background: var(--bg); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .jsa-table td.risk-cell { text-align: center; white-space: nowrap; }
+  .risk-badge {
+    display: inline-block; font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 999px; white-space: nowrap;
+  }
+  .risk-badge.risk-rendah { background: var(--success-bg); color: var(--success); }
+  .risk-badge.risk-sedang { background: #FDF3E3; color: var(--safety-yellow); }
+  .risk-badge.risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-badge.risk-ekstrem { background: #FCEAE8; color: var(--accent); }
 
   /* ===== Hazard checklist review ===== */
   .hazard-review-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: 10.5px; }
@@ -384,11 +392,27 @@
     }).join('');
   }
 
+  // Matriks skor -> Tingkat Risiko (HIRARC 5x5), sama persis kayak yang dipakai di
+  // ptw-report.html pas Requester ngisi JSA -- ditanam di kode (bukan master table).
+  function getRiskLevel(likelihood, severity) {
+    const score = Number(likelihood) * Number(severity);
+    if (score <= 4) return { label: 'Rendah', cls: 'risk-rendah' };
+    if (score <= 9) return { label: 'Sedang', cls: 'risk-sedang' };
+    if (score <= 15) return { label: 'Tinggi', cls: 'risk-tinggi' };
+    return { label: 'Ekstrem', cls: 'risk-ekstrem' };
+  }
+
+  function renderRiskCell(likelihood, severity) {
+    if (!likelihood || !severity) return '-'; // JSA lama sebelum fitur ini ada, belum ada skor
+    const r = getRiskLevel(likelihood, severity);
+    return `<span class="risk-badge ${r.cls}">${r.label} (${likelihood}x${severity}=${likelihood * severity})</span>`;
+  }
+
   function renderJsaTable(jsaItems) {
     const el = document.getElementById('fJsaTable');
     if (!jsaItems || jsaItems.length === 0) { el.innerHTML = '-'; return; }
-    el.innerHTML = `<table class="jsa-table"><thead><tr><th>Langkah Kerja</th><th>Potensi Bahaya</th><th>Pengendalian Risiko</th></tr></thead><tbody>
-      ${jsaItems.map(r => `<tr><td>${escapeHtml(r.langkah)}</td><td>${escapeHtml(r.bahaya)}</td><td>${escapeHtml(r.pengendalian)}</td></tr>`).join('')}
+    el.innerHTML = `<table class="jsa-table"><thead><tr><th>Langkah Kerja</th><th>Potensi Bahaya</th><th>Pengendalian Risiko</th><th>Risiko Awal</th><th>Risiko Sisa</th></tr></thead><tbody>
+      ${jsaItems.map(r => `<tr><td>${escapeHtml(r.langkah)}</td><td>${escapeHtml(r.bahaya)}</td><td>${escapeHtml(r.pengendalian)}</td><td class="risk-cell">${renderRiskCell(r.likelihoodAwal, r.severityAwal)}</td><td class="risk-cell">${renderRiskCell(r.likelihoodSisa, r.severitySisa)}</td></tr>`).join('')}
     </tbody></table>`;
   }
 

@@ -85,6 +85,22 @@
     background: var(--bg); color: var(--navy); font-weight: 700; font-size: 12.5px; cursor: pointer; margin-bottom: 14px;
   }
 
+  /* ===== Penilaian Risiko per baris JSA (HIRARC -- Kemungkinan x Keparahan) ===== */
+  .jsa-risk-block { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .jsa-risk-group { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  .jsa-risk-group-title { font-size: 10.5px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .jsa-risk-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+  .jsa-risk-field { flex: 1; min-width: 120px; }
+  .jsa-risk-field select { padding: 8px 9px; font-size: 12px; }
+  .jsa-risk-badge-wrap { flex: 0 0 auto; min-width: 90px; text-align: center; }
+  .risk-badge {
+    display: inline-block; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .risk-badge.risk-rendah { background: var(--success-bg); color: var(--success); }
+  .risk-badge.risk-sedang { background: #FDF3E3; color: var(--safety-yellow); }
+  .risk-badge.risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-badge.risk-ekstrem { background: #FCEAE8; color: var(--accent); }
+
   /* ===== Hazard checklist (checkbox per item) ===== */
   .hazard-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .hazard-item:last-child { border-bottom: none; }
@@ -565,12 +581,50 @@
 
   // =====================================================================================
   // JSA -- tabel dinamis, tambah/hapus baris Langkah Kerja / Bahaya / Pengendalian
+  // + Penilaian Risiko (HIRARC: Kemungkinan x Keparahan, skala 1-5, dihitung 2x --
+  //   sebelum & sesudah pengendalian). Matriks skor -> Tingkat Risiko ditanam di kode
+  //   (lihat getRiskLevel) -- disepakati simpel dulu, bisa diubah kalau nanti perlu
+  //   configurable lewat master table.
   // =====================================================================================
+  const LIKELIHOOD_LABELS = {
+    1: 'Hampir Tidak Mungkin', 2: 'Jarang Terjadi', 3: 'Kadang Terjadi',
+    4: 'Sering Terjadi', 5: 'Hampir Pasti Terjadi'
+  };
+  const SEVERITY_LABELS = {
+    1: 'Tidak Signifikan', 2: 'Kecil (P3K)', 3: 'Sedang (Medis)',
+    4: 'Berat (Cacat)', 5: 'Fatal'
+  };
+
+  function riskSelectOptions(labels, selected) {
+    return Object.keys(labels).map(k =>
+      `<option value="${k}" ${Number(selected) === Number(k) ? 'selected' : ''}>${k} - ${labels[k]}</option>`
+    ).join('');
+  }
+
+  function getRiskLevel(likelihood, severity) {
+    const score = Number(likelihood) * Number(severity);
+    if (score <= 4) return { label: 'Rendah', cls: 'risk-rendah' };
+    if (score <= 9) return { label: 'Sedang', cls: 'risk-sedang' };
+    if (score <= 15) return { label: 'Tinggi', cls: 'risk-tinggi' };
+    return { label: 'Ekstrem', cls: 'risk-ekstrem' };
+  }
+
+  function updateJsaRiskBadge(rowId, phase) {
+    const l = document.getElementById(`jsa-l${phase}-${rowId}`).value;
+    const s = document.getElementById(`jsa-s${phase}-${rowId}`).value;
+    const badge = document.getElementById(`jsa-badge-${phase}-${rowId}`);
+    const risk = getRiskLevel(l, s);
+    badge.textContent = `${risk.label} (${l}x${s}=${l * s})`;
+    badge.className = `risk-badge ${risk.cls}`;
+  }
+
   function addJsaRow(prefill) {
     const rowId = jsaRowCount++;
     const div = document.createElement('div');
     div.className = 'jsa-row';
     div.id = `jsa-row-${rowId}`;
+    const lAwal = prefill?.likelihoodAwal || 1, sAwal = prefill?.severityAwal || 1;
+    const lSisa = prefill?.likelihoodSisa || 1, sSisa = prefill?.severitySisa || 1;
     div.innerHTML = `
       <div class="jsa-row-label">Langkah ${jsaRows.children.length + 1}</div>
       <button type="button" class="btn-remove-row" onclick="removeJsaRow(${rowId})">✕</button>
@@ -580,6 +634,42 @@
       <textarea id="jsa-bahaya-${rowId}" placeholder="Bahaya yang mungkin timbul di langkah ini..."></textarea>
       <span class="jsa-mini-label">Pengendalian Risiko</span>
       <textarea id="jsa-pengendalian-${rowId}" placeholder="Cara mengendalikan bahaya tersebut..."></textarea>
+      <div class="jsa-risk-block">
+        <div class="jsa-risk-group">
+          <div class="jsa-risk-group-title">Penilaian Risiko Awal (sebelum pengendalian)</div>
+          <div class="jsa-risk-row">
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Kemungkinan</span>
+              <select id="jsa-lawal-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'awal')">${riskSelectOptions(LIKELIHOOD_LABELS, lAwal)}</select>
+            </div>
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Keparahan</span>
+              <select id="jsa-sawal-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'awal')">${riskSelectOptions(SEVERITY_LABELS, sAwal)}</select>
+            </div>
+            <div class="jsa-risk-badge-wrap">
+              <span class="jsa-mini-label">Tingkat Risiko</span>
+              <span class="risk-badge" id="jsa-badge-awal-${rowId}">-</span>
+            </div>
+          </div>
+        </div>
+        <div class="jsa-risk-group">
+          <div class="jsa-risk-group-title">Penilaian Risiko Sisa (sesudah pengendalian)</div>
+          <div class="jsa-risk-row">
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Kemungkinan</span>
+              <select id="jsa-lsisa-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'sisa')">${riskSelectOptions(LIKELIHOOD_LABELS, lSisa)}</select>
+            </div>
+            <div class="jsa-risk-field">
+              <span class="jsa-mini-label">Keparahan</span>
+              <select id="jsa-ssisa-${rowId}" onchange="updateJsaRiskBadge(${rowId}, 'sisa')">${riskSelectOptions(SEVERITY_LABELS, sSisa)}</select>
+            </div>
+            <div class="jsa-risk-badge-wrap">
+              <span class="jsa-mini-label">Tingkat Risiko</span>
+              <span class="risk-badge" id="jsa-badge-sisa-${rowId}">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
     `;
     jsaRows.appendChild(div);
     if (prefill) {
@@ -587,6 +677,8 @@
       div.querySelector(`#jsa-bahaya-${rowId}`).value = prefill.bahaya || '';
       div.querySelector(`#jsa-pengendalian-${rowId}`).value = prefill.pengendalian || '';
     }
+    updateJsaRiskBadge(rowId, 'awal');
+    updateJsaRiskBadge(rowId, 'sisa');
   }
 
   function removeJsaRow(rowId) {
@@ -607,6 +699,10 @@
         langkah: document.getElementById(`jsa-langkah-${rowId}`).value.trim(),
         bahaya: document.getElementById(`jsa-bahaya-${rowId}`).value.trim(),
         pengendalian: document.getElementById(`jsa-pengendalian-${rowId}`).value.trim(),
+        likelihoodAwal: Number(document.getElementById(`jsa-lawal-${rowId}`).value),
+        severityAwal: Number(document.getElementById(`jsa-sawal-${rowId}`).value),
+        likelihoodSisa: Number(document.getElementById(`jsa-lsisa-${rowId}`).value),
+        severitySisa: Number(document.getElementById(`jsa-ssisa-${rowId}`).value),
       };
     });
   }
