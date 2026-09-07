@@ -198,7 +198,7 @@
       </div>
       <button type="button" class="pd-save-btn" id="pdSaveBtn" onclick="saveProjectDates()">Simpan Durasi Project</button>
     </div>
-    <div class="pd-hint">Isi & simpan ini dulu ya. Begitu tersimpan, semua baris yang udah keisi Target (qty) + Frequency otomatis ke-generate ke matrik bulan (gak perlu klik ⚡ manual lagi) -- tombol ⚡ tinggal buat generate ulang satu baris kalau perlu. Khusus Triwulan/Semester/Tahunan, jatuh tempo di-anchor ke tanggal mulai project (bukan kalender Jan-Des) -- misal project mulai Agustus & Tahunan, jatuh tempo ke-1 otomatis di Juli tahun berikutnya.</div>
+    <div class="pd-hint">Kalau durasi project diisi, spread akan dibatasi ke tanggal mulai/selesai project. Kalau belum diisi, target tetap otomatis tersebar ke seluruh tahun terpilih. Isi Target (qty) dan Frequency, lalu cell bulan akan terisi saat mengetik; tombol ⚡ bisa dipakai untuk generate ulang satu baris. Untuk Triwulan/Semester/Tahunan, tanggal project dipakai sebagai anchor siklus.</div>
   </div>
 
   <div class="summary-row" id="summaryRow" style="display:none;">
@@ -417,7 +417,13 @@
   function computeSpread(tahun, targetQty, frequency, tglMulai, tglSelesai) {
     const result = {};
     for (let m = 1; m <= 12; m++) result[m] = 0;
-    if (!tglMulai || !tglSelesai || !targetQty || Number(targetQty) <= 0 || !frequency) return result;
+    if (!targetQty || Number(targetQty) <= 0 || !frequency) return result;
+
+    // Kalau durasi project belum diisi, tetap spread ke seluruh tahun terpilih.
+    // Begitu tanggal project disimpan, respreadAllRows() akan menghitung ulang
+    // dengan batas durasi project yang sebenarnya.
+    tglMulai = tglMulai || `${tahun}-01-01`;
+    tglSelesai = tglSelesai || `${tahun}-12-31`;
 
     const projStart = new Date(tglMulai + 'T00:00:00Z');
     const projEnd = new Date(tglSelesai + 'T00:00:00Z');
@@ -484,10 +490,6 @@
     if (!row) return false;
     const projectId = selectProject.value;
     const proj = projectMap[projectId] || {};
-    if (!proj.tanggalMulaiProject || !proj.tanggalSelesaiProject) {
-      if (!opts.silent) alert('Isi & simpan dulu Tanggal Mulai/Selesai Project di atas ya, baru bisa di-spread.');
-      return false;
-    }
     const qty = Number(row.querySelector('.qty-input').value) || 0;
     const freq = row.querySelector('.freq-select').value;
     if (!qty || !freq) {
@@ -608,7 +610,7 @@
           </div>
         </td>
         <td><input type="number" min="0" class="qty-input" value="${item.targetQty != null ? item.targetQty : ''}"
-          ${isUse ? '' : 'disabled'} onchange="onQtyFreqChange(${item.itemId})" placeholder="qty"></td>
+          ${isUse ? '' : 'disabled'} oninput="onQtyFreqChange(${item.itemId})" placeholder="qty"></td>
         <td><select class="freq-select" ${isUse ? '' : 'disabled'} onchange="onQtyFreqChange(${item.itemId})">${freqOptions}</select></td>
         <td><button type="button" class="spread-btn" ${isUse ? '' : 'disabled'} onclick="generateSpread(${item.itemId})" title="Spread ke matrik bulan">⚡</button></td>
         ${monthInputs}
