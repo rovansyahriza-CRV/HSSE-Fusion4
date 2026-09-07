@@ -71,7 +71,23 @@
     text-align: left; font-weight: 700; color: var(--navy-dark); white-space: normal; min-width: 190px;
     position: sticky; left: 0; background: var(--surface); z-index: 1;
   }
-  table.hp-table thead th:first-child { position: sticky; left: 0; z-index: 2; }
+  table.hp-table thead th:first-child,
+  table.hp-table tbody tr:not(.kategori-row) > td:nth-child(1) {
+    position: sticky; left: 0; z-index: 2; min-width: 190px;
+  }
+  table.hp-table thead th:nth-child(2),
+  table.hp-table tbody tr:not(.kategori-row) > td:nth-child(2) {
+    position: sticky; left: 202px; z-index: 2; background: var(--surface);
+  }
+  table.hp-table thead th:nth-child(3),
+  table.hp-table tbody tr:not(.kategori-row) > td:nth-child(3) {
+    position: sticky; left: 330px; z-index: 2; background: var(--surface);
+    box-shadow: 3px 0 5px -4px rgba(15, 31, 61, .45);
+  }
+  table.hp-table thead th:nth-child(2),
+  table.hp-table thead th:nth-child(3) {
+    background: var(--navy); z-index: 3;
+  }
   table.hp-table tr.na-row td.item-name { color: var(--muted); }
   table.hp-table tr.na-row { background: #FAFAFB; }
   table.hp-table tr.kategori-row td {
@@ -228,6 +244,7 @@
         <tr>
           <th>Item</th>
           <th>Status</th>
+          <th>Simpan</th>
           <th>Target<br>(qty)</th>
           <th>Frequency</th>
           <th>⚡</th>
@@ -574,7 +591,7 @@
     });
     let html = '';
     kategoriList.forEach(kat => {
-      html += `<tr class="kategori-row"><td colspan="21">${escapeHtml(kat)}</td></tr>`;
+      html += `<tr class="kategori-row"><td colspan="20">${escapeHtml(kat)}</td></tr>`;
       byKategori[kat].forEach(item => { html += rowHtml(item); });
     });
     tableBody.innerHTML = html;
@@ -607,12 +624,12 @@
               <button type="button" class="${!isUse ? 'active na' : ''}" onclick="setStatus(${item.itemId}, 'N/A')">N/A</button>
             </div>
           </td>
+          <td class="save-cell"><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
           <td colspan="3" class="reversed-note">Target: 0 (Zero Incident)</td>
           ${monthCells}
           <td class="total-target">${isUse ? 0 : '-'}</td>
           <td class="total-realisasi">${realisasiTotal}</td>
           <td class="pct-cell ${pctClass}" id="pct-${item.itemId}" title="% bulan aktif tanpa kejadian">${isUse ? pct + '%' : '-'}</td>
-          <td><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
         </tr>`;
     }
 
@@ -639,6 +656,7 @@
             <button type="button" class="${!isUse ? 'active na' : ''}" onclick="setStatus(${item.itemId}, 'N/A')">N/A</button>
           </div>
         </td>
+        <td class="save-cell"><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
         <td><input type="number" min="0" class="qty-input" value="${item.targetQty != null ? item.targetQty : ''}"
           ${isUse ? '' : 'disabled'} oninput="onQtyFreqChange(${item.itemId})" placeholder="qty"></td>
         <td><select class="freq-select" ${isUse ? '' : 'disabled'} onchange="onQtyFreqChange(${item.itemId})">${freqOptions}</select></td>
@@ -647,7 +665,6 @@
         <td class="total-target" id="target-total-${item.itemId}">${isUse ? targetTotal : '-'}</td>
         <td class="total-realisasi" id="realisasi-total-${item.itemId}">${realisasiTotal}</td>
         <td class="pct-cell ${pctClass}" id="pct-${item.itemId}">${isUse ? pct + '%' : '-'}</td>
-        <td><button type="button" class="row-save-btn" id="save-${item.itemId}" onclick="saveRow(${item.itemId})">Simpan</button></td>
       </tr>`;
 
     if (!isManual) return mainRow;
@@ -663,9 +680,9 @@
     }).join('');
     const manualRow = `
       <tr class="manual-row ${isUse ? '' : 'na-row'}" id="realrow-${item.itemId}">
-        <td class="manual-label" colspan="5">↳ Realisasi Aktual (isi manual per bulan -- modul belum tersedia)</td>
+        <td class="manual-label" colspan="6">↳ Realisasi Aktual (isi manual per bulan -- modul belum tersedia)</td>
         ${realInputs}
-        <td colspan="4"></td>
+        <td colspan="2"></td>
       </tr>`;
     return mainRow + manualRow;
   }
