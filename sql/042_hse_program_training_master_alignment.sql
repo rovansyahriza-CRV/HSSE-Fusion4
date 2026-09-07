@@ -7,11 +7,14 @@
 -- menyamakan daftar generic Training & Kompetensi dengan trainingMasterTbl:
 -- Safety Induction, MCU, HSSE Culture Training, First Aid / P3K, Fire Fighting,
 -- Working at Height, Confined Space, Lifting & Rigging, Electrical Safety / LOTO,
--- dan SIA/SIO Alat Berat.
+-- dan SIA/SIO Alat Berat. DDT (Defensive Driving Training) tetap dipertahankan
+-- sebagai item tambahan HSE Program, sehingga total generic training HSE Program
+-- menjadi 11 item.
 --
 -- Item lama yang sudah dipakai hseProgramTbl tidak dihapus langsung. Kode
--- SERTIFIKASI_KOMPETENSI (dan DDT, bila pernah dibuat) dipindahkan ke item SIA/SIO
--- agar target/realisasi project-tahun tetap aman. Seed dibuat idempotent.
+-- SERTIFIKASI_KOMPETENSI dipindahkan ke item SIA/SIO agar target/realisasi
+-- project-tahun tetap aman. DDT dipertahankan sebagai item tambahan. Seed dibuat
+-- idempotent.
 -- =====================================================================================
 
 -- -------------------------------------------------------------------------------------
@@ -38,7 +41,8 @@ VALUES
     ('CONFINED_SPACE', 'Confined Space', 'kali', 260, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; selaras dengan trainingMasterTbl'),
     ('LIFTING_RIGGING', 'Lifting & Rigging', 'kali', 270, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; selaras dengan trainingMasterTbl'),
     ('ELECTRICAL_LOTO', 'Electrical Safety / LOTO', 'kali', 280, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; selaras dengan trainingMasterTbl'),
-    ('SIA_SIO_HEAVY_EQUIPMENT', 'SIA/SIO Alat Berat', 'kali', 290, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; selaras dengan trainingMasterTbl')
+    ('SIA_SIO_HEAVY_EQUIPMENT', 'SIA/SIO Alat Berat', 'kali', 290, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; selaras dengan trainingMasterTbl'),
+    ('DDT', 'Defensive Driving Training (DDT)', 'kali', 300, 'Training & Kompetensi', 'MANUAL', 'Realisasi diisi manual; item tambahan HSE Program di luar Training Matrix')
 ON CONFLICT ("KodeItem") DO UPDATE SET
     "NamaItem" = EXCLUDED."NamaItem",
     "SatuanTarget" = EXCLUDED."SatuanTarget",
@@ -62,7 +66,7 @@ BEGIN
     FOR v_legacy_id IN
         SELECT "Id"
         FROM "hseProgramMasterItemTbl"
-        WHERE "KodeItem" IN ('SERTIFIKASI_KOMPETENSI', 'DDT')
+        WHERE "KodeItem" = 'SERTIFIKASI_KOMPETENSI'
     LOOP
         UPDATE "hseProgramTbl" AS hp
         SET "ItemId" = v_target_id,
@@ -84,12 +88,14 @@ BEGIN
     END LOOP;
 END $$;
 
--- Normalize the original four rows from migration #39 and keep all ten in one group.
+-- Normalize the original training rows from migration #39 and keep all shared items
+-- in one group. DDT remains an additional, separate HSE Program item.
 UPDATE "hseProgramMasterItemTbl"
 SET "NamaItem" = CASE "KodeItem"
         WHEN 'SAFETY_INDUCTION' THEN 'Safety Induction'
         WHEN 'MCU' THEN 'MCU (Medical Check-Up)'
         WHEN 'HSSE_CULTURE_TRAINING' THEN 'HSSE Culture Training'
+        WHEN 'DDT' THEN 'Defensive Driving Training (DDT)'
         ELSE "NamaItem"
     END,
     "Kategori" = 'Training & Kompetensi',
@@ -125,5 +131,5 @@ SET "Kategori" = 'Training & Kompetensi', "SumberRealisasi" = 'MANUAL'
 WHERE "KodeItem" IN (
     'SAFETY_INDUCTION', 'MCU', 'HSSE_CULTURE', 'FIRST_AID_P3K',
     'FIRE_FIGHTING', 'WORKING_AT_HEIGHT', 'CONFINED_SPACE',
-    'LIFTING_RIGGING', 'ELECTRICAL_LOTO', 'SIA_SIO_HEAVY_EQUIPMENT'
+    'LIFTING_RIGGING', 'ELECTRICAL_LOTO', 'SIA_SIO_HEAVY_EQUIPMENT', 'DDT'
 );
