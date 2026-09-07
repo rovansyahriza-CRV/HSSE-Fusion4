@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Matrix PDF — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+:root{--navy:#2D3C73;--navy-dark:#1B2650;--border:#DDE2EF;--muted:#6B7280;--green:#178A4C;--yellow:#8A6100}
+*{box-sizing:border-box}body{margin:0;background:#F5F6FA;color:#1E1E1E;font:12px 'Plus Jakarta Sans',Arial,sans-serif}
+.no-print{padding:12px 16px;background:var(--navy-dark);color:#fff;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.no-print a{color:#D5DCF5;text-decoration:none;font-weight:700}.no-print button{border:0;border-radius:8px;background:#E02C2B;color:#fff;padding:9px 16px;font-weight:800;cursor:pointer}
+.selector{max-width:420mm;margin:14px auto 0;padding:0 16px;display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{flex:1;min-width:210px}
+label{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;margin-bottom:4px}
+select{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:#fff;font:inherit}
+.selector button{height:37px;border:0;border-radius:8px;background:var(--navy);color:#fff;padding:0 16px;font-weight:800;cursor:pointer}
+.state{text-align:center;color:var(--muted);padding:45px 20px}.sheet{display:none;max-width:420mm;margin:16px auto;padding:10mm 12mm;background:#fff;box-shadow:0 3px 18px #0001}
+.header{display:flex;justify-content:space-between;align-items:end;border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:12px}.header h1{margin:0;color:var(--navy-dark);font-size:20px}.header p{margin:3px 0 0;color:var(--muted);font-size:10px}
+.matrix{width:100%;border-collapse:collapse;table-layout:fixed}.matrix th,.matrix td{border:1px solid var(--border);padding:6px 5px;text-align:center}.matrix th{background:var(--navy-dark);color:#fff;font-size:9px;white-space:normal}.matrix th:first-child{width:20%;text-align:left}.matrix th:nth-child(2){width:13%;}.matrix td:first-child,.matrix td:nth-child(2){text-align:left}.matrix td:first-child{font-weight:800;color:var(--navy-dark)}.matrix td:nth-child(2){color:var(--muted);font-size:10px}
+.status{display:inline-block;border-radius:999px;padding:3px 6px;font-size:9px;font-weight:800}.status.Wajib{background:#E5F6EC;color:var(--green)}.status.Kondisional{background:#FFF4D9;color:var(--yellow)}.status.N\/A{background:#EEF0F4;color:var(--muted)}
+.legend{margin-top:8px;color:var(--muted);font-size:9px}.legend span{margin-right:12px}
+@media print{.no-print{display:none!important}body{background:#fff}.sheet{display:block!important;box-shadow:none;margin:0;max-width:none;padding:4mm 6mm}@page{size:A3 landscape;margin:8mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media screen and (max-width:900px){.sheet{overflow-x:auto}.matrix{min-width:900px}}
+</style>
+</head>
+<body>
+<div class="no-print"><div><a href="training-matrix.html">⬅ Training Matrix</a> &nbsp;|&nbsp; <a href="index.html">🏠 Menu Utama</a></div><button onclick="window.print()">🖨️ Cetak / Simpan PDF</button></div>
+<div class="selector no-print"><div class="field"><label>Project / Kontrak</label><select id="project"><option value="">Memuat...</option></select></div><div class="field" style="max-width:130px"><label>Tahun</label><select id="year"></select></div><button onclick="loadReport()">Tampilkan</button></div>
+<div id="state" class="state">Pilih project dan tahun, lalu klik Tampilkan.</div>
+<section id="sheet" class="sheet"><div class="header"><div><h1>Training Matrix</h1><p id="projectLabel"></p></div><div><p>HSSE-Fusion4</p><p id="generated"></p></div></div><table class="matrix"><thead id="head"></thead><tbody id="body"></tbody></table><div class="legend"><span>● Wajib</span><span>● Kondisional</span><span>● N/A</span> Kolom hanya menampilkan training yang berstatus Use pada HSE Program project.</div></section>
+<script>
+const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let projects=[];
+const trainingCodes=new Set(['SAFETY_INDUCTION','MCU','HSSE_CULTURE','FIRST_AID_P3K','FIRE_FIGHTING','WORKING_AT_HEIGHT','CONFINED_SPACE','LIFTING_RIGGING','ELECTRICAL_LOTO','SIA_SIO_HEAVY_EQUIPMENT']);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setState(text){document.getElementById('state').textContent=text}
+async function init(){
+  const {data,error}=await client.rpc('get_active_projects');if(error) return setState('Gagal memuat project: '+error.message);
+  projects=data||[];document.getElementById('project').innerHTML='<option value="">-- pilih project --</option>'+projects.map(p=>`<option value="${p.id}">${esc(p.namaProject)}${p.noKontrak?' - '+esc(p.noKontrak):''}</option>`).join('');
+  const y=new Date().getFullYear();document.getElementById('year').innerHTML=Array.from({length:5},(_,i)=>`<option>${y-2+i}</option>`).join('');document.getElementById('year').value=y;
+}
+async function loadReport(){
+  const projectId=Number(document.getElementById('project').value),year=Number(document.getElementById('year').value);if(!projectId)return setState('Pilih project terlebih dahulu.');
+  setState('Memuat matrix...');const [p,t,m,h]=await Promise.all([
+    client.from('positionMasterTbl').select('Id,NamaPosisi,Kategori').eq('IsActive',true).order('Urutan'),
+    client.from('trainingMasterTbl').select('Id,KodeTraining,NamaTraining').eq('IsActive',true).order('Urutan'),
+    client.from('trainingMatrixTbl').select('PositionId,TrainingId,RequirementStatus'),
+    client.rpc('get_hse_program',{p_project_id:projectId,p_tahun:year})
+  ]);const problem=p.error||t.error||m.error||h.error;if(problem)return setState('Gagal memuat matrix: '+problem.message);
+  const program=Array.isArray(h.data)?h.data:[];const useCodes=new Set(program.filter(x=>x.statusPakai==='Use'&&trainingCodes.has(x.kodeItem)).map(x=>x.kodeItem));
+  const trainings=(t.data||[]).filter(x=>useCodes.has(x.KodeTraining));if(!trainings.length)return setState('Tidak ada training yang berstatus Use untuk project dan tahun ini.');
+  const byKey={};(m.data||[]).forEach(x=>byKey[x.PositionId+'-'+x.TrainingId]=x.RequirementStatus);
+  document.getElementById('head').innerHTML='<tr><th>Posisi</th><th>Kategori</th>'+trainings.map(x=>`<th>${esc(x.NamaTraining)}</th>`).join('')+'</tr>';
+  document.getElementById('body').innerHTML=(p.data||[]).map(pos=>`<tr><td>${esc(pos.NamaPosisi)}</td><td>${esc(pos.Kategori)}</td>${trainings.map(tr=>{const s=byKey[pos.Id+'-'+tr.Id]||'N/A';return `<td><span class="status ${s.replace('/','\\/')}">${s}</span></td>`}).join('')}</tr>`).join('');
+  const info=projects.find(x=>Number(x.id)===projectId)||{};document.getElementById('projectLabel').textContent=(info.namaProject||'')+(info.noKontrak?' - '+info.noKontrak:'')+' | Tahun '+year;document.getElementById('generated').textContent='Dibuat '+new Date().toLocaleDateString('id-ID');document.getElementById('sheet').style.display='block';setState('');
+}
+init();
+</script>
+</body>
+</html>
