@@ -106,6 +106,7 @@ END;
 $$;
 
 DROP FUNCTION IF EXISTS public.save_management_review(BIGINT, BIGINT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB);
+DROP FUNCTION IF EXISTS public.save_management_review(BIGINT, BIGINT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB, JSONB);
 CREATE OR REPLACE FUNCTION public.save_management_review(
     p_id BIGINT DEFAULT NULL,
     p_project_id BIGINT DEFAULT NULL,
@@ -211,6 +212,69 @@ BEGIN
     DELETE FROM "managementReviewTbl" WHERE "Id" = p_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Management Review tidak ditemukan.'; END IF;
     RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_management_review_checkin_info(p_id BIGINT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_result JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'found', true, 'id', r."Id", 'status', r."Status",
+        'agenda', r."Agenda", 'tanggalReview', r."TanggalReview",
+        'namaProject', p."NamaProject", 'noKontrak', p."NoKontrak",
+        'jumlahPeserta', jsonb_array_length(r."Participants"),
+        'participants', r."Participants"
+    ) INTO v_result
+    FROM "managementReviewTbl" r
+    JOIN "projectTbl" p ON p."Id" = r."ProjectId"
+    WHERE r."Id" = p_id;
+    IF v_result IS NULL THEN RETURN jsonb_build_object('found', false); END IF;
+    RETURN v_result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.checkin_management_review(
+    p_id BIGINT,
+    p_nama TEXT,
+    p_qrcode TEXT,
+    p_jabatan TEXT DEFAULT ''
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    v_status TEXT;
+    v_participants JSONB;
+    v_existing JSONB;
+    v_entry JSONB;
+    v_count INT;
+BEGIN
+    SELECT "Status", "Participants" INTO v_status, v_participants
+    FROM "managementReviewTbl" WHERE "Id" = p_id;
+    IF v_status IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Management Review tidak ditemukan.');
+    END IF;
+    IF v_status IN ('Completed', 'Cancelled') THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Review ini sudah ditutup, absensi tidak tersedia.');
+    END IF;
+    SELECT elem INTO v_existing
+    FROM jsonb_array_elements(COALESCE(v_participants, '[]'::jsonb)) elem
+    WHERE UPPER(elem->>'qrCodeId') = UPPER(TRIM(p_qrcode))
+    LIMIT 1;
+    IF v_existing IS NOT NULL THEN
+        RETURN jsonb_build_object(
+            'success', false, 'duplicate', true,
+            'nama', v_existing->>'nama'
+        );
+    END IF;
+    v_entry := jsonb_build_object(
+        'nama', TRIM(p_nama), 'qrCodeId', UPPER(TRIM(p_qrcode)),
+        'jabatan', COALESCE(TRIM(p_jabatan), ''), 'jamHadir', NOW()
+    );
+    UPDATE "managementReviewTbl"
+    SET "Participants" = COALESCE("Participants", '[]'::jsonb) || jsonb_build_array(v_entry),
+        "UpdatedAt" = NOW()
+    WHERE "Id" = p_id
+    RETURNING jsonb_array_length("Participants") INTO v_count;
+    RETURN jsonb_build_object('success', true, 'jumlahPeserta', v_count);
 END;
 $$;
 

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Management Review — Layar Peserta</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+body{padding:18px}.page{max-width:900px}.screen{display:grid;grid-template-columns:330px 1fr;gap:24px;align-items:center;min-height:calc(100vh - 60px)}.qr-panel{text-align:center;background:#fff;border:1.5px solid var(--border);border-radius:18px;padding:18px}.qr-panel canvas{max-width:100%;height:auto}.review-title{font-size:26px;font-weight:800;color:var(--navy-dark)}.meta{color:var(--muted);font-size:14px;margin-top:8px}.count{font-size:20px;font-weight:800;color:var(--navy-dark);margin-top:22px}.attendee-row{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:10px 0;font-size:14px}.attendee-list{margin-top:12px;max-height:430px;overflow:auto}.empty{text-align:center;color:var(--muted);padding:24px}@media(max-width:720px){.screen{grid-template-columns:1fr;min-height:auto}.qr-panel{max-width:360px;margin:auto}.review-title{font-size:21px}}
+</style>
+</head>
+<body><div class="page"><a href="index.html" class="back-to-menu">⬅ Menu Utama</a><div id="loading" class="card empty">Memuat layar Management Review...</div><div id="screen" class="screen" style="display:none"><div class="qr-panel"><canvas id="qr"></canvas><div class="meta">Scan QR dengan kamera HP untuk mendaftarkan kehadiran.</div></div><div><div class="eyebrow">HSSE-Fusion4 · Management Review</div><div class="review-title" id="agenda"></div><div class="meta" id="meta"></div><div class="count">Peserta tercatat hadir: <span id="count">0</span></div><div id="list" class="attendee-list"></div></div></div></div>
+<script>
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),$=id=>document.getElementById(id);const id=new URLSearchParams(location.search).get('id');let timer;
+document.addEventListener('DOMContentLoaded',()=>{if(!id)return fail('ID review tidak ditemukan.');load();});
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function fail(t){$('loading').textContent='❌ '+t;}
+async function load(){try{const {data,error}=await db.rpc('get_management_review_checkin_info',{p_id:Number(id)});if(error)throw error;if(!data||!data.found)throw new Error('Review tidak ditemukan.');if(['Completed','Cancelled'].includes(data.status))throw new Error('Review ini sudah ditutup.');$('loading').style.display='none';$('screen').style.display='grid';$('agenda').textContent=data.agenda;$('meta').textContent=`${data.namaProject} (${data.noKontrak}) · ${data.tanggalReview}`;QRCode.toCanvas($('qr'),`${location.origin}${location.pathname.replace('management-review-session.html','management-review-checkin.html')}?id=${encodeURIComponent(id)}`,{width:280,margin:1});render(data.participants||[]);timer=setInterval(refresh,4000);}catch(e){fail(e.message);}}
+async function refresh(){const {data}=await db.rpc('get_management_review_checkin_info',{p_id:Number(id)});if(data&&data.found)render(data.participants||[]);}
+function render(list){$('count').textContent=list.length;$('list').innerHTML=list.length?[...list].sort((a,b)=>new Date(a.jamHadir)-new Date(b.jamHadir)).map(p=>`<div class="attendee-row"><span>${esc(p.nama)}${p.jabatan?' -- '+esc(p.jabatan):''}</span><span>${new Date(p.jamHadir).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<div class="empty">Belum ada peserta yang scan.</div>'; }
+</script>
+</body></html>
