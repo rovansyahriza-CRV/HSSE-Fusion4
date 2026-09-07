@@ -78,17 +78,17 @@
       <div class="field"><label>Project / Kontrak</label><select id="project"><option value="">Memuat...</option></select></div>
       <div class="field"><label>Tanggal Review</label><input type="date" id="reviewDate"></div>
       <div class="field"><label>Generic Document.No Management Review</label><input id="documentNo" readonly placeholder="Otomatis setelah Project dipilih"></div>
+      <div class="field wide"><label>Peserta Management Review</label><div class="review-participants"><div><div class="button-row"><input id="participantQrInput" autocomplete="off" placeholder="Input QrCodeId peserta"><button type="button" class="secondary" id="addParticipantQr">Tambah Peserta</button></div><div id="participantList" class="attachment-list">Belum ada peserta.</div><div class="button-row attendance-actions"><a id="viewQrPage" class="secondary" href="#" target="_blank" rel="noopener">View QR Code</a><a id="viewAttendanceList" class="secondary" href="#" target="_blank" rel="noopener">List Absensi</a></div><div id="attendanceHint" class="attachment-list"></div></div><div class="review-qr-preview"><div class="review-qr-code" id="reviewCodePreview">Pilih Project untuk membuat nomor</div><canvas id="reviewQrPreview" width="150" height="150"></canvas><div class="review-qr-hint" id="reviewQrHint">QR aktif setelah review disimpan</div></div></div></div>
     </div>
   </div>
   <div class="card discussion-section" id="managementReviewDiscussion" style="display:none;">
       <h2>Isi Pembahasan Meeting Review</h2>
-      <p class="section-note">Isi pembahasan, keputusan, peserta yang hadir, QR absensi, dan lampiran review.</p>
+      <p class="section-note">Isi pembahasan meeting, review inputs, keputusan, status, dan lampiran.</p>
       <div class="form-grid">
       <div class="field wide"><label>Agenda / Topik Pembahasan</label><input id="agenda" maxlength="500" placeholder="Contoh: Evaluasi kinerja HSSE Q3 dan kesiapan audit klien"></div>
       <div class="field"><label>Review Inputs</label><textarea id="inputs" placeholder="KPI, audit, incident, inspeksi, feedback, perubahan konteks..."></textarea></div>
       <div class="field"><label>Decisions</label><textarea id="decisions" placeholder="Keputusan dan arahan manajemen"></textarea></div>
       <div class="field"><label>Status</label><select id="reviewStatus"><option>Draft</option><option>Scheduled</option><option>In Progress</option><option>Completed</option><option>Cancelled</option></select></div>
-      <div class="field wide"><label>Peserta Management Review</label><div class="review-participants"><div><div class="button-row"><input id="participantQrInput" autocomplete="off" placeholder="Input QrCodeId peserta"><button type="button" class="secondary" id="addParticipantQr">Tambah Peserta</button></div><div id="participantList" class="attachment-list">Belum ada peserta.</div><div class="button-row attendance-actions"><a id="viewQrPage" class="secondary" href="#" target="_blank" rel="noopener">View QR Code</a><a id="viewAttendanceList" class="secondary" href="#" target="_blank" rel="noopener">List Absensi</a></div><div id="attendanceHint" class="attachment-list"></div></div><div class="review-qr-preview"><div class="review-qr-code" id="reviewCodePreview">Pilih Project untuk membuat nomor</div><canvas id="reviewQrPreview" width="150" height="150"></canvas><div class="review-qr-hint" id="reviewQrHint">QR aktif setelah review disimpan</div></div></div></div>
       <div class="field"><label>Lampiran</label><input type="file" id="reviewFiles" multiple><div id="reviewAttachments" class="attachment-list"></div></div>
       </div>
     <div class="button-row" style="margin-top:12px"><button type="button" id="saveReview">Simpan Review</button><button type="button" class="secondary" id="resetForm">Reset</button></div>
