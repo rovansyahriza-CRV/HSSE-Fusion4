@@ -21,12 +21,24 @@
   button.warn { background:var(--safety-yellow); color:#513700; }
   .tabs { display:flex; gap:8px; margin-bottom:14px; }
   .tabs button.active { background:var(--accent); }
-  .table-wrap { overflow:auto; border:1.5px solid var(--border); border-radius:14px; }
-  table { border-collapse:collapse; width:100%; min-width:850px; font-size:12px; }
-  th, td { padding:8px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
-  th { background:var(--navy); color:#fff; font-size:11px; text-transform:uppercase; }
+  .table-wrap { overflow:auto; border:1.5px solid var(--border); border-radius:14px; -webkit-overflow-scrolling:touch; }
+  table { border-collapse:separate; border-spacing:0; width:100%; min-width:1320px; font-size:12px; }
+  th, td { padding:8px 7px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); text-align:left; white-space:nowrap; }
+  th { background:var(--navy); color:#fff; font-size:10px; text-transform:uppercase; letter-spacing:.02em; position:sticky; top:0; z-index:2; }
+  .matrix-table th.training-head { min-width:118px; max-width:145px; white-space:normal; text-align:center; vertical-align:bottom; height:76px; }
+  .matrix-table th.position-head, .matrix-table td.position-cell { position:sticky; left:0; z-index:3; min-width:205px; }
+  .matrix-table th.position-head { z-index:4; }
+  .matrix-table td.position-cell { background:#fff; font-weight:800; color:var(--navy-dark); white-space:normal; }
+  .matrix-table td.category-cell { min-width:125px; white-space:normal; color:var(--muted); font-size:11px; }
+  .matrix-table td.matrix-cell { min-width:118px; text-align:center; padding:6px; background:#fff; }
+  .matrix-table tr:nth-child(even) td { background:#FAFBFE; }
+  .matrix-table tr:nth-child(even) td.position-cell { background:#FAFBFE; }
   td select { min-width:115px; padding:6px; font-size:11px; }
-  .matrix-cell { text-align:center; }
+  .matrix-cell select { width:100%; min-width:104px; border:1px solid transparent; border-radius:999px; padding:5px 4px; text-align:center; text-align-last:center; font-weight:800; cursor:pointer; }
+  .matrix-cell select:disabled { opacity:1; cursor:default; }
+  .matrix-cell select.status-wajib { background:#E5F6EC; color:var(--success); }
+  .matrix-cell select.status-kondisional { background:#FFF4D9; color:#8A6100; }
+  .matrix-cell select.status-na { background:#EEF0F4; color:var(--muted); }
   .badge { display:inline-block; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:800; }
   .badge.wajib { background:#E5F6EC; color:var(--success); }
   .badge.kondisional { background:#FFF4D9; color:#8A6100; }
@@ -63,9 +75,9 @@
   </div>
 
   <section id="matrixPanel" class="card">
-    <div class="toolbar"><div class="field"><label>Filter posisi</label><input id="matrixFilter" oninput="renderMatrix()" placeholder="Cari posisi..."></div><button class="secondary" onclick="loadMatrix()">Muat ulang</button></div>
-    <p class="hint" style="margin:10px 0;">Perubahan status hanya dapat disimpan setelah Author terverifikasi. Matrix selalu lengkap; kombinasi yang tidak ditentukan bernilai N/A.</p>
-    <div class="table-wrap"><table><thead><tr><th>Posisi</th><th>Kategori</th><th>Training</th><th>Status</th><th></th></tr></thead><tbody id="matrixBody"></tbody></table></div>
+    <div class="toolbar"><div class="field"><label>Filter posisi</label><input id="matrixFilter" oninput="renderMatrix()" placeholder="Cari posisi atau kategori..."></div><button class="secondary" onclick="loadMatrix()">Muat ulang</button></div>
+    <p class="hint" style="margin:10px 0;">Baris = posisi, kolom = training. <span class="badge wajib">Wajib</span> <span class="badge kondisional">Kondisional</span> <span class="badge na">N/A</span>. Perubahan status hanya dapat disimpan setelah Author terverifikasi; geser horizontal di layar kecil.</p>
+    <div class="table-wrap"><table class="matrix-table"><thead id="matrixHead"></thead><tbody id="matrixBody"></tbody></table></div>
   </section>
 
   <section id="recordsPanel" class="card hidden">
@@ -136,13 +148,21 @@ async function loadMatrix() {
 }
 function renderMatrix() {
   const q=document.getElementById('matrixFilter').value.toLowerCase();
-  document.getElementById('matrixBody').innerHTML=matrix.filter(x=>(x.positionMasterTbl.NamaPosisi+' '+x.positionMasterTbl.Kategori).toLowerCase().includes(q)).map(x=>{
-    const cls=x.RequirementStatus.toLowerCase().replace('ā','a');
-    return `<tr><td>${escapeHtml(x.positionMasterTbl.NamaPosisi)}</td><td>${escapeHtml(x.positionMasterTbl.Kategori)}</td><td>${escapeHtml(x.trainingMasterTbl.NamaTraining)}</td><td><span class="badge ${cls}">${x.RequirementStatus}</span></td><td><select ${author?'':'disabled'} onchange="saveMatrix(${x.Id},this.value)"><option ${x.RequirementStatus==='Wajib'?'selected':''}>Wajib</option><option ${x.RequirementStatus==='Kondisional'?'selected':''}>Kondisional</option><option ${x.RequirementStatus==='N/A'?'selected':''}>N/A</option></select></td></tr>`;
+  const rows=positions.filter(p=>(p.NamaPosisi+' '+p.Kategori).toLowerCase().includes(q));
+  const byKey={}; matrix.forEach(x=>{ byKey[x.PositionId+'-'+x.TrainingId]=x; });
+  document.getElementById('matrixHead').innerHTML='<tr><th class="position-head">Posisi</th><th>Kategori</th>'+trainings.map(t=>`<th class="training-head">${escapeHtml(t.NamaTraining)}</th>`).join('')+'</tr>';
+  document.getElementById('matrixBody').innerHTML=rows.map(p=>{
+    const cells=trainings.map(t=>{
+      const row=byKey[p.Id+'-'+t.Id], status=row?.RequirementStatus||'N/A';
+      const cls=status==='Wajib'?'status-wajib':status==='Kondisional'?'status-kondisional':'status-na';
+      return `<td class="matrix-cell"><select class="${cls}" ${author?'':'disabled'} aria-label="${escapeHtml(p.NamaPosisi)} - ${escapeHtml(t.NamaTraining)}" onchange="saveMatrix(${row?.Id||0},this.value)"><option ${status==='Wajib'?'selected':''}>Wajib</option><option ${status==='Kondisional'?'selected':''}>Kondisional</option><option ${status==='N/A'?'selected':''}>N/A</option></select></td>`;
+    }).join('');
+    return `<tr><td class="position-cell">${escapeHtml(p.NamaPosisi)}</td><td class="category-cell">${escapeHtml(p.Kategori)}</td>${cells}</tr>`;
   }).join('');
 }
 async function saveMatrix(id,status) {
   if(!author) return setStatus('authStatus','Verifikasi Author dulu.');
+  if(!id) return setStatus('authStatus','Kombinasi matrix belum tersedia.');
   const {error}=await hsse.from('trainingMatrixTbl').update({RequirementStatus:status,UpdatedAt:new Date().toISOString()}).eq('Id',id);
   if(error) return setStatus('authStatus','Gagal menyimpan matrix: '+error.message);
   const row=matrix.find(x=>x.Id===id); if(row) row.RequirementStatus=status; renderMatrix();
