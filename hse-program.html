@@ -73,21 +73,29 @@
   }
   table.hp-table thead th:first-child,
   table.hp-table tbody tr:not(.kategori-row) > td:nth-child(1) {
-    position: sticky; left: 0; z-index: 2; min-width: 190px;
+    position: sticky; left: 0; z-index: 2; width: 190px; min-width: 190px;
   }
   table.hp-table thead th:nth-child(2),
   table.hp-table tbody tr:not(.kategori-row) > td:nth-child(2) {
-    position: sticky; left: 202px; z-index: 2; background: var(--surface);
+    position: sticky; left: 202px; z-index: 2; width: 128px; min-width: 128px; background: var(--surface);
   }
   table.hp-table thead th:nth-child(3),
   table.hp-table tbody tr:not(.kategori-row) > td:nth-child(3) {
-    position: sticky; left: 330px; z-index: 2; background: var(--surface);
+    position: sticky; left: 340px; z-index: 2; width: 94px; min-width: 94px; background: var(--surface);
     box-shadow: 3px 0 5px -4px rgba(15, 31, 61, .45);
   }
   table.hp-table thead th:nth-child(2),
   table.hp-table thead th:nth-child(3) {
     background: var(--navy); z-index: 3;
   }
+  table.hp-table th:nth-child(1),
+  table.hp-table td:nth-child(1) { width: 190px; min-width: 190px; }
+  table.hp-table th:nth-child(2),
+  table.hp-table td:nth-child(2) { width: 128px; min-width: 128px; }
+  table.hp-table th:nth-child(3),
+  table.hp-table td:nth-child(3) { width: 94px; min-width: 94px; }
+  table.hp-table th:nth-child(4),
+  table.hp-table td:nth-child(4) { width: 88px; min-width: 88px; }
   table.hp-table tr.na-row td.item-name { color: var(--muted); }
   table.hp-table tr.na-row { background: #FAFAFB; }
   table.hp-table tr.kategori-row td {
@@ -125,7 +133,7 @@
   .mo-input:disabled { background: #F3F4F6; color: #B0B4BD; }
 
   .qty-input {
-    width: 60px; padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
+    width: 76px; min-width: 76px; box-sizing: border-box; padding: 5px 4px; border: 1.5px solid var(--border); border-radius: 7px;
     font-size: 12px; text-align: center; font-weight: 700;
   }
   .qty-input:disabled { background: #F3F4F6; color: #B0B4BD; }
@@ -591,7 +599,7 @@
     });
     let html = '';
     kategoriList.forEach(kat => {
-      html += `<tr class="kategori-row"><td colspan="20">${escapeHtml(kat)}</td></tr>`;
+      html += `<tr class="kategori-row"><td colspan="21">${escapeHtml(kat)}</td></tr>`;
       byKategori[kat].forEach(item => { html += rowHtml(item); });
     });
     tableBody.innerHTML = html;
@@ -646,7 +654,8 @@
     const freqOptions = FREQUENCY_OPTIONS.map(f =>
       `<option value="${f.value}" ${normalizedItemFrequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('');
 
-    const isManual = item.sumberRealisasi === 'MANUAL';
+    const isTrainingItem = String(item.kategori || '').toLowerCase().includes('training');
+    const isManual = item.sumberRealisasi === 'MANUAL' && !isTrainingItem;
     const mainRow = `
       <tr class="${isUse ? '' : 'na-row'}" id="row-${item.itemId}">
         <td class="item-name">${escapeHtml(item.namaItem)}</td>
@@ -682,7 +691,7 @@
       <tr class="manual-row ${isUse ? '' : 'na-row'}" id="realrow-${item.itemId}">
         <td class="manual-label" colspan="6">↳ Realisasi Aktual (isi manual per bulan -- modul belum tersedia)</td>
         ${realInputs}
-        <td colspan="2"></td>
+        <td colspan="3"></td>
       </tr>`;
     return mainRow + manualRow;
   }
