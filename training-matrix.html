@@ -77,6 +77,7 @@
 
   <section id="matrixPanel" class="card">
     <div class="toolbar"><div class="field"><label>Filter posisi</label><input id="matrixFilter" oninput="renderMatrix()" placeholder="Cari posisi atau kategori..."></div><button class="secondary" onclick="loadMatrix()">Muat ulang</button></div>
+    <p style="margin:10px 0 0;"><a href="training-matrix-pdf.html" target="_blank" class="hint">🖨️ Cetak Training Matrix per Project</a></p>
     <p class="hint" style="margin:10px 0;">Baris = posisi, kolom = training. <span class="badge wajib">Wajib</span> <span class="badge kondisional">Kondisional</span> <span class="badge na">N/A</span>. Pilih status untuk <b>Edit</b>; jika kombinasi belum ada, pilihan pertama otomatis menjadi <b>Add</b>. Perubahan hanya dapat disimpan setelah Author terverifikasi; geser horizontal di layar kecil.</p>
     <div class="table-wrap"><table class="matrix-table"><thead id="matrixHead"></thead><tbody id="matrixBody"></tbody></table></div>
   </section>
