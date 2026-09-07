@@ -262,6 +262,14 @@
     { value: 'Semester', label: 'Semester (per 6 bulan)' },
     { value: 'Tahunan', label: 'Tahunan (per tahun)' }
   ];
+  const FREQUENCY_ALIASES = {
+    harian: 'Harian',
+    mingguan: 'Mingguan',
+    bulanan: 'Bulanan',
+    triwulan: 'Triwulan',
+    semester: 'Semester',
+    tahunan: 'Tahunan'
+  };
 
   const selectProject = document.getElementById('selectProject');
   const selectTahun = document.getElementById('selectTahun');
@@ -379,6 +387,11 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
+  function normalizeFrequency(value) {
+    const key = String(value == null ? '' : value).trim().toLowerCase();
+    return FREQUENCY_ALIASES[key] || '';
+  }
+
   // Bulan-bulan di tahun `tahun` yang beririsan sama durasi project (dipakai buat
   // itung %Capaian item Zero Target -- lihat REVERSED_TARGET_ITEMS). Kalau tanggal
   // project belum diisi, dianggap semua 12 bulan aktif (fallback aman).
@@ -427,11 +440,12 @@
 
     const projStart = new Date(tglMulai + 'T00:00:00Z');
     const projEnd = new Date(tglSelesai + 'T00:00:00Z');
+    const normalizedFrequency = normalizeFrequency(frequency);
     const Q = Number(targetQty);
 
     // Harian/Mingguan/Bulanan: cadence-nya emang per bulan kalender (proporsional
     // hari aktif per bulan), jadi tetep dihitung per bulan kalender Jan-Des tahun ini.
-    if (frequency === 'Harian' || frequency === 'Mingguan' || frequency === 'Bulanan') {
+    if (normalizedFrequency === 'Harian' || normalizedFrequency === 'Mingguan' || normalizedFrequency === 'Bulanan') {
       const yearStart = new Date(Date.UTC(tahun, 0, 1));
       const yearEnd = new Date(Date.UTC(tahun, 11, 31));
       const effStart = projStart > yearStart ? projStart : yearStart;
@@ -450,9 +464,9 @@
         if (days > 0) activeMonths.push(m);
       }
 
-      if (frequency === 'Harian') {
+      if (normalizedFrequency === 'Harian') {
         activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m]); });
-      } else if (frequency === 'Mingguan') {
+      } else if (normalizedFrequency === 'Mingguan') {
         activeMonths.forEach(m => { result[m] = Math.round(Q * activeDays[m] / 7); });
       } else {
         activeMonths.forEach(m => { result[m] = Q; });
@@ -465,18 +479,33 @@
     // (siklus 12 bulan), jatuh tempo ke-1 = ultah project dikurang 1 hari = 31 Juli
     // tahun berikutnya. Begitu juga Triwulan (siklus 3 bulan) & Semester (6 bulan),
     // titik jatuh temponya ngikutin bulan mulai project, bukan Mar/Jun/Sep/Des kalender.
-    const cycleMonths = { 'Triwulan': 3, 'Semester': 6, 'Tahunan': 12 }[frequency];
+    const cycleMonths = { 'Triwulan': 3, 'Semester': 6, 'Tahunan': 12 }[normalizedFrequency];
     if (!cycleMonths) return result;
 
-    for (let k = 1; k <= 400; k++) {
-      const anniversary = new Date(Date.UTC(
+    const yearStart = new Date(Date.UTC(tahun, 0, 1));
+    const yearEnd = new Date(Date.UTC(tahun, 11, 31));
+    const activeStart = projStart > yearStart ? projStart : yearStart;
+    const activeEnd = projEnd < yearEnd ? projEnd : yearEnd;
+    if (activeStart > activeEnd) return result;
+
+    // Evaluate whole anchored cycles, not only their due date. A cycle that
+    // crosses 1 Jan/31 Dec still gets one visible target in the active year,
+    // clamped to the nearest active month, instead of appearing as all zeros.
+    for (let k = -2; k <= 400; k++) {
+      const cycleStart = new Date(Date.UTC(
         projStart.getUTCFullYear(), projStart.getUTCMonth() + cycleMonths * k, projStart.getUTCDate()
       ));
-      const due = new Date(anniversary.getTime() - 86400000); // H-1 dari ultah siklus = akhir periode berjalan
-      if (due > projEnd) break;
-      if (due.getUTCFullYear() === tahun) {
-        result[due.getUTCMonth() + 1] = Q;
-      }
+      const cycleEnd = new Date(Date.UTC(
+        projStart.getUTCFullYear(), projStart.getUTCMonth() + cycleMonths * (k + 1), projStart.getUTCDate()
+      ));
+      const due = new Date(cycleEnd.getTime() - 86400000);
+      if (cycleEnd <= projStart) continue;
+      if (cycleStart > projEnd) break;
+      const overlapStart = cycleStart > activeStart ? cycleStart : activeStart;
+      const overlapEnd = cycleEnd < activeEnd ? cycleEnd : activeEnd;
+      if (overlapStart > overlapEnd) continue;
+      const displayDate = due < activeStart ? activeStart : (due > activeEnd ? activeEnd : due);
+      result[displayDate.getUTCMonth() + 1] = Q;
     }
     return result;
   }
@@ -491,7 +520,7 @@
     const projectId = selectProject.value;
     const proj = projectMap[projectId] || {};
     const qty = Number(row.querySelector('.qty-input').value) || 0;
-    const freq = row.querySelector('.freq-select').value;
+    const freq = normalizeFrequency(row.querySelector('.freq-select').value);
     if (!qty || !freq) {
       if (!opts.silent) alert('Isi Target (qty) dan pilih Frequency dulu ya.');
       return false;
@@ -527,7 +556,7 @@
       const row = document.getElementById(`row-${item.itemId}`);
       if (!row) return;
       const qty = row.querySelector('.qty-input').value;
-      const freq = row.querySelector('.freq-select').value;
+      const freq = normalizeFrequency(row.querySelector('.freq-select').value);
       if (!qty || !freq) return;
       if (trySpread(item.itemId, { silent: true })) markDirty(item.itemId);
     });
@@ -596,8 +625,9 @@
     const targetTotal = item.targetTotal || 0;
     const pct = targetTotal > 0 ? Math.round((realisasiTotal / targetTotal) * 100) : (realisasiTotal > 0 ? 100 : 0);
     const pctClass = !isUse ? '' : (pct >= 100 ? 'pct-ok' : pct >= 70 ? 'pct-warn' : 'pct-bad');
+    const normalizedItemFrequency = normalizeFrequency(item.frequency);
     const freqOptions = FREQUENCY_OPTIONS.map(f =>
-      `<option value="${f.value}" ${item.frequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('');
+      `<option value="${f.value}" ${normalizedItemFrequency === f.value ? 'selected' : ''}>${f.label}</option>`).join('');
 
     const isManual = item.sumberRealisasi === 'MANUAL';
     const mainRow = `
@@ -739,7 +769,7 @@
       });
       const qtyVal = row.querySelector('.qty-input').value;
       targetQty = qtyVal === '' ? null : Number(qtyVal);
-      frequency = row.querySelector('.freq-select').value || null;
+      frequency = normalizeFrequency(row.querySelector('.freq-select').value) || null;
     }
 
     // Item MANUAL (modul otomatisnya belum ada) -- ikutan kirim Realisasi Aktual yang
