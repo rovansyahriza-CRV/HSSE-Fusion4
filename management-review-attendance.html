@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>List Absensi Management Review — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<style>
+.page{max-width:760px}.review-head{background:linear-gradient(135deg,var(--navy),var(--navy-dark));color:#fff;border-radius:14px;padding:18px;margin-bottom:14px}.review-head h1{font-size:21px;margin:4px 0}.review-head p{color:#C7CEE8;font-size:13px;margin-top:6px}.count{font-size:30px;font-weight:800;color:var(--navy-dark)}.count small{font-size:12px;color:var(--muted);font-weight:700}.attendee-row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}.attendee-row small{color:var(--muted);white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:28px}
+</style>
+</head>
+<body><div class="page"><a href="index.html" class="back-to-menu">⬅ Menu Utama</a><div id="loading" class="card empty">Memuat daftar absensi...</div><main id="content" style="display:none"><div class="review-head"><div class="eyebrow">HSSE-Fusion4</div><h1 id="agenda">Management Review</h1><p id="meta"></p></div><div class="card"><div class="count"><span id="count">0</span> <small>Peserta hadir</small></div><div id="list"></div></div></main></div>
+<script>
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY),id=new URLSearchParams(location.search).get('id'),$=x=>document.getElementById(x);let timer;
+function fail(message){$('loading').textContent='❌ '+message}
+function esc(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(list){$('count').textContent=list.length;$('list').innerHTML=list.length?[...list].sort((a,b)=>new Date(b.jamHadir)-new Date(a.jamHadir)).map(p=>`<div class="attendee-row"><span>${esc(p.nama)}${p.jabatan?' <small>-- '+esc(p.jabatan)+'</small>':''}</span><small>${new Date(p.jamHadir).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'})}</small></div>`).join(''):'<div class="empty">Belum ada peserta yang absen.</div>'}
+async function load(){try{const{data,error}=await db.rpc('get_management_review_checkin_info',{p_id:Number(id)});if(error)throw error;if(!data||!data.found)throw new Error('Review tidak ditemukan.');$('agenda').textContent=data.agenda||'Management Review';$('meta').textContent=`${data.namaProject||''} (${data.noKontrak||'-'}) · ${data.tanggalReview||'-'}`;render(data.participants||[]);$('loading').style.display='none';$('content').style.display='block'}catch(error){const message=error.message||String(error);fail(message.includes('schema cache')?'Fitur absensi belum aktif di Supabase. Jalankan migration sql/046_management_review_schema.sql terlebih dahulu.':message)}}
+if(!id)fail('ID review tidak ditemukan.');else{load();timer=setInterval(load,4000)}
+</script></body></html>
