@@ -32,7 +32,7 @@ select{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;b
 <section id="sheet" class="sheet"><div class="header"><div><h1>Training Matrix</h1><p id="projectLabel"></p></div><div><p>HSSE-Fusion4</p><p id="generated"></p></div></div><table class="matrix"><thead id="head"></thead><tbody id="body"></tbody></table><div class="legend"><span>● Wajib</span><span>● Kondisional</span><span>● N/A</span> Kolom hanya menampilkan training yang berstatus Use pada HSE Program project.</div></section>
 <script>
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let projects=[];
-const trainingCodes=new Set(['SAFETY_INDUCTION','MCU','HSSE_CULTURE','FIRST_AID_P3K','FIRE_FIGHTING','WORKING_AT_HEIGHT','CONFINED_SPACE','LIFTING_RIGGING','ELECTRICAL_LOTO','SIA_SIO_HEAVY_EQUIPMENT']);
+const trainingCodes=new Set(['SAFETY_INDUCTION','MCU','HSSE_CULTURE','FIRST_AID_P3K','FIRE_FIGHTING','WORKING_AT_HEIGHT','CONFINED_SPACE','LIFTING_RIGGING','ELECTRICAL_LOTO','SIA_SIO_HEAVY_EQUIPMENT','DDT']);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setState(text){document.getElementById('state').textContent=text}
 async function init(){
