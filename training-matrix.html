@@ -76,7 +76,7 @@
 
   <section id="matrixPanel" class="card">
     <div class="toolbar"><div class="field"><label>Filter posisi</label><input id="matrixFilter" oninput="renderMatrix()" placeholder="Cari posisi atau kategori..."></div><button class="secondary" onclick="loadMatrix()">Muat ulang</button></div>
-    <p class="hint" style="margin:10px 0;">Baris = posisi, kolom = training. <span class="badge wajib">Wajib</span> <span class="badge kondisional">Kondisional</span> <span class="badge na">N/A</span>. Perubahan status hanya dapat disimpan setelah Author terverifikasi; geser horizontal di layar kecil.</p>
+    <p class="hint" style="margin:10px 0;">Baris = posisi, kolom = training. <span class="badge wajib">Wajib</span> <span class="badge kondisional">Kondisional</span> <span class="badge na">N/A</span>. Pilih status untuk <b>Edit</b>; jika kombinasi belum ada, pilihan pertama otomatis menjadi <b>Add</b>. Perubahan hanya dapat disimpan setelah Author terverifikasi; geser horizontal di layar kecil.</p>
     <div class="table-wrap"><table class="matrix-table"><thead id="matrixHead"></thead><tbody id="matrixBody"></tbody></table></div>
   </section>
 
@@ -155,17 +155,26 @@ function renderMatrix() {
     const cells=trainings.map(t=>{
       const row=byKey[p.Id+'-'+t.Id], status=row?.RequirementStatus||'N/A';
       const cls=status==='Wajib'?'status-wajib':status==='Kondisional'?'status-kondisional':'status-na';
-      return `<td class="matrix-cell"><select class="${cls}" ${author?'':'disabled'} aria-label="${escapeHtml(p.NamaPosisi)} - ${escapeHtml(t.NamaTraining)}" onchange="saveMatrix(${row?.Id||0},this.value)"><option ${status==='Wajib'?'selected':''}>Wajib</option><option ${status==='Kondisional'?'selected':''}>Kondisional</option><option ${status==='N/A'?'selected':''}>N/A</option></select></td>`;
+      return `<td class="matrix-cell"><select class="${cls}" ${author?'':'disabled'} aria-label="${escapeHtml(p.NamaPosisi)} - ${escapeHtml(t.NamaTraining)}" onchange="saveMatrix(${row?.Id||0},${p.Id},${t.Id},this.value)"><option ${status==='Wajib'?'selected':''}>Wajib</option><option ${status==='Kondisional'?'selected':''}>Kondisional</option><option ${status==='N/A'?'selected':''}>N/A</option></select></td>`;
     }).join('');
     return `<tr><td class="position-cell">${escapeHtml(p.NamaPosisi)}</td><td class="category-cell">${escapeHtml(p.Kategori)}</td>${cells}</tr>`;
   }).join('');
 }
-async function saveMatrix(id,status) {
+async function saveMatrix(id,positionId,trainingId,status) {
   if(!author) return setStatus('authStatus','Verifikasi Author dulu.');
-  if(!id) return setStatus('authStatus','Kombinasi matrix belum tersedia.');
-  const {error}=await hsse.from('trainingMatrixTbl').update({RequirementStatus:status,UpdatedAt:new Date().toISOString()}).eq('Id',id);
+  const values={RequirementStatus:status,UpdatedAt:new Date().toISOString()};
+  const result=id
+    ? await hsse.from('trainingMatrixTbl').update(values).eq('Id',id)
+    : await hsse.from('trainingMatrixTbl').insert({PositionId:positionId,TrainingId:trainingId,...values}).select('Id,PositionId,TrainingId,RequirementStatus').single();
+  const error=result.error;
   if(error) return setStatus('authStatus','Gagal menyimpan matrix: '+error.message);
-  const row=matrix.find(x=>x.Id===id); if(row) row.RequirementStatus=status; renderMatrix();
+  if(id) {
+    const row=matrix.find(x=>x.Id===id); if(row) row.RequirementStatus=status;
+  } else {
+    const position=positions.find(x=>x.Id===positionId), training=trainings.find(x=>x.Id===trainingId);
+    if(result.data) matrix.push({...result.data,positionMasterTbl:position,trainingMasterTbl:training});
+  }
+  renderMatrix();
 }
 async function saveRecord() {
   if(!author) return setStatus('recordStatusMsg','Verifikasi Author dulu.');
