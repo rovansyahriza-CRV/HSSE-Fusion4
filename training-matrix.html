@@ -72,6 +72,7 @@
   <div class="tabs">
     <button id="tabMatrix" class="active" onclick="showTab('matrix')">Matrix Posisi x Training</button>
     <button id="tabRecords" class="secondary" onclick="showTab('records')">Training Records</button>
+    <button id="tabAdmin" class="secondary" onclick="showTab('admin')">Add Master</button>
   </div>
 
   <section id="matrixPanel" class="card">
@@ -101,6 +102,32 @@
     <div id="recordStatusMsg" class="status"></div>
     <div class="table-wrap" style="margin-top:16px;"><table><thead><tr><th>Tanggal</th><th>Karyawan</th><th>Training</th><th>Status</th><th>Berlaku sampai</th><th>Sertifikat</th></tr></thead><tbody id="recordsBody"></tbody></table></div>
   </section>
+
+  <section id="adminPanel" class="card hidden">
+    <h2>Add Master Training / Posisi</h2>
+    <p class="hint" style="margin-bottom:12px;">Gunakan menu ini untuk menambah master baru. Wajib verifikasi Author <b>Training Matrix Admin</b> terlebih dahulu.</p>
+    <div class="form-grid">
+      <div class="field"><label>Kode training</label><input id="masterTrainingCode" placeholder="CONTOH_TRAINING"></div>
+      <div class="field"><label>Nama training</label><input id="masterTrainingName"></div>
+      <div class="field"><label>Tujuan / deskripsi</label><textarea id="masterTrainingDescription"></textarea></div>
+      <div class="field"><label>Target peserta</label><textarea id="masterTrainingTarget"></textarea></div>
+      <div class="field"><label>Frekuensi / masa berlaku</label><input id="masterTrainingFrequency"></div>
+      <div class="field"><label>Penyedia</label><input id="masterTrainingProvider"></div>
+      <div class="field"><label>Urutan</label><input id="masterTrainingOrder" type="number" value="110"></div>
+      <div class="field"><label>Aktif</label><select id="masterTrainingActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div>
+    </div>
+    <button style="margin-top:12px;" onclick="saveTrainingMaster()">Tambah training master</button>
+    <div id="trainingMasterStatus" class="status"></div>
+    <hr style="border:0;border-top:1px solid var(--border);margin:20px 0;">
+    <div class="form-grid">
+      <div class="field"><label>Nama posisi / jabatan</label><input id="masterPositionName"></div>
+      <div class="field"><label>Kategori</label><select id="masterPositionCategory"><option>Head Office</option><option>Project Team</option><option selected>Field/Project Team</option></select></div>
+      <div class="field"><label>Urutan</label><input id="masterPositionOrder" type="number" value="220"></div>
+      <div class="field"><label>Aktif</label><select id="masterPositionActive"><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div>
+    </div>
+    <button style="margin-top:12px;" onclick="savePositionMaster()">Tambah posisi / jabatan master</button>
+    <div id="positionMasterStatus" class="status"></div>
+  </section>
 </div>
 
 <script>
@@ -126,8 +153,10 @@ async function verifyAuthor() {
 function showTab(tab) {
   document.getElementById('matrixPanel').classList.toggle('hidden',tab!=='matrix');
   document.getElementById('recordsPanel').classList.toggle('hidden',tab!=='records');
+  document.getElementById('adminPanel').classList.toggle('hidden',tab!=='admin');
   document.getElementById('tabMatrix').classList.toggle('active',tab==='matrix');
   document.getElementById('tabRecords').classList.toggle('active',tab==='records');
+  document.getElementById('tabAdmin').classList.toggle('active',tab==='admin');
 }
 async function loadMasters() {
   const [p,t,e]=await Promise.all([
@@ -176,6 +205,24 @@ async function saveMatrix(id,positionId,trainingId,status) {
   }
   setStatus('authStatus',`${id?'Edit':'Add'} berhasil disimpan.`,true);
   renderMatrix();
+}
+async function saveTrainingMaster() {
+  if(!author) return setStatus('trainingMasterStatus','Verifikasi Author dulu.');
+  const code=document.getElementById('masterTrainingCode').value.trim().toUpperCase(), name=document.getElementById('masterTrainingName').value.trim();
+  if(!code||!name) return setStatus('trainingMasterStatus','Kode dan nama training wajib diisi.');
+  const payload={KodeTraining:code,NamaTraining:name,Deskripsi:document.getElementById('masterTrainingDescription').value.trim(),TargetPeserta:document.getElementById('masterTrainingTarget').value.trim(),FrekuensiBerlaku:document.getElementById('masterTrainingFrequency').value.trim(),Penyedia:document.getElementById('masterTrainingProvider').value.trim(),Urutan:Number(document.getElementById('masterTrainingOrder').value)||0,IsActive:document.getElementById('masterTrainingActive').value==='true',UpdatedAt:new Date().toISOString()};
+  const {error}=await hsse.from('trainingMasterTbl').insert(payload);
+  if(error) return setStatus('trainingMasterStatus','Gagal menambah training: '+error.message);
+  setStatus('trainingMasterStatus','Training master berhasil ditambahkan.',true); await loadMasters(); await loadMatrix();
+}
+async function savePositionMaster() {
+  if(!author) return setStatus('positionMasterStatus','Verifikasi Author dulu.');
+  const name=document.getElementById('masterPositionName').value.trim();
+  if(!name) return setStatus('positionMasterStatus','Nama posisi wajib diisi.');
+  const payload={NamaPosisi:name,Kategori:document.getElementById('masterPositionCategory').value,Urutan:Number(document.getElementById('masterPositionOrder').value)||0,IsActive:document.getElementById('masterPositionActive').value==='true',UpdatedAt:new Date().toISOString()};
+  const {error}=await hsse.from('positionMasterTbl').insert(payload);
+  if(error) return setStatus('positionMasterStatus','Gagal menambah posisi: '+error.message);
+  setStatus('positionMasterStatus','Posisi master berhasil ditambahkan.',true); await loadMasters(); await loadMatrix();
 }
 async function saveRecord() {
   if(!author) return setStatus('recordStatusMsg','Verifikasi Author dulu.');
