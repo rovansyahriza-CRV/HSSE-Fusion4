@@ -74,7 +74,7 @@ BEGIN
                     'dueDate', a."DueDate", 'status', a."Status", 'notes', a."Notes",
                     'attachments', a."Attachments", 'createdAt', a."CreatedAt",
                     'updatedAt', a."UpdatedAt"
-                ) ORDER BY a."DueDate" NULLS LAST, a."Id"), '[]'::jsonb)
+                ) ORDER BY a."DueDate" NULLS LAST, a."Id")), '[]'::jsonb)
         ) AS row_data, r."TanggalReview" AS review_date, r."Id" AS id
         FROM "managementReviewTbl" r
         JOIN "projectTbl" p ON p."Id" = r."ProjectId"
