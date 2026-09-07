@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS "managementReviewTbl" (
     "Id" BIGSERIAL PRIMARY KEY,
     "ProjectId" BIGINT NOT NULL REFERENCES "projectTbl"("Id"),
     "TanggalReview" DATE NOT NULL,
+    "DocumentNo" TEXT NOT NULL DEFAULT '',
     "Agenda" TEXT NOT NULL,
     "ReviewInputs" TEXT NOT NULL DEFAULT '',
     "Decisions" TEXT NOT NULL DEFAULT '',
@@ -37,6 +38,8 @@ CREATE TABLE IF NOT EXISTS "managementReviewActionTbl" (
 
 ALTER TABLE "managementReviewTbl"
     ADD COLUMN IF NOT EXISTS "Participants" JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE "managementReviewTbl"
+    ADD COLUMN IF NOT EXISTS "DocumentNo" TEXT NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_management_review_project_date
     ON "managementReviewTbl" ("ProjectId", "TanggalReview" DESC);
@@ -66,6 +69,7 @@ BEGIN
     FROM (
         SELECT jsonb_build_object(
             'id', r."Id", 'projectId', r."ProjectId", 'tanggalReview', r."TanggalReview",
+            'documentNo', r."DocumentNo",
             'agenda', r."Agenda", 'reviewInputs', r."ReviewInputs", 'decisions', r."Decisions",
             'status', r."Status", 'createdByNama', r."CreatedByNama",
             'createdByQrCodeId', r."CreatedByQrCodeId", 'participants', r."Participants",
@@ -107,6 +111,7 @@ $$;
 
 DROP FUNCTION IF EXISTS public.save_management_review(BIGINT, BIGINT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB);
 DROP FUNCTION IF EXISTS public.save_management_review(BIGINT, BIGINT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB, JSONB);
+DROP FUNCTION IF EXISTS public.save_management_review(BIGINT, BIGINT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB, JSONB, TEXT);
 CREATE OR REPLACE FUNCTION public.save_management_review(
     p_id BIGINT DEFAULT NULL,
     p_project_id BIGINT DEFAULT NULL,
@@ -118,7 +123,8 @@ CREATE OR REPLACE FUNCTION public.save_management_review(
     p_created_by_nama TEXT DEFAULT '',
     p_created_by_qrcode TEXT DEFAULT '',
     p_participants JSONB DEFAULT '[]'::jsonb,
-    p_attachments JSONB DEFAULT '[]'::jsonb
+    p_attachments JSONB DEFAULT '[]'::jsonb,
+    p_document_no TEXT DEFAULT ''
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_id BIGINT;
 BEGIN
@@ -131,10 +137,10 @@ BEGIN
     END IF;
     IF p_id IS NULL THEN
         INSERT INTO "managementReviewTbl" (
-            "ProjectId", "TanggalReview", "Agenda", "ReviewInputs", "Decisions", "Status",
+            "ProjectId", "TanggalReview", "DocumentNo", "Agenda", "ReviewInputs", "Decisions", "Status",
             "CreatedByNama", "CreatedByQrCodeId", "Participants", "Attachments"
         ) VALUES (
-            p_project_id, p_tanggal_review, TRIM(p_agenda), COALESCE(p_review_inputs, ''),
+            p_project_id, p_tanggal_review, COALESCE(NULLIF(TRIM(p_document_no), ''), 'MR-' || TO_CHAR(p_tanggal_review, 'YYYYMMDD') || '-P' || p_project_id), TRIM(p_agenda), COALESCE(p_review_inputs, ''),
             COALESCE(p_decisions, ''), p_status, TRIM(p_created_by_nama),
             COALESCE(p_created_by_qrcode, ''), COALESCE(p_participants, '[]'::jsonb),
             COALESCE(p_attachments, '[]'::jsonb)
@@ -142,6 +148,7 @@ BEGIN
     ELSE
         UPDATE "managementReviewTbl"
         SET "ProjectId" = p_project_id, "TanggalReview" = p_tanggal_review,
+            "DocumentNo" = COALESCE(NULLIF(TRIM(p_document_no), ''), NULLIF("DocumentNo", ''), 'MR-' || TO_CHAR(p_tanggal_review, 'YYYYMMDD') || '-P' || p_project_id),
             "Agenda" = TRIM(p_agenda), "ReviewInputs" = COALESCE(p_review_inputs, ''),
             "Decisions" = COALESCE(p_decisions, ''), "Status" = p_status,
             "Participants" = COALESCE(p_participants, '[]'::jsonb),
