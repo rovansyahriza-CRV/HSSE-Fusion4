@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Matrix &amp; Records — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="driveBridge.js"></script>
+<style>
+  .page { max-width: 1180px; }
+  .toolbar, .form-grid { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .field { flex:1; min-width:180px; }
+  label { display:block; color:var(--muted); font-size:11px; font-weight:800; margin-bottom:4px; text-transform:uppercase; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:9px; font:inherit; font-size:13px; background:#fff; }
+  textarea { min-height:70px; resize:vertical; }
+  button { border:0; border-radius:9px; padding:10px 14px; background:var(--navy); color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+  button.secondary { background:#E8ECF8; color:var(--navy-dark); }
+  button.warn { background:var(--safety-yellow); color:#513700; }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tabs button.active { background:var(--accent); }
+  .table-wrap { overflow:auto; border:1.5px solid var(--border); border-radius:14px; }
+  table { border-collapse:collapse; width:100%; min-width:850px; font-size:12px; }
+  th, td { padding:8px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
+  th { background:var(--navy); color:#fff; font-size:11px; text-transform:uppercase; }
+  td select { min-width:115px; padding:6px; font-size:11px; }
+  .matrix-cell { text-align:center; }
+  .badge { display:inline-block; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:800; }
+  .badge.wajib { background:#E5F6EC; color:var(--success); }
+  .badge.kondisional { background:#FFF4D9; color:#8A6100; }
+  .badge.na { background:#EEF0F4; color:var(--muted); }
+  .status { margin-top:10px; font-size:12px; font-weight:700; }
+  .status.error { color:var(--accent); } .status.ok { color:var(--success); }
+  .hidden { display:none !important; }
+  .hint { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Training Matrix &amp; Training Records</h1></div></div>
+    <p>Master pelatihan, kebutuhan per posisi, dan riwayat sertifikasi pekerja. Identitas karyawan dibaca dari Fusion4 secara read-only.</p>
+  </div>
+
+  <div class="card">
+    <h2>Verifikasi Author</h2>
+    <p class="hint">Pola verifikasi mengikuti modul existing: gunakan QR Code atau PIN dari Fusion4. Tidak ada login/credential baru.</p>
+    <div class="toolbar" style="margin-top:10px;">
+      <div class="field"><label>QR Code ID</label><input id="authorQr" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>PIN (opsional)</label><input id="authorPin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button onclick="verifyAuthor()">Verifikasi <b>Training Matrix Admin</b></button>
+    </div>
+    <div id="authStatus" class="status"></div>
+  </div>
+
+  <div class="tabs">
+    <button id="tabMatrix" class="active" onclick="showTab('matrix')">Matrix Posisi x Training</button>
+    <button id="tabRecords" class="secondary" onclick="showTab('records')">Training Records</button>
+  </div>
+
+  <section id="matrixPanel" class="card">
+    <div class="toolbar"><div class="field"><label>Filter posisi</label><input id="matrixFilter" oninput="renderMatrix()" placeholder="Cari posisi..."></div><button class="secondary" onclick="loadMatrix()">Muat ulang</button></div>
+    <p class="hint" style="margin:10px 0;">Perubahan status hanya dapat disimpan setelah Author terverifikasi. Matrix selalu lengkap; kombinasi yang tidak ditentukan bernilai N/A.</p>
+    <div class="table-wrap"><table><thead><tr><th>Posisi</th><th>Kategori</th><th>Training</th><th>Status</th><th></th></tr></thead><tbody id="matrixBody"></tbody></table></div>
+  </section>
+
+  <section id="recordsPanel" class="card hidden">
+    <h2>Catat penyelesaian training</h2>
+    <p class="hint" style="margin-bottom:12px;">Pilih karyawan dari daftar read-only Fusion4. File sertifikat diunggah melalui Drive Bridge HSSE yang sudah dipakai modul lain.</p>
+    <div class="form-grid">
+      <div class="field"><label>Karyawan Fusion4</label><select id="employee"></select></div>
+      <div class="field"><label>Fusion4KaryawanId</label><input id="employeeId" type="number" min="1" placeholder="Id dari Fusion4 karyawanTbl"></div>
+      <div class="field"><label>Posisi snapshot</label><select id="recordPosition"></select></div>
+      <div class="field"><label>Training</label><select id="recordTraining"></select></div>
+      <div class="field"><label>Tanggal training</label><input id="trainingDate" type="date"></div>
+      <div class="field"><label>Berlaku mulai</label><input id="validFrom" type="date"></div>
+      <div class="field"><label>Kadaluarsa</label><input id="expiryDate" type="date"></div>
+      <div class="field"><label>Penyedia</label><input id="provider"></div>
+      <div class="field"><label>Nomor sertifikat</label><input id="certificateNo"></div>
+      <div class="field"><label>Status</label><select id="recordStatus"><option>Valid</option><option>Pending</option><option>Expired</option><option>Revoked</option></select></div>
+      <div class="field"><label>File sertifikat</label><input id="certificateFile" type="file" accept=".pdf,image/*"></div>
+      <div class="field" style="flex-basis:100%"><label>Catatan</label><textarea id="recordNotes"></textarea></div>
+    </div>
+    <button style="margin-top:12px;" onclick="saveRecord()">Simpan training record</button>
+    <div id="recordStatusMsg" class="status"></div>
+    <div class="table-wrap" style="margin-top:16px;"><table><thead><tr><th>Tanggal</th><th>Karyawan</th><th>Training</th><th>Status</th><th>Berlaku sampai</th><th>Sertifikat</th></tr></thead><tbody id="recordsBody"></tbody></table></div>
+  </section>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+let positions = [], trainings = [], matrix = [], employees = [], records = [], author = null;
+const requiredAuthor = 'Training Matrix Admin';
+
+function setStatus(id, text, ok=false) { const el=document.getElementById(id); el.textContent=text; el.className='status '+(ok?'ok':'error'); }
+function hasAuthor(person) { return (person && String(person.author || '').split(',').some(x=>x.trim().toLowerCase()===requiredAuthor.toLowerCase())); }
+async function verifyAuthor() {
+  const qr=document.getElementById('authorQr').value.trim(), pin=document.getElementById('authorPin').value.trim();
+  if (!qr && !pin) return setStatus('authStatus','Isi QR Code ID atau PIN Fusion4.');
+  try {
+    let person=null;
+    if (qr) { const {data,error}=await fusion4.rpc('get_person_face_data',{p_qrcode:qr}); if(error) throw error; person=data && (data.person || data); }
+    else { const {data,error}=await fusion4.rpc('get_all_face_data'); if(error) throw error; person=(data||[]).find(x=>String(x.digitalPin||'')===pin); }
+    if (!person) return setStatus('authStatus','Identitas tidak ditemukan.');
+    if (!hasAuthor(person)) return setStatus('authStatus','Identitas ditemukan, tetapi belum punya Author "Training Matrix Admin".');
+    author=person; setStatus('authStatus','Terverifikasi: '+(person.nama||person.namaPersonnel||'Author'),true);
+  } catch(e) { setStatus('authStatus','Gagal verifikasi: '+e.message); }
+}
+function showTab(tab) {
+  document.getElementById('matrixPanel').classList.toggle('hidden',tab!=='matrix');
+  document.getElementById('recordsPanel').classList.toggle('hidden',tab!=='records');
+  document.getElementById('tabMatrix').classList.toggle('active',tab==='matrix');
+  document.getElementById('tabRecords').classList.toggle('active',tab==='records');
+}
+async function loadMasters() {
+  const [p,t,e]=await Promise.all([
+    hsse.from('positionMasterTbl').select('*').eq('IsActive',true).order('Urutan'),
+    hsse.from('trainingMasterTbl').select('*').eq('IsActive',true).order('Urutan'),
+    fusion4.rpc('get_all_karyawan_author')
+  ]);
+  if(p.error||t.error||e.error) throw (p.error||t.error||e.error);
+  positions=p.data||[]; trainings=t.data||[]; employees=e.data||[];
+  document.getElementById('employee').innerHTML=employees.map(x=>`<option value="${x.qrCodeId||''}">${escapeHtml(x.nama||'')} (${escapeHtml(x.qrCodeId||'')})</option>`).join('');
+  document.getElementById('recordTraining').innerHTML=trainings.map(x=>`<option value="${x.Id}">${escapeHtml(x.NamaTraining)}</option>`).join('');
+  document.getElementById('recordPosition').innerHTML=positions.map(x=>`<option value="${x.NamaPosisi}">${escapeHtml(x.NamaPosisi)}</option>`).join('');
+}
+async function loadMatrix() {
+  const {data,error}=await hsse.from('trainingMatrixTbl').select('Id,PositionId,TrainingId,RequirementStatus,positionMasterTbl(NamaPosisi,Kategori),trainingMasterTbl(NamaTraining)').order('PositionId').order('TrainingId');
+  if(error) return setStatus('authStatus','Gagal memuat matrix: '+error.message);
+  matrix=data||[]; renderMatrix();
+}
+function renderMatrix() {
+  const q=document.getElementById('matrixFilter').value.toLowerCase();
+  document.getElementById('matrixBody').innerHTML=matrix.filter(x=>(x.positionMasterTbl.NamaPosisi+' '+x.positionMasterTbl.Kategori).toLowerCase().includes(q)).map(x=>{
+    const cls=x.RequirementStatus.toLowerCase().replace('ā','a');
+    return `<tr><td>${escapeHtml(x.positionMasterTbl.NamaPosisi)}</td><td>${escapeHtml(x.positionMasterTbl.Kategori)}</td><td>${escapeHtml(x.trainingMasterTbl.NamaTraining)}</td><td><span class="badge ${cls}">${x.RequirementStatus}</span></td><td><select ${author?'':'disabled'} onchange="saveMatrix(${x.Id},this.value)"><option ${x.RequirementStatus==='Wajib'?'selected':''}>Wajib</option><option ${x.RequirementStatus==='Kondisional'?'selected':''}>Kondisional</option><option ${x.RequirementStatus==='N/A'?'selected':''}>N/A</option></select></td></tr>`;
+  }).join('');
+}
+async function saveMatrix(id,status) {
+  if(!author) return setStatus('authStatus','Verifikasi Author dulu.');
+  const {error}=await hsse.from('trainingMatrixTbl').update({RequirementStatus:status,UpdatedAt:new Date().toISOString()}).eq('Id',id);
+  if(error) return setStatus('authStatus','Gagal menyimpan matrix: '+error.message);
+  const row=matrix.find(x=>x.Id===id); if(row) row.RequirementStatus=status; renderMatrix();
+}
+async function saveRecord() {
+  if(!author) return setStatus('recordStatusMsg','Verifikasi Author dulu.');
+  const qr=document.getElementById('employee').value, emp=employees.find(x=>x.qrCodeId===qr);
+  if(!emp) return setStatus('recordStatusMsg','Pilih karyawan Fusion4.');
+  try {
+    const file=document.getElementById('certificateFile').files[0]; let upload=null;
+    if(file) upload=await uploadLampiranToDrive(file);
+    const payload={Fusion4KaryawanId:Number(document.getElementById('employeeId').value),NamaKaryawanSnapshot:emp.nama||'',NamaPosisiSnapshot:document.getElementById('recordPosition').value,TrainingId:Number(document.getElementById('recordTraining').value),TanggalTraining:document.getElementById('trainingDate').value,BerlakuMulai:document.getElementById('validFrom').value||null,TanggalKadaluarsa:document.getElementById('expiryDate').value||null,Penyedia:document.getElementById('provider').value,NomorSertifikat:document.getElementById('certificateNo').value,CertificateFileName:upload?.fileName||null,CertificateFileUrl:upload?.viewUrl||upload?.directUrl||null,CertificateFileId:upload?.fileId||null,Status:document.getElementById('recordStatus').value,Catatan:document.getElementById('recordNotes').value,UpdatedAt:new Date().toISOString()};
+    if(!payload.TanggalTraining || !payload.Fusion4KaryawanId) return setStatus('recordStatusMsg','Tanggal training dan ID karyawan wajib tersedia.');
+    const {error}=await hsse.from('trainingRecordTbl').insert(payload); if(error) throw error;
+    setStatus('recordStatusMsg','Training record tersimpan.',true); document.getElementById('certificateFile').value=''; await loadRecords();
+  } catch(e) { setStatus('recordStatusMsg','Gagal menyimpan record: '+e.message); }
+}
+async function loadRecords() {
+  const {data,error}=await hsse.from('trainingRecordTbl').select('*,trainingMasterTbl(NamaTraining)').order('TanggalTraining',{ascending:false}).limit(100);
+  if(error) return setStatus('recordStatusMsg','Gagal memuat records: '+error.message);
+  records=data||[]; document.getElementById('recordsBody').innerHTML=records.map(r=>`<tr><td>${r.TanggalTraining||''}</td><td>${escapeHtml(r.NamaKaryawanSnapshot)}</td><td>${escapeHtml(r.trainingMasterTbl?.NamaTraining||'')}</td><td>${escapeHtml(r.Status)}</td><td>${r.TanggalKadaluarsa||'-'}</td><td>${r.CertificateFileUrl?`<a href="${encodeURI(r.CertificateFileUrl)}" target="_blank" rel="noopener">Buka</a>`:'-'}</td></tr>`).join('');
+}
+function escapeHtml(v) { return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+(async()=>{ try { await loadMasters(); await loadMatrix(); await loadRecords(); } catch(e) { setStatus('authStatus','Gagal memuat data: '+e.message); } })();
+</script>
+</body>
+</html>
