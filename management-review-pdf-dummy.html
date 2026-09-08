@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[DUMMY] Laporan Management Review — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .dummy-banner {
+    background: var(--safety-yellow); color: #4A3400; text-align: center; font-size: 12px; font-weight: 800;
+    padding: 8px 16px; letter-spacing: 0.02em;
+  }
+
+  .sheet {
+    max-width: 210mm; margin: 16px auto; background: #fff; padding: 14mm 15mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 14px;
+  }
+  .doc-header .brand img { width: 76px; height: 76px; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 19px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .no-laporan { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text); margin-top: 3px; font-weight: 700; }
+
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+  }
+  .info-cell { padding: 8px 12px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+  .info-cell .value.small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800; }
+  .badge-draft { background: #E8EAF2; color: var(--navy-dark); }
+  .badge-progress { background: #FDF3E3; color: var(--safety-yellow); }
+  .badge-completed { background: var(--success-bg); color: var(--success); }
+  .badge-cancelled { background: #FCEAE8; color: var(--accent); }
+  .badge-open { background: #FCEAE8; color: var(--accent); }
+  .badge-closed { background: var(--success-bg); color: var(--success); }
+  .badge-verified { background: var(--success-bg); color: var(--success); font-size: 8.5px; margin-left: 6px; }
+
+  .section { margin-bottom: 14px; }
+  .section-title {
+    font-size: 10px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1.5px solid var(--navy);
+  }
+  .section-body { font-size: 11px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  table.report-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  table.report-table th, table.report-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  table.report-table th { background: #F0F2FA; font-size: 8.5px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.04em; }
+  table.report-table td.no-col { width: 22px; text-align: center; font-weight: 700; color: var(--muted); }
+  table.report-table tr.topic-row td { background: #FAFBFD; font-weight: 800; color: var(--navy-dark); border-top: 1.5px solid var(--navy); }
+
+  .attendee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 10.5px; }
+  .attendee-grid .attendee { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding: 3px 0; }
+  .attendee-grid .attendee .jabatan { color: var(--muted); font-size: 9.5px; }
+
+  .closing-box {
+    border: 1.5px solid var(--safety-yellow); background: #FFFBF2; border-radius: 8px; padding: 12px 14px;
+  }
+  .closing-box .section-title { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; color: #8A6100; }
+  .closing-box .section-body { font-size: 11.5px; font-weight: 600; color: #4A3400; }
+
+  .summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .summary-card { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: center; background: #FAFBFD; }
+  .summary-card .num { font-size: 17px; font-weight: 800; color: var(--navy-dark); }
+  .summary-card .lbl { font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 8.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9px; font-weight: 700; }
+  .signature-box .sub { font-size: 7.5px; color: var(--muted); margin-top: 1px; }
+
+  .doc-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 6mm 8mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4; margin: 10mm; }
+    table.report-table { page-break-inside: auto; }
+    table.report-table tr { page-break-inside: avoid; }
+  }
+
+  @media screen and (max-width: 780px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 4vw 10mm; }
+    .doc-header { flex-wrap: wrap; row-gap: 10px; }
+    .doc-header .doc-title { text-align: left; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .info-cell:nth-child(3n) { border-right: 1px solid var(--border); }
+    .info-cell:nth-child(2n) { border-right: none; }
+    .two-col, .attendee-grid, .summary-strip { grid-template-columns: 1fr; }
+    .signature-row { grid-template-columns: 1fr 1fr; gap: 20px; }
+    .doc-footer { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="management-review-list.html">⬅ Kembali ke Riwayat Management Review</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="dummy-banner no-print">🔧 DUMMY / PRATINJAU DESAIN — data di bawah ini contoh, BELUM tersambung ke database asli</div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan Management Review</h1>
+      <div class="no-laporan">MR-20260908-P1-R000017</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Tanggal Review</div>
+      <div class="value">08 Sep 2026</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Project / Kontrak</div>
+      <div class="value">Small Pipeline Maintenance</div>
+      <div class="value small">No. Kontrak: CONTRACT-NO-001 &middot; Pipeline</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Status</div>
+      <div class="value"><span class="badge badge-completed">Completed</span></div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Dibuat / Dipimpin Oleh</div>
+      <div class="value">Chandra R. Vidianto <span class="badge badge-verified">&#10003; Terverifikasi</span></div>
+      <div class="value small">QrCodeId: 10CRV01012024</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Jumlah Peserta Hadir</div>
+      <div class="value">6 orang</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Action Plan Terbuka</div>
+      <div class="value">3 dari 7 item</div>
+    </div>
+  </div>
+
+  <div class="summary-strip">
+    <div class="summary-card"><div class="num">8</div><div class="lbl">Topik Dibahas</div></div>
+    <div class="summary-card"><div class="num">7</div><div class="lbl">Total Action Plan</div></div>
+    <div class="summary-card"><div class="num">4</div><div class="lbl">Action Selesai</div></div>
+    <div class="summary-card"><div class="num">6</div><div class="lbl">Peserta Hadir</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Agenda / Topik Pembahasan</div>
+    <div class="section-body">Evaluasi kinerja HSSE Q3 2026 dan kesiapan menghadapi audit klien di bulan berikutnya.</div>
+  </div>
+
+  <div class="section two-col">
+    <div>
+      <div class="section-title">Review Inputs</div>
+      <div class="section-body">Capaian HSE Program per Agustus 78%, 1 Near Miss belum ditutup, hasil CERMAT &amp; Inspeksi bulan berjalan, dan hasil MWT terakhir menunjukkan kepatuhan APD masih perlu ditingkatkan di area workshop.</div>
+    </div>
+    <div>
+      <div class="section-title">Decisions</div>
+      <div class="section-body">Manajemen menyepakati penambahan sesi TBM khusus APD, percepatan penutupan Near Miss, dan jadwal ulang MWT bulanan agar konsisten setiap minggu ke-2.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Daftar Peserta</div>
+    <div class="attendee-grid">
+      <div class="attendee"><span>Chandra R. Vidianto <span class="jabatan">(Project Manager)</span></span><span>10CRV01012024</span></div>
+      <div class="attendee"><span>Budi Santoso <span class="jabatan">(HSE Officer)</span></span><span>10BUD01012024</span></div>
+      <div class="attendee"><span>Andi Wijaya <span class="jabatan">(Supervisor Workshop)</span></span><span>10AND01012024</span></div>
+      <div class="attendee"><span>Noor Arifin <span class="jabatan">(QA/QC Lead)</span></span><span>10NOO01012024</span></div>
+      <div class="attendee"><span>Nila Sari <span class="jabatan">(HR &amp; GA)</span></span><span>10NIL01012024</span></div>
+      <div class="attendee"><span>Slamet Riyadi <span class="jabatan">(Perwakilan Pekerja)</span></span><span>10SLA01012024</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Frame Topik Pembahasan &amp; Action Plan</div>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width:22px;">No</th>
+          <th style="width:26%;">Topik</th>
+          <th>Pembahasan / Ringkasan</th>
+          <th style="width:20%;">Action Item</th>
+          <th style="width:12%;">PIC</th>
+          <th style="width:9%;">Due Date</th>
+          <th style="width:9%;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="no-col">1</td>
+          <td>HSE Program</td>
+          <td>Capaian keseluruhan 78% per Agustus 2026, target Triwulan Internal Audit belum tercapai.</td>
+          <td>Percepat pelaksanaan Internal Audit Q3</td>
+          <td>Noor Arifin</td>
+          <td>20 Sep 2026</td>
+          <td><span class="badge badge-progress">In Progress</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">2</td>
+          <td>Incident &amp; Near Miss</td>
+          <td>1 Near Miss (tergelincir area workshop) masih Open, tindakan korektif anti-slip base belum terpasang semua.</td>
+          <td>Pasang anti-slip base di seluruh tangga portable</td>
+          <td>Andi Wijaya</td>
+          <td>15 Sep 2026</td>
+          <td><span class="badge badge-open">Open</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">3</td>
+          <td>Audit / Inspeksi / Compliance</td>
+          <td>CERMAT: 1 open / 4 closed. Inspeksi: 2 open / 12 closed — mayoritas temuan housekeeping.</td>
+          <td>Tindak lanjuti 2 temuan inspeksi housekeeping</td>
+          <td>Budi Santoso</td>
+          <td>18 Sep 2026</td>
+          <td><span class="badge badge-progress">In Progress</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">4</td>
+          <td>Partisipasi Pekerja (MWT)</td>
+          <td>Total sesi: 5 &middot; Kunjungan: 8 &middot; Pekerja diajak diskusi: 34. Kepatuhan APD jadi sorotan.</td>
+          <td>Jadwalkan MWT rutin tiap minggu ke-2</td>
+          <td>Chandra R. Vidianto</td>
+          <td>12 Sep 2026</td>
+          <td><span class="badge badge-completed">Completed</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">5</td>
+          <td>Risiko</td>
+          <td>Risiko cuaca ekstrem (hujan) meningkatkan potensi licin di area kerja terbuka.</td>
+          <td>Tambah checklist housekeeping pasca hujan</td>
+          <td>Andi Wijaya</td>
+          <td>15 Sep 2026</td>
+          <td><span class="badge badge-progress">In Progress</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">6</td>
+          <td>Sumber Daya</td>
+          <td>Stok APD (safety shoes anti-slip) menipis, perlu pengadaan tambahan sebelum akhir bulan.</td>
+          <td>Ajukan PO pengadaan safety shoes anti-slip</td>
+          <td>Nila Sari</td>
+          <td>25 Sep 2026</td>
+          <td><span class="badge badge-open">Open</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">7</td>
+          <td>Kesiapsiagaan Darurat</td>
+          <td>Simulasi tanggap darurat terakhir dilaksanakan Juli 2026, sudah lewat 60 hari dari jadwal.</td>
+          <td>Jadwalkan ulang simulasi tanggap darurat</td>
+          <td>Budi Santoso</td>
+          <td>30 Sep 2026</td>
+          <td><span class="badge badge-completed">Completed</span></td>
+        </tr>
+        <tr>
+          <td class="no-col">8</td>
+          <td>Lain-lain</td>
+          <td>Usulan dari perwakilan pekerja untuk penambahan rest area di dekat workshop.</td>
+          <td>Evaluasi kelayakan penambahan rest area</td>
+          <td>Nila Sari</td>
+          <td>05 Okt 2026</td>
+          <td><span class="badge badge-completed">Completed</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section closing-box">
+    <div class="section-title">Closing Statement</div>
+    <div class="section-body">Manajemen mengapresiasi capaian HSSE Q3 2026 dan menekankan pentingnya penutupan tindak lanjut Near Miss serta kesiapan audit klien. Seluruh action plan agar dipantau progresnya di Management Review berikutnya.</div>
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dibuat Oleh (Author)</div>
+      <div class="line">Chandra R. Vidianto</div>
+      <div class="sub">10CRV01012024</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">HSE Officer</div>
+      <div class="line">Budi Santoso</div>
+      <div class="sub">&#10003; Verifikasi digital &mdash; 08 Sep, 14.10</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Project Manager</div>
+      <div class="line">Chandra R. Vidianto</div>
+      <div class="sub">&#10003; Verifikasi digital &mdash; 08 Sep, 14.15</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Perwakilan Pekerja</div>
+      <div class="line">Slamet Riyadi</div>
+      <div class="sub">&#10003; Verifikasi digital &mdash; 08 Sep, 14.18</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div>Dicetak: 08 Sep 2026, 15.00 (CONTOH)</div>
+  </div>
+
+</div>
+
+</body>
+</html>
