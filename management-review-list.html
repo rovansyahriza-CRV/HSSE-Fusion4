@@ -372,6 +372,7 @@ function renderReviews() {
           ` : ''}
 
           <div class="card-footer-buttons">
+            <a href="management-review-pdf.html?id=${encodeURIComponent(r.id)}" target="_blank" class="btn-secondary">🖨️ Buka Report / Cetak PDF</a>
             <a href="management-review.html?id=${r.id}" class="btn-secondary">✏️ Buka &amp; Edit di Form Review</a>
             <a href="management-review-attendance.html?id=${encodeURIComponent(r.id)}" target="_blank" class="btn-secondary">📋 Daftar Absensi</a>
             <a href="management-review-session.html?id=${encodeURIComponent(r.id)}" target="_blank" class="btn-secondary">📱 QR Screen Check-in</a>
