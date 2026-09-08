@@ -122,7 +122,7 @@
   </div>
 
   <div class="top-actions">
-    <a href="management-review.html" class="btn-block btn-primary">➕ Buka Form Management Review / Tambah Review Baru</a>
+    <a href="management-review.html" id="openFormLink" class="btn-block btn-primary">➕ Buka Form Management Review / Tambah Review Baru</a>
   </div>
 
   <div class="filter-card">
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   $('refreshBtn').onclick = loadReviews;
 
-  await Promise.all([loadProjects(), loadReviews()]);
+  await Promise.all([loadProjects(), loadReviews(), updateOpenFormLink()]);
 });
 
 function debounce(fn, ms) {
@@ -220,6 +220,29 @@ async function loadReviews() {
     renderReviews();
   } catch (e) {
     container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${esc(e.message)}</div>`;
+  }
+}
+
+const ONGOING_STATUSES = ['Draft', 'Scheduled', 'In Progress'];
+async function updateOpenFormLink() {
+  const link = $('openFormLink');
+  if (!link) return;
+  try {
+    const { data, error } = await db.rpc('get_management_review_list', {
+      p_project_id: null, p_status: null, p_search: null
+    });
+    if (error) throw error;
+    const all = data || [];
+    const ongoing = all.find(r => ONGOING_STATUSES.includes(r.status));
+    if (ongoing) {
+      link.href = `management-review.html?id=${encodeURIComponent(ongoing.id)}`;
+      link.textContent = `↩️ Lanjutkan Management Review yang Sedang Berjalan (${ongoing.documentNo || 'MR-' + ongoing.id})`;
+    } else {
+      link.href = 'management-review.html';
+      link.textContent = '➕ Buka Form Management Review / Tambah Review Baru';
+    }
+  } catch (e) {
+    console.error('Gagal memeriksa review yang sedang berjalan:', e.message);
   }
 }
 
