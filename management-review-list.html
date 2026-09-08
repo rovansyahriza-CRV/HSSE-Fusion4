@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riwayat Management Review — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .top-actions { margin-bottom: 16px; }
+  .btn-block {
+    width: 100%; padding: 13px; border: none; border-radius: 12px; font-weight: 700;
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    text-decoration: none; box-sizing: border-box;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: var(--navy-dark, #1e293b); }
+
+  .filter-card {
+    background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; margin-bottom: 16px; display: grid; grid-template-columns: 2fr 1.5fr 1fr auto;
+    gap: 10px; align-items: flex-end;
+  }
+  .filter-card .field { display: flex; flex-direction: column; gap: 4px; }
+  .filter-card label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .filter-card input, .filter-card select {
+    padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .filter-pills { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+    background: var(--surface); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted);
+  }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  .review-item-card {
+    background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px; margin-bottom: 14px; transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .review-item-card:hover { border-color: var(--navy); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  .review-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; cursor: pointer; }
+  .review-no { font-size: 12px; font-family: monospace; color: var(--muted); font-weight: 600; }
+  .review-title { font-size: 16px; font-weight: 800; color: var(--navy-dark); margin: 3px 0 2px; }
+  .review-meta { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .badges { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+  .status-chip {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: capitalize;
+  }
+  .status-chip.draft { background: #EEF2FC; color: var(--navy); }
+  .status-chip.scheduled { background: #E8F4FD; color: #1E88E5; }
+  .status-chip.in-progress { background: #FDF3E3; color: #8A6100; }
+  .status-chip.completed { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.cancelled { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.blocked { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.open { background: #FDF3E3; color: #8A6100; }
+
+  .count-chip {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    background: #F1F5F9; color: var(--muted);
+  }
+
+  .detail-panel { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .detail-panel.open { display: block; }
+  .detail-section { margin-bottom: 14px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .section-title {
+    font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 0 0 6px;
+  }
+  .detail-text { font-size: 13px; color: var(--text); white-space: pre-wrap; line-height: 1.5; background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+
+  .peserta-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .peserta-chip {
+    background: #F8FAFC; border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+    font-size: 12px; font-weight: 600;
+  }
+  .peserta-chip .sub { color: var(--muted); font-weight: 500; font-size: 11px; }
+
+  .action-table-wrap { overflow-x: auto; margin-top: 6px; }
+  .mini-action-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mini-action-table th, .mini-action-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .mini-action-table th { font-weight: 700; color: var(--muted); text-transform: uppercase; font-size: 10.5px; background: #F8FAFC; }
+  .mini-action-table tr:last-child td { border-bottom: none; }
+
+  .card-footer-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .btn-secondary {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+    font-size: 12px; font-weight: 700; cursor: pointer; color: var(--navy-dark); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .btn-secondary:hover { background: #F1F5F9; border-color: var(--navy); }
+
+  .attachment-list a { display: inline-block; margin-right: 8px; font-size: 12px; color: var(--navy); }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13.5px; }
+  @media(max-width:760px){
+    .filter-card { grid-template-columns: 1fr; }
+    .review-top { flex-direction: column; align-items: flex-start; }
+    .badges { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Riwayat Management Review</h1>
+      </div>
+    </div>
+    <p>Notulen dan hasil Management Review -- agenda, absensi peserta, keputusan manajemen, action plan per topik, dan closing statement.</p>
+  </div>
+
+  <div class="top-actions">
+    <a href="management-review.html" class="btn-block btn-primary">➕ Buka Form Management Review / Tambah Review Baru</a>
+  </div>
+
+  <div class="filter-card">
+    <div class="field">
+      <label>Pencarian</label>
+      <input id="searchInput" placeholder="Cari agenda, keputusan, action, PIC...">
+    </div>
+    <div class="field">
+      <label>Project</label>
+      <select id="projectFilter"><option value="">Semua Project</option></select>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="statusSelect">
+        <option value="">Semua Status</option>
+        <option>Draft</option>
+        <option>Scheduled</option>
+        <option>In Progress</option>
+        <option>Completed</option>
+        <option>Cancelled</option>
+      </select>
+    </div>
+    <button type="button" class="btn-secondary" id="refreshBtn" style="padding:10px 16px;">🔄 Muat Ulang</button>
+  </div>
+
+  <div class="filter-pills" id="statusPills">
+    <button type="button" class="filter-btn active" data-status="" onclick="selectStatusPill('', this)">Semua</button>
+    <button type="button" class="filter-btn" data-status="Draft" onclick="selectStatusPill('Draft', this)">📝 Draft</button>
+    <button type="button" class="filter-btn" data-status="Scheduled" onclick="selectStatusPill('Scheduled', this)">📅 Scheduled</button>
+    <button type="button" class="filter-btn" data-status="In Progress" onclick="selectStatusPill('In Progress', this)">⏳ In Progress</button>
+    <button type="button" class="filter-btn" data-status="Completed" onclick="selectStatusPill('Completed', this)">✅ Completed</button>
+    <button type="button" class="filter-btn" data-status="Cancelled" onclick="selectStatusPill('Cancelled', this)">❌ Cancelled</button>
+  </div>
+
+  <div id="reviewContainer">
+    <div class="empty-state">Memuat data Management Review...</div>
+  </div>
+
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+
+let reviews = [];
+let projects = [];
+let currentStatus = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('searchInput').addEventListener('input', debounce(loadReviews, 300));
+  $('projectFilter').addEventListener('change', loadReviews);
+  $('statusSelect').addEventListener('change', e => {
+    selectStatusPill(e.target.value, findStatusPill(e.target.value));
+  });
+  $('refreshBtn').onclick = loadReviews;
+
+  await Promise.all([loadProjects(), loadReviews()]);
+});
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+async function loadProjects() {
+  try {
+    const { data, error } = await db.rpc('get_active_projects');
+    if (error) throw error;
+    projects = data || [];
+    $('projectFilter').innerHTML = '<option value="">Semua Project</option>' +
+      projects.map(p => `<option value="${p.id}">${esc(p.namaProject)} (${esc(p.noKontrak)})</option>`).join('');
+  } catch (e) {
+    console.error('Gagal memuat project:', e.message);
+  }
+}
+
+async function loadReviews() {
+  const container = $('reviewContainer');
+  container.innerHTML = '<div class="empty-state">Memuat data Management Review...</div>';
+  try {
+    const projectId = $('projectFilter').value ? Number($('projectFilter').value) : null;
+    const search = $('searchInput').value.trim() || null;
+    const status = currentStatus || null;
+
+    const { data, error } = await db.rpc('get_management_review_list', {
+      p_project_id: projectId,
+      p_status: status,
+      p_search: search
+    });
+    if (error) throw error;
+    reviews = data || [];
+    renderReviews();
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">❌ Gagal memuat data: ${esc(e.message)}</div>`;
+  }
+}
+
+function selectStatusPill(status, btnEl) {
+  currentStatus = status;
+  $('statusSelect').value = status;
+  document.querySelectorAll('#statusPills .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  loadReviews();
+}
+
+function findStatusPill(status) {
+  return [...document.querySelectorAll('#statusPills .filter-btn')].find(b => b.dataset.status === status);
+}
+
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+function chip(s) {
+  const c = String(s || '').toLowerCase().replaceAll(' ', '-');
+  return `<span class="status-chip ${c}">${esc(s)}</span>`;
+}
+
+function renderReviews() {
+  const container = $('reviewContainer');
+  if (!reviews.length) {
+    container.innerHTML = '<div class="empty-state">Tidak ada Management Review sesuai filter.</div>';
+    return;
+  }
+
+  container.innerHTML = reviews.map((r, i) => {
+    const actions = r.actions || [];
+    const openActions = actions.filter(a => a.status !== 'Completed' && a.status !== 'Cancelled').length;
+    const participants = Array.isArray(r.participants) ? r.participants : [];
+    const attachments = Array.isArray(r.attachments) ? r.attachments : [];
+
+    return `
+      <div class="review-item-card" id="card-${r.id}">
+        <div class="review-top" onclick="toggleDetail(${r.id})">
+          <div>
+            <div class="review-no">${esc(r.documentNo || `MR-${r.id}`)} · ${esc(r.tanggalReview)}</div>
+            <div class="review-title">${esc(r.agenda)}</div>
+            <div class="review-meta">${esc(r.namaProject)} (${esc(r.noKontrak)}) · dibuat oleh <b>${esc(r.createdByNama)}</b></div>
+          </div>
+          <div class="badges">
+            ${chip(r.status)}
+            <span class="count-chip">👥 ${participants.length} Peserta</span>
+            <span class="count-chip">📋 ${actions.length} Action (${openActions} Open)</span>
+          </div>
+        </div>
+
+        <div class="detail-panel" id="detail-${r.id}">
+          <div class="detail-section">
+            <div class="section-title">Peserta Hadir (${participants.length})</div>
+            ${participants.length ? `
+              <div class="peserta-chip-list">
+                ${participants.map(p => `
+                  <span class="peserta-chip">${esc(p.nama)}${p.jabatan ? ` <span class="sub">-- ${esc(p.jabatan)}</span>` : ''} <span class="sub">(${esc(p.qrCodeId)})</span></span>
+                `).join('')}
+              </div>
+            ` : '<div class="review-meta">Belum ada peserta terdaftar.</div>'}
+          </div>
+
+          ${r.reviewInputs ? `
+            <div class="detail-section">
+              <div class="section-title">Review Inputs</div>
+              <div class="detail-text">${esc(r.reviewInputs)}</div>
+            </div>
+          ` : ''}
+
+          ${r.decisions ? `
+            <div class="detail-section">
+              <div class="section-title">Keputusan &amp; Arahan Manajemen</div>
+              <div class="detail-text">${esc(r.decisions)}</div>
+            </div>
+          ` : ''}
+
+          ${r.closingStatement ? `
+            <div class="detail-section">
+              <div class="section-title">Closing Statement</div>
+              <div class="detail-text">${esc(r.closingStatement)}</div>
+            </div>
+          ` : ''}
+
+          <div class="detail-section">
+            <div class="section-title">Tindak Lanjut / Action Plan (${actions.length})</div>
+            ${actions.length ? `
+              <div class="action-table-wrap">
+                <table class="mini-action-table">
+                  <thead>
+                    <tr>
+                      <th style="width:20%">Topik</th>
+                      <th style="width:30%">Action Item</th>
+                      <th style="width:15%">PIC</th>
+                      <th style="width:12%">Due Date</th>
+                      <th style="width:10%">Status</th>
+                      <th style="width:13%">Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${actions.map(a => `
+                      <tr>
+                        <td><b>${esc(a.topic || '-')}</b></td>
+                        <td>${esc(a.actionItem)}</td>
+                        <td>${esc(a.picNama || a.picQrCodeId || '-')}</td>
+                        <td>${esc(a.dueDate || '-')}</td>
+                        <td>${chip(a.status)}</td>
+                        <td>${esc(a.notes || '-')}${Array.isArray(a.attachments) && a.attachments.length ? '<br>' + a.attachments.map(att => `<a href="${esc(att.url)}" target="_blank" style="font-size:11px;color:var(--navy);">📎 ${esc(att.fileName || 'Lampiran')}</a>`).join(' ') : ''}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : '<div class="review-meta">Belum ada action plan yang dicatat.</div>'}
+          </div>
+
+          ${attachments.length ? `
+            <div class="detail-section">
+              <div class="section-title">Lampiran Review (${attachments.length})</div>
+              <div class="attachment-list">
+                ${attachments.map(att => `<a href="${esc(att.url)}" target="_blank" rel="noopener">📎 ${esc(att.fileName || 'Lihat Lampiran')}</a>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="card-footer-buttons">
+            <a href="management-review.html?id=${r.id}" class="btn-secondary">✏️ Buka &amp; Edit di Form Review</a>
+            <a href="management-review-attendance.html?id=${encodeURIComponent(r.id)}" target="_blank" class="btn-secondary">📋 Daftar Absensi</a>
+            <a href="management-review-session.html?id=${encodeURIComponent(r.id)}" target="_blank" class="btn-secondary">📱 QR Screen Check-in</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const panel = document.getElementById(`detail-${id}`);
+  if (!panel) return;
+  panel.classList.toggle('open');
+}
+</script>
+</body>
+</html>
