@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Man-Hours Statistik — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<style>
+  .page { max-width: 980px; }
+  .box {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 16px;
+  }
+  .box-title {
+    font-size: 12px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 10px;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row .field { flex: 1; min-width: 150px; }
+  .row label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .row input, .row select, table input, table select {
+    width: 100%; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px;
+    background: #fff; color: var(--text);
+  }
+  .btn {
+    padding: 10px 16px; border-radius: 9px; border: none; background: var(--navy); color: #fff;
+    font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .btn.small { padding: 6px 10px; font-size: 11.5px; }
+  .btn.ghost { background: #EAF1FD; color: #2A5CCB; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .status-line { font-size: 12.5px; margin-top: 8px; }
+  .status-line.ok { color: var(--success); }
+  .status-line.err { color: var(--accent); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table.mh-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 860px; }
+  table.mh-table th, table.mh-table td { border: 1px solid var(--border); padding: 5px 6px; text-align: center; vertical-align: middle; }
+  table.mh-table thead th { background: var(--navy-dark); color: #fff; font-size: 10.5px; text-transform: uppercase; }
+  table.mh-table td.left { text-align: left; font-weight: 700; }
+  table.mh-table td.final { font-weight: 800; color: var(--navy-dark); }
+  table.mh-table td input { padding: 6px 7px; font-size: 12px; }
+  table.mh-table tr.has-koreksi td { background: #FFFBEF; }
+  .tag-unmapped { color: var(--accent); font-weight: 700; }
+  .log-list { font-size: 12px; color: var(--muted); line-height: 1.7; max-height: 260px; overflow-y: auto; }
+  .log-list b { color: var(--navy-dark); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="statistik-kpi.html" class="back-to-menu">⬅ Statistik &amp; KPI</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Man-Hours (Statistik &amp; KPI)</h1>
+      </div>
+    </div>
+    <p>Man-hours diambil dari absensi SmartGate Fusion4 per lokasi per bulan, terus tiap lokasi dipetakan ke project HSSE. Kalau ada yang gak lewat gate (misal subkon), isi koreksi + alasannya. Semua perubahan dicatat.</p>
+  </div>
+
+  <div class="box" id="picGateCard">
+    <div class="box-title">Verifikasi PIC Statistik (wajib sebelum tarik / simpan)</div>
+    <div class="row">
+      <div class="field">
+        <label>QR Code ID</label>
+        <input id="picQr" autocomplete="off" placeholder="Scan/ketik QR Code ID">
+      </div>
+      <div class="field">
+        <label>atau PIN</label>
+        <input id="picPin" type="password" inputmode="numeric" placeholder="PIN Fusion4">
+      </div>
+      <button type="button" class="btn" onclick="verifyPicEditor()">Verifikasi</button>
+    </div>
+    <div class="hint" id="picGateStatus">Siapa aja boleh lihat. Buat tarik data atau ubah koreksi, butuh PIC "HSSE-STA".</div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">1. Tarik dari absensi SmartGate</div>
+    <div class="row">
+      <div class="field">
+        <label>Tahun</label>
+        <select id="selectTahun"></select>
+      </div>
+      <div class="field">
+        <label>Jam standar kalau lupa scan pulang</label>
+        <input id="jamStandar" type="number" min="1" max="24" step="0.5" value="8">
+      </div>
+      <button type="button" class="btn" id="btnTarik" onclick="tarikSmartGate()">⬇️ Tarik dari SmartGate (semua project)</button>
+    </div>
+    <div class="status-line" id="tarikStatus"></div>
+    <div class="hint">
+      Jam kerja per orang per hari = (Istirahat − Masuk) + (Pulang − Masuk 2). Kalau scan istirahat gak lengkap: Pulang − Masuk, dipotong 1 jam kalau lebih dari 5 jam.
+      Kalau gak scan pulang: pakai jam standar di atas (ditandai "estimasi"). Lembur udah ikut kehitung dari jam pulang, pengajuan lembur gak ditambah lagi.
+      Tarik ulang aman: angka SmartGate tahun itu diganti, koreksi manual tetap.
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">2. Pemetaan lokasi absensi SmartGate → project HSSE</div>
+    <div class="hint" style="margin-top:0;margin-bottom:8px;">Lokasi diambil dari lokasi scan absensi (Nama Lokasi). Pilih project HSSE buat tiap lokasi; beberapa lokasi boleh ke 1 project. Lokasi yang namanya sama persis dengan Nama Project / No. Kontrak otomatis terpetakan. Man-hours lokasi yang belum dipetakan gak ikut dihitung.</div>
+    <div class="tbl-wrap">
+      <table class="mh-table" style="min-width:560px;">
+        <thead><tr><th style="text-align:left;">Lokasi absensi SmartGate</th><th>Project HSSE</th><th style="width:90px;"></th></tr></thead>
+        <tbody id="mapBody"><tr><td colspan="3">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">3. Man-hours per bulan &amp; koreksi</div>
+    <div class="row" style="margin-bottom:10px;">
+      <div class="field">
+        <label>Project / Kontrak</label>
+        <select id="selectProject"><option value="">Memuat...</option></select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="mh-table">
+        <thead>
+          <tr>
+            <th>Bulan</th><th>SmartGate<br>Man-Hours</th><th>Pekerja</th><th>Hari-orang</th><th>Estimasi</th>
+            <th style="width:110px;">Koreksi<br>Man-Hours</th><th style="width:80px;">Koreksi<br>Pekerja</th><th style="width:180px;">Alasan koreksi</th>
+            <th>Final</th><th style="width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody id="mhBody"><tr><td colspan="10">Pilih project dulu.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="status-line" id="mhStatus"></div>
+  </div>
+
+  <div class="box">
+    <div class="box-title">Riwayat perubahan</div>
+    <div class="log-list" id="logList">Memuat...</div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  const REQUIRED_PIC = 'HSSE-STA';
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  let picEditor = null; // { nama, qrCodeId }
+  let projectList = [];
+  let mhRows = {};
+
+  const selectTahun = document.getElementById('selectTahun');
+  const selectProject = document.getElementById('selectProject');
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 3; y <= now + 1; y++) opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    selectTahun.innerHTML = opts;
+    await loadProjects();
+    selectTahun.addEventListener('change', loadManHours);
+    selectProject.addEventListener('change', loadManHours);
+    loadMap();
+    loadLog();
+  });
+
+  // ---------------- Verifikasi PIC ----------------
+  function setPicGateStatus(text, ok) {
+    const el = document.getElementById('picGateStatus');
+    el.textContent = text;
+    el.style.color = ok ? 'var(--success)' : 'var(--accent)';
+  }
+
+  async function verifyPicEditor() {
+    const qr = document.getElementById('picQr').value.trim();
+    const pin = document.getElementById('picPin').value.trim();
+    if (!qr && !pin) return setPicGateStatus('Isi QR Code ID atau PIN dulu.', false);
+    try {
+      let person = null;
+      if (qr) {
+        const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qr.toUpperCase() });
+        if (error) throw error;
+        if (data && data.status !== 'NOT_FOUND') person = data.person || null;
+      } else {
+        const { data, error } = await fusion4Client.rpc('get_all_face_data');
+        if (error) throw error;
+        person = (data || []).find(x => String(x.digitalPin || '').trim() === pin) || null;
+      }
+      if (!person) return setPicGateStatus('Identitas tidak ditemukan.', false);
+      const nama = person.nama || person.NamaPersonnel || 'Tanpa nama';
+      if (!HSSEAccess.allows(person, REQUIRED_PIC)) {
+        picEditor = null;
+        return setPicGateStatus(`${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_PIC)}.`, false);
+      }
+      picEditor = { nama, qrCodeId: person.qrCodeId || qr };
+      document.getElementById('picPin').value = '';
+      setPicGateStatus(`✅ Terverifikasi: ${nama} -- boleh tarik data & simpan koreksi.`, true);
+    } catch (e) {
+      setPicGateStatus('Gagal verifikasi: ' + (e.message || e), false);
+    }
+  }
+
+  function requirePicEditor() {
+    if (picEditor) return true;
+    alert(`Verifikasi dulu di kotak "Verifikasi PIC Statistik" (butuh ${HSSEAccess.label(REQUIRED_PIC)}).`);
+    document.getElementById('picGateCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+
+  // ---------------- Project ----------------
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+      selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
+        projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
+    }
+  }
+
+  // ---------------- Tarik SmartGate ----------------
+  function setStatus(id, text, ok) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'status-line ' + (ok === true ? 'ok' : ok === false ? 'err' : '');
+  }
+
+  async function tarikSmartGate() {
+    if (!requirePicEditor()) return;
+    const tahun = Number(selectTahun.value);
+    const jamStandar = Number(document.getElementById('jamStandar').value) || 8;
+    const btn = document.getElementById('btnTarik');
+    btn.disabled = true;
+    setStatus('tarikStatus', `Narik absensi SmartGate tahun ${tahun}...`);
+    try {
+      const { data: rows, error } = await fusion4Client.rpc('get_hsse_man_hours', { p_tahun: tahun, p_bulan: null, p_jam_standar: jamStandar });
+      if (error) throw error;
+      const { data: res, error: err2 } = await supabaseClient.rpc('save_man_hours_smartgate', {
+        p_tahun: tahun, p_rows: rows || [], p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+      });
+      if (err2) throw err2;
+      const total = (rows || []).reduce((s, r) => s + Number(r.ManHours || 0), 0);
+      const unmapped = (res && res.belumDipetakan) || [];
+      let msg = `✅ ${(rows || []).length} baris dari SmartGate (${fmtNum(total)} man-hours), ${res.barisDisimpan} baris project/bulan disimpan.`;
+      if (unmapped.length) msg += ` ⚠️ ${unmapped.length} lokasi belum dipetakan ke project (lihat bagian 2), man-hours-nya belum ikut.`;
+      setStatus('tarikStatus', msg, unmapped.length ? null : true);
+      await Promise.all([loadMap(), loadManHours(), loadLog()]);
+    } catch (e) {
+      setStatus('tarikStatus', 'Gagal tarik: ' + (e.message || e), false);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------------- Mapping ----------------
+  async function loadMap() {
+    const body = document.getElementById('mapBody');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_man_hours_project_map');
+      if (error) throw error;
+      const list = data || [];
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="3">Belum ada. Klik "Tarik dari SmartGate" dulu, nanti daftar lokasi muncul di sini.</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map((m, i) => `
+        <tr>
+          <td class="left">${escapeHtml(m.lokasiSmartGate)} ${m.projectId ? '' : '<span class="tag-unmapped">· belum dipetakan</span>'}</td>
+          <td>
+            <select id="map-${i}" data-f4="${escapeHtml(m.lokasiSmartGate)}">
+              <option value="">-- Gak dihitung --</option>
+              ${projectList.map(p => `<option value="${p.id}" ${Number(m.projectId) === Number(p.id) ? 'selected' : ''}>${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('')}
+            </select>
+          </td>
+          <td><button type="button" class="btn small" onclick="saveMap(${i})">Simpan</button></td>
+        </tr>`).join('');
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="3">Gagal memuat: ${escapeHtml(e.message || e)}</td></tr>`;
+    }
+  }
+
+  async function saveMap(i) {
+    if (!requirePicEditor()) return;
+    const sel = document.getElementById('map-' + i);
+    try {
+      const { error } = await supabaseClient.rpc('save_man_hours_project_map', {
+        p_lokasi: sel.dataset.f4, p_project_id: sel.value ? Number(sel.value) : null,
+        p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+      });
+      if (error) throw error;
+      setStatus('tarikStatus', `✅ Pemetaan lokasi "${sel.dataset.f4}" disimpan. Klik "Tarik dari SmartGate" lagi biar angkanya ikut kehitung.`, true);
+      loadMap();
+      loadLog();
+    } catch (e) {
+      setStatus('tarikStatus', 'Gagal simpan pemetaan: ' + (e.message || e), false);
+    }
+  }
+
+  // ---------------- Tabel bulanan ----------------
+  async function loadManHours() {
+    const body = document.getElementById('mhBody');
+    const projectId = selectProject.value;
+    if (!projectId) {
+      body.innerHTML = '<tr><td colspan="10">Pilih project dulu.</td></tr>';
+      return;
+    }
+    body.innerHTML = '<tr><td colspan="10">Memuat...</td></tr>';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_man_hours', { p_project_id: Number(projectId), p_tahun: Number(selectTahun.value) });
+      if (error) throw error;
+      mhRows = {};
+      (data || []).forEach(r => { mhRows[r.bulan] = r; });
+      body.innerHTML = BULAN_LABEL.map((lbl, idx) => {
+        const b = idx + 1;
+        const r = mhRows[b] || {};
+        const hasKor = r.manHoursKoreksi !== null && r.manHoursKoreksi !== undefined;
+        return `<tr class="${hasKor ? 'has-koreksi' : ''}">
+          <td class="left">${lbl}</td>
+          <td>${r.tanggalTarik ? fmtNum(r.manHoursSmartGate) : '–'}</td>
+          <td>${r.tanggalTarik ? fmtNum(r.jumlahPekerjaSmartGate) : '–'}</td>
+          <td>${r.tanggalTarik ? fmtNum(r.hariOrangSmartGate) : '–'}</td>
+          <td>${r.barisEstimasi ? fmtNum(r.barisEstimasi) : ''}</td>
+          <td><input type="number" min="0" step="0.5" id="kor-${b}" value="${hasKor ? r.manHoursKoreksi : ''}"></td>
+          <td><input type="number" min="0" step="1" id="korp-${b}" value="${hasKor && r.jumlahPekerjaKoreksi !== null ? r.jumlahPekerjaKoreksi : ''}"></td>
+          <td><input type="text" id="alasan-${b}" value="${escapeHtml(r.alasanKoreksi || '')}" placeholder="wajib kalau ada koreksi"></td>
+          <td class="final">${r.manHoursFinal !== undefined ? fmtNum(r.manHoursFinal) : '–'}</td>
+          <td>
+            <button type="button" class="btn small" onclick="saveKoreksi(${b})">Simpan</button>
+            ${hasKor ? `<button type="button" class="btn small ghost" onclick="hapusKoreksi(${b})">Hapus</button>` : ''}
+          </td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="10">Gagal memuat: ${escapeHtml(e.message || e)}</td></tr>`;
+    }
+  }
+
+  async function saveKoreksi(b) {
+    if (!requirePicEditor()) return;
+    const mhVal = document.getElementById('kor-' + b).value.trim();
+    const pkVal = document.getElementById('korp-' + b).value.trim();
+    const alasan = document.getElementById('alasan-' + b).value.trim();
+    if (mhVal === '') return setStatus('mhStatus', 'Isi angka koreksi man-hours dulu (atau klik Hapus buat balik ke angka SmartGate).', false);
+    if (!alasan) return setStatus('mhStatus', 'Alasan koreksi wajib diisi.', false);
+    await kirimKoreksi(b, Number(mhVal), pkVal === '' ? null : Number(pkVal), alasan);
+  }
+
+  async function hapusKoreksi(b) {
+    if (!requirePicEditor()) return;
+    if (!confirm(`Hapus koreksi ${BULAN_LABEL[b - 1]}? Angka balik ke hasil SmartGate.`)) return;
+    await kirimKoreksi(b, null, null, '');
+  }
+
+  async function kirimKoreksi(b, mh, pekerja, alasan) {
+    try {
+      const { error } = await supabaseClient.rpc('save_man_hours_koreksi', {
+        p_project_id: Number(selectProject.value), p_tahun: Number(selectTahun.value), p_bulan: b,
+        p_man_hours: mh, p_jumlah_pekerja: pekerja, p_alasan: alasan,
+        p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+      });
+      if (error) throw error;
+      setStatus('mhStatus', `✅ ${BULAN_LABEL[b - 1]} disimpan.`, true);
+      loadManHours();
+      loadLog();
+    } catch (e) {
+      setStatus('mhStatus', 'Gagal simpan: ' + (e.message || e), false);
+    }
+  }
+
+  // ---------------- Log ----------------
+  async function loadLog() {
+    const el = document.getElementById('logList');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_man_hours_log', { p_limit: 30 });
+      if (error) throw error;
+      const list = data || [];
+      if (!list.length) { el.textContent = 'Belum ada perubahan.'; return; }
+      const namaProject = id => { const p = projectList.find(x => Number(x.id) === Number(id)); return p ? p.namaProject : (id ? '#' + id : ''); };
+      el.innerHTML = list.map(l => {
+        const waktu = new Date(l.createdAt).toLocaleString('id-ID');
+        const periode = l.bulan ? `${BULAN_LABEL[l.bulan - 1]} ${l.tahun}` : (l.tahun || '');
+        let detail = '';
+        if (l.aksi === 'Koreksi') detail = `→ ${fmtNum(l.detail.manHours)} MH (${escapeHtml(l.detail.alasan || '')})`;
+        if (l.aksi === 'Mapping') detail = `"${escapeHtml(l.detail.lokasiSmartGate)}" → ${escapeHtml(namaProject(l.projectId) || 'gak dihitung')}`;
+        if (l.aksi === 'Tarik SmartGate') detail = `${l.detail.barisDisimpan} baris disimpan`;
+        return `<div>${waktu} · <b>${escapeHtml(l.aksi)}</b> ${escapeHtml(namaProject(l.projectId))} ${periode} ${detail} · oleh ${escapeHtml(l.oleh)}</div>`;
+      }).join('');
+    } catch (e) {
+      el.textContent = 'Gagal memuat riwayat.';
+    }
+  }
+
+  function fmtNum(v) {
+    if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '–';
+    return Number(v).toLocaleString('id-ID', { maximumFractionDigits: 1 });
+  }
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+</script>
+</body>
+</html>

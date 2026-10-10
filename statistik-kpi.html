@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statistik &amp; KPI HSSE — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<style>
+  .page { max-width: 980px; }
+
+  .selector-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .selector-row .field { flex: 1; min-width: 180px; }
+  .selector-row label {
+    display: block; font-size: 11.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .selector-row select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--text);
+  }
+
+  .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .action-link {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700;
+    padding: 8px 14px; border-radius: 10px; text-decoration: none; white-space: nowrap;
+    background: #EAF1FD; color: #2A5CCB;
+  }
+  .action-link.primary { background: var(--navy-dark); color: #fff; }
+
+  .warn-box {
+    background: #FDF3E3; color: #8A6100; border: 1.5px solid #F3D9A6; border-radius: 12px;
+    padding: 10px 14px; font-size: 12.5px; margin-bottom: 14px; display: none;
+  }
+
+  .section-title {
+    font-size: 12px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 18px 0 8px;
+  }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .kpi-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  }
+  .kpi-card .label { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .kpi-card .value { font-size: 22px; font-weight: 800; color: var(--navy-dark); margin-top: 4px; line-height: 1.15; }
+  .kpi-card .value.ok { color: var(--success); }
+  .kpi-card .value.warn { color: #8A6100; }
+  .kpi-card .value.bad { color: var(--accent); }
+  .kpi-card .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .chart-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    padding: 14px 16px; margin-top: 12px;
+  }
+  .chart-card h3 { font-size: 13.5px; font-weight: 800; color: var(--navy-dark); margin-bottom: 8px; }
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 760px) { .chart-2col { grid-template-columns: 1fr; } }
+
+  .tbl-wrap { overflow-x: auto; }
+  table.kpi-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
+  table.kpi-table th, table.kpi-table td { border: 1px solid var(--border); padding: 5px 6px; text-align: center; }
+  table.kpi-table thead th { background: var(--navy-dark); color: #fff; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.02em; }
+  table.kpi-table td.left { text-align: left; font-weight: 700; }
+  table.kpi-table tr.total td { font-weight: 800; background: #F5F6FA; }
+  table.kpi-table td.muted { color: var(--muted); }
+  table.kpi-table td.bad { color: var(--accent); font-weight: 800; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
+  .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE-Fusion4</div>
+        <h1>Statistik &amp; KPI HSSE</h1>
+      </div>
+    </div>
+    <p>TRIR, LTIFR, Severity Rate, man-hours (dari absensi SmartGate), dan indikator leading dari semua modul. Dihitung otomatis dari data yang masuk, basis <b>1.000.000 man-hours</b>.</p>
+  </div>
+
+  <div class="selector-row">
+    <div class="field">
+      <label>Project / Kontrak</label>
+      <select id="selectProject"><option value="all">Memuat...</option></select>
+    </div>
+    <div class="field">
+      <label>Tahun</label>
+      <select id="selectTahun"></select>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <a href="#" id="btnPdf" class="action-link primary" target="_blank">🖨️ Cetak / Export PDF</a>
+    <a href="statistik-kpi-input.html" class="action-link">⏱️ Man-Hours (PIC HSSE-STA)</a>
+    <a href="hse-program-monitor.html" class="action-link">📊 Monitor HSE Program</a>
+  </div>
+
+  <div class="warn-box" id="warnBox"></div>
+
+  <div id="loadingState" class="empty-state">Memuat data...</div>
+
+  <div id="content" style="display:none;">
+
+    <div class="section-title">Lagging indicator (YTD <span id="lblTahun"></span>)</div>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">Man-Hours</div><div class="value" id="kManHours">-</div><div class="sub" id="kPekerja"></div></div>
+      <div class="kpi-card"><div class="label">TRIR</div><div class="value" id="kTrir">-</div><div class="sub" id="kRecordable"></div></div>
+      <div class="kpi-card"><div class="label">LTIFR</div><div class="value" id="kLtifr">-</div><div class="sub" id="kLti"></div></div>
+      <div class="kpi-card"><div class="label">Severity Rate</div><div class="value" id="kSr">-</div><div class="sub" id="kHari"></div></div>
+      <div class="kpi-card"><div class="label">Fatality Rate</div><div class="value" id="kFr">-</div><div class="sub" id="kFatal"></div></div>
+      <div class="kpi-card"><div class="label">Hari tanpa LTI</div><div class="value" id="kSejakLti">-</div><div class="sub" id="kSejakLtiSub"></div></div>
+    </div>
+    <div class="note" id="rollingNote"></div>
+
+    <div class="section-title">Leading indicator (YTD)</div>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">Near Miss</div><div class="value" id="kNearMiss">-</div><div class="sub" id="kNearMissSub"></div></div>
+      <div class="kpi-card"><div class="label">CERMAT Positif : Negatif</div><div class="value" id="kCermat">-</div><div class="sub" id="kCermatSub"></div></div>
+      <div class="kpi-card"><div class="label">Inspeksi &amp; Observasi</div><div class="value" id="kInspeksi">-</div><div class="sub" id="kInspeksiSub"></div></div>
+      <div class="kpi-card"><div class="label">Toolbox Meeting</div><div class="value" id="kTbm">-</div><div class="sub" id="kTbmSub"></div></div>
+      <div class="kpi-card"><div class="label">PTW Disetujui</div><div class="value" id="kPtw">-</div><div class="sub" id="kPtwSub"></div></div>
+      <div class="kpi-card"><div class="label">% Capaian HSE Program</div><div class="value" id="kHseProgram">-</div><div class="sub" id="kHseProgramSub"></div></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Man-hours &amp; rate per bulan</h3>
+      <div class="chart-wrap"><canvas id="chartRate"></canvas></div>
+    </div>
+
+    <div class="chart-2col">
+      <div class="chart-card">
+        <h3>Klasifikasi incident (piramida)</h3>
+        <div class="chart-wrap"><canvas id="chartKlas"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Leading indicator per bulan</h3>
+        <div class="chart-wrap"><canvas id="chartLeading"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Temuan &amp; tindak lanjut (laporan tahun ini)</h3>
+      <div class="tbl-wrap">
+        <table class="kpi-table" style="min-width:480px;">
+          <thead><tr><th style="text-align:left;">Modul</th><th>Total</th><th>Closed</th><th>Open</th><th>Overdue</th><th>% Closed</th></tr></thead>
+          <tbody id="temuanBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Rincian per bulan</h3>
+      <div class="tbl-wrap">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Bulan</th><th>Man-Hours</th><th>Pekerja</th><th>FAC</th><th>MTC</th><th>RWC</th><th>LTI</th><th>Fatal</th>
+              <th>Near Miss<br>(Inc / CERMAT)</th><th>Hari Hilang</th><th>TRIR</th><th>LTIFR</th><th>SR</th>
+            </tr>
+          </thead>
+          <tbody id="bulanBody"></tbody>
+        </table>
+      </div>
+      <div class="note">
+        Rumus (N = 1.000.000): TRIR = (MTC + RWC + LTI + Fatality) × N / man-hours · LTIFR = (LTI + Fatality) × N / man-hours ·
+        SR = hari kerja hilang × N / man-hours. Man-hours dari absensi SmartGate Fusion4 (plus koreksi manual kalau ada).
+        Incident dihitung dari tanggal kejadian, semua status. Near Miss = Incident + CERMAT (bisa ada kejadian yang sama kelapor dua kali).
+        "–" = man-hours bulan itu belum ada.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const BASIS = 1000000;
+  const KLAS_URUT = ['Fatality','Lost Time Injury','Restricted Work Case','Medical Treatment Case','First Aid Case','Near Miss','Kerusakan Properti','Lingkungan','Keamanan/Security'];
+
+  const selectProject = document.getElementById('selectProject');
+  const selectTahun = document.getElementById('selectTahun');
+  const loadingState = document.getElementById('loadingState');
+  const content = document.getElementById('content');
+  const warnBox = document.getElementById('warnBox');
+  let charts = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    setupTahunOptions();
+    await loadProjects();
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('project_id')) selectProject.value = qs.get('project_id');
+    if (qs.get('tahun')) selectTahun.value = qs.get('tahun');
+    selectProject.addEventListener('change', loadKpi);
+    selectTahun.addEventListener('change', loadKpi);
+    loadKpi();
+  });
+
+  function setupTahunOptions() {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 3; y <= now + 1; y++) {
+      opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    }
+    selectTahun.innerHTML = opts;
+  }
+
+  async function loadProjects() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>' +
+        (data || []).map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    } catch (e) {
+      selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>';
+    }
+  }
+
+  function fmtNum(v, digits = 0) {
+    if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '–';
+    return Number(v).toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+  function fmtRate(v) { return (v === null || v === undefined) ? '–' : fmtNum(v, 2); }
+
+  async function loadKpi() {
+    const projectId = selectProject.value;
+    const tahun = Number(selectTahun.value);
+    destroyCharts();
+    content.style.display = 'none';
+    warnBox.style.display = 'none';
+    loadingState.style.display = 'block';
+    loadingState.textContent = 'Memuat data...';
+    document.getElementById('btnPdf').href = `statistik-kpi-pdf.html?project_id=${projectId}&tahun=${tahun}`;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_statistik_kpi', {
+        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun, p_basis: BASIS
+      });
+      if (error) throw error;
+      render(data, tahun);
+      loadingState.style.display = 'none';
+      content.style.display = 'block';
+      renderCharts(data);
+      loadHseProgram(projectId, tahun);
+    } catch (e) {
+      loadingState.textContent = 'Gagal memuat data: ' + (e.message || e);
+    }
+  }
+
+  function bulanBerjalan(tahun) {
+    const now = new Date();
+    if (tahun < now.getFullYear()) return 12;
+    if (tahun > now.getFullYear()) return 0;
+    return now.getMonth() + 1;
+  }
+
+  function setVal(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    if (cls !== undefined) el.className = 'value' + (cls ? ' ' + cls : '');
+  }
+  function setSub(id, text) { document.getElementById(id).textContent = text; }
+
+  function render(d, tahun) {
+    const y = d.ytd || {};
+    document.getElementById('lblTahun').textContent = tahun;
+
+    const target = bulanBerjalan(tahun);
+    const ada = Number(y.bulanAdaManHours || 0);
+    if (target > 0 && ada < target) {
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = `⚠️ Man-hours baru ada untuk <b>${ada} dari ${target} bulan</b>. Rate (TRIR/LTIFR/SR) bisa kelihatan lebih tinggi dari aslinya. ` +
+        `PIC HSSE-STA bisa tarik ulang dari SmartGate di halaman <a href="statistik-kpi-input.html">Man-Hours</a>.`;
+    }
+
+    setVal('kManHours', fmtNum(y.manHours));
+    setSub('kPekerja', y.rataPekerja ? `rata-rata ${fmtNum(y.rataPekerja)} pekerja/bulan` : 'belum ada data pekerja');
+    setVal('kTrir', fmtRate(y.trir), y.trir === null || y.trir === undefined ? '' : (Number(y.trir) === 0 ? 'ok' : 'bad'));
+    setSub('kRecordable', `${fmtNum(y.recordable)} recordable case`);
+    setVal('kLtifr', fmtRate(y.ltifr), y.ltifr === null || y.ltifr === undefined ? '' : (Number(y.ltifr) === 0 ? 'ok' : 'bad'));
+    setSub('kLti', `${fmtNum(Number(y.lti || 0) + Number(y.fatality || 0))} LTI + fatality`);
+    setVal('kSr', fmtRate(y.severityRate));
+    setSub('kHari', `${fmtNum(y.hariHilang)} hari kerja hilang`);
+    setVal('kFr', fmtRate(y.fatalityRate), Number(y.fatality || 0) > 0 ? 'bad' : (y.fatalityRate === null ? '' : 'ok'));
+    setSub('kFatal', `${fmtNum(y.fatality)} fatality`);
+
+    const lti = d.ltiTerakhir || {};
+    if (lti.tanggal) {
+      setVal('kSejakLti', fmtNum(lti.hari), Number(lti.hari) >= 365 ? 'ok' : '');
+      setSub('kSejakLtiSub', `sejak ${new Date(lti.tanggal).toLocaleDateString('id-ID')} · ±${fmtNum(lti.manHoursSejak)} MH`);
+    } else {
+      setVal('kSejakLti', 'Belum ada LTI', 'ok');
+      setSub('kSejakLtiSub', 'belum pernah tercatat LTI/fatality');
+    }
+
+    const r = d.rolling12 || {};
+    document.getElementById('rollingNote').textContent =
+      `Rolling 12 bulan (${r.dari} s/d ${r.sampai}): man-hours ${fmtNum(r.manHours)}, TRIR ${fmtRate(r.trir)}, LTIFR ${fmtRate(r.ltifr)}, SR ${fmtRate(r.severityRate)}.`;
+
+    setVal('kNearMiss', fmtNum(y.nearMiss));
+    setSub('kNearMissSub', `Incident ${fmtNum(y.nearMissIncident)} · CERMAT ${fmtNum(y.nearMissCermat)}`);
+    setVal('kCermat', `${fmtNum(y.cermatPositif)} : ${fmtNum(y.cermatNegatif)}`);
+    const totalCermat = Number(y.cermatPositif || 0) + Number(y.cermatNegatif || 0);
+    setSub('kCermatSub', totalCermat ? `${Math.round(Number(y.cermatPositif || 0) / totalCermat * 100)}% positif` : 'belum ada laporan');
+    setVal('kInspeksi', fmtNum(y.inspeksi));
+    setSub('kInspeksiSub', y.inspeksiSkorRata !== null && y.inspeksiSkorRata !== undefined ? `skor rata-rata ${fmtNum(y.inspeksiSkorRata, 1)}%` : 'belum ada skor');
+    setVal('kTbm', fmtNum(y.tbm));
+    setSub('kTbmSub', `${fmtNum(y.tbmPeserta)} kehadiran peserta`);
+    setVal('kPtw', fmtNum(y.ptwDisetujui));
+    setSub('kPtwSub', `dari ${fmtNum(y.ptwDiajukan)} permit diajukan`);
+
+    document.getElementById('temuanBody').innerHTML = (d.temuan || []).map(t => {
+      const pct = Number(t.total) > 0 ? Math.round(Number(t.closed) / Number(t.total) * 100) + '%' : '–';
+      return `<tr><td class="left">${escapeHtml(t.modul)}</td><td>${fmtNum(t.total)}</td><td>${fmtNum(t.closed)}</td>
+        <td>${fmtNum(t.open)}</td><td class="${Number(t.overdue) > 0 ? 'bad' : ''}">${fmtNum(t.overdue)}</td><td>${pct}</td></tr>`;
+    }).join('');
+
+    const rows = (d.bulan || []).map(b => `<tr>
+        <td class="left">${BULAN_LABEL[b.bulan - 1]}</td>
+        <td>${b.manHours === null ? '<span class="muted">–</span>' : fmtNum(b.manHours)}</td>
+        <td>${b.manHours === null ? '–' : fmtNum(b.jumlahPekerja)}</td>
+        <td>${b.fac}</td><td>${b.mtc}</td><td>${b.rwc}</td><td class="${b.lti ? 'bad' : ''}">${b.lti}</td><td class="${b.fatality ? 'bad' : ''}">${b.fatality}</td>
+        <td>${b.nearMissIncident} / ${b.nearMissCermat}</td><td>${b.hariHilang}</td>
+        <td>${fmtRate(b.trir)}</td><td>${fmtRate(b.ltifr)}</td><td>${fmtRate(b.severityRate)}</td></tr>`).join('');
+    document.getElementById('bulanBody').innerHTML = rows + `<tr class="total">
+        <td class="left">YTD</td><td>${fmtNum(y.manHours)}</td><td>${y.rataPekerja ? fmtNum(y.rataPekerja) : '–'}</td>
+        <td>${y.fac}</td><td>${y.mtc}</td><td>${y.rwc}</td><td>${y.lti}</td><td>${y.fatality}</td>
+        <td>${y.nearMissIncident} / ${y.nearMissCermat}</td><td>${y.hariHilang}</td>
+        <td>${fmtRate(y.trir)}</td><td>${fmtRate(y.ltifr)}</td><td>${fmtRate(y.severityRate)}</td></tr>`;
+  }
+
+  async function loadHseProgram(projectId, tahun) {
+    if (projectId === 'all') {
+      setVal('kHseProgram', '–', '');
+      setSub('kHseProgramSub', 'pilih 1 project buat lihat');
+      return;
+    }
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_program', { p_project_id: Number(projectId), p_tahun: tahun });
+      if (error) throw error;
+      let sumTarget = 0, sumReal = 0, use = 0;
+      (data || []).forEach(item => {
+        if (item.kodeItem === 'INCIDENT' || item.statusPakai !== 'Use') return;
+        use++;
+        sumTarget += Number(item.targetTotal) || 0;
+        sumReal += Number(item.realisasiTotal) || 0;
+      });
+      const pct = sumTarget > 0 ? Math.round(sumReal / sumTarget * 100) : 0;
+      setVal('kHseProgram', use ? pct + '%' : '–', use ? (pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : 'bad') : '');
+      setSub('kHseProgramSub', use ? `${sumReal} dari target ${sumTarget} (${use} item)` : 'HSE Program belum diatur');
+    } catch (e) {
+      setVal('kHseProgram', '–', '');
+      setSub('kHseProgramSub', 'gagal memuat');
+    }
+  }
+
+  function renderCharts(d) {
+    if (typeof Chart === 'undefined') return;
+    const b = d.bulan || [];
+    charts.push(new Chart(document.getElementById('chartRate'), {
+      data: {
+        labels: BULAN_LABEL,
+        datasets: [
+          { type: 'bar', label: 'Man-hours', data: b.map(x => x.manHours), backgroundColor: '#C7CEE8', yAxisID: 'yMh', order: 3 },
+          { type: 'line', label: 'TRIR', data: b.map(x => x.trir), borderColor: '#E02C2B', backgroundColor: '#E02C2B', yAxisID: 'yRate', spanGaps: false, tension: 0.2, order: 1 },
+          { type: 'line', label: 'LTIFR', data: b.map(x => x.ltifr), borderColor: '#1B2650', backgroundColor: '#1B2650', yAxisID: 'yRate', spanGaps: false, tension: 0.2, order: 2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+          yMh: { position: 'left', beginAtZero: true, title: { display: true, text: 'Man-hours' } },
+          yRate: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Rate / 1jt MH' } }
+        }
+      }
+    }));
+
+    const klas = d.klasifikasi || {};
+    const warna = { 'Fatality': '#7A1110', 'Lost Time Injury': '#E02C2B', 'Restricted Work Case': '#F07C2B', 'Medical Treatment Case': '#F5A623',
+      'First Aid Case': '#F2D16B', 'Near Miss': '#2A5CCB', 'Kerusakan Properti': '#8A94B3', 'Lingkungan': '#178A4C', 'Keamanan/Security': '#6B7280' };
+    charts.push(new Chart(document.getElementById('chartKlas'), {
+      type: 'bar',
+      data: { labels: KLAS_URUT, datasets: [{ label: 'Jumlah', data: KLAS_URUT.map(k => klas[k] || 0), backgroundColor: KLAS_URUT.map(k => warna[k]) }] },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { ticks: { font: { size: 10.5 } } } }
+      }
+    }));
+
+    charts.push(new Chart(document.getElementById('chartLeading'), {
+      type: 'bar',
+      data: {
+        labels: BULAN_LABEL,
+        datasets: [
+          { label: 'CERMAT +', data: b.map(x => x.cermatPositif), backgroundColor: '#178A4C' },
+          { label: 'CERMAT −', data: b.map(x => x.cermatNegatif), backgroundColor: '#E02C2B' },
+          { label: 'Inspeksi', data: b.map(x => x.inspeksi), backgroundColor: '#2A5CCB' },
+          { label: 'TBM', data: b.map(x => x.tbm), backgroundColor: '#F5A623' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    }));
+  }
+
+  function destroyCharts() {
+    charts.forEach(c => c.destroy());
+    charts = [];
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+</script>
+</body>
+</html>

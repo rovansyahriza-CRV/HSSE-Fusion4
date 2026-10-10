@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Statistik &amp; KPI HSSE — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73;
+    --navy-dark: #1B2650;
+    --accent: #E02C2B;
+    --safety-yellow: #F5A623;
+    --success: #178A4C;
+    --success-bg: #E5F6EC;
+    --border: #E4E7F0;
+    --muted: #6B7280;
+    --text: #1E1E1E;
+    --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 12.5px; line-height: 1.5;
+  }
+
+  /* ===== Toolbar (gak ikut kecetak) ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button {
+    background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .toolbar-hint { font-size: 11px; color: #9CA8C9; text-align: center; padding: 6px 16px 10px; background: var(--navy-dark); }
+
+  .selector-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; max-width: 297mm; margin: 14px auto 0; padding: 0 16px;
+  }
+  .selector-bar .field { flex: 1; min-width: 180px; }
+  .selector-bar label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .selector-bar select {
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-weight: 600; background: #fff; color: var(--text);
+  }
+  .selector-bar button {
+    padding: 9px 16px; border-radius: 8px; border: none; background: var(--navy); color: #fff;
+    font-weight: 700; font-size: 13px; cursor: pointer; height: 38px;
+  }
+
+  .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
+
+  /* ===== Lembar laporan (A4 landscape) ===== */
+  .sheet {
+    max-width: 297mm; margin: 16px auto; background: #fff; padding: 10mm 12mm;
+    border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none;
+  }
+  .doc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 12px;
+  }
+  .doc-header .brand img { width: 110px; height: auto; object-fit: contain; }
+  .doc-header .doc-title { text-align: right; }
+  .doc-header .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doc-header .doc-title h1 { font-size: 18px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-header .doc-title .sub { font-size: 10.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+  .info-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+  }
+  .info-cell { padding: 7px 12px; border-right: 1px solid var(--border); }
+  .info-cell:last-child { border-right: none; }
+  .info-cell .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .info-cell .value { font-size: 11px; font-weight: 700; }
+
+  .summary-strip { display: flex; gap: 8px; margin-bottom: 12px; }
+  .summary-box { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; text-align: center; }
+  .summary-box .label { font-size: 7.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .summary-box .value { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .summary-box .value.ok { color: var(--success); }
+  .summary-box .value.bad { color: var(--accent); }
+  .summary-box .sub { font-size: 7.5px; color: var(--muted); }
+
+  .sec-title { font-size: 9px; font-weight: 800; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 5px; }
+  table.t { width: 100%; border-collapse: collapse; }
+  table.t th, table.t td { border: 1px solid var(--border); text-align: center; padding: 3px 4px; font-size: 8.5px; }
+  table.t thead th { background: var(--navy-dark); color: #fff; font-size: 7.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+  table.t td.left { text-align: left; font-weight: 700; }
+  table.t tr.total td { font-weight: 800; background: #F5F6FA; }
+  table.t td.bad { color: var(--accent); font-weight: 800; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .note { font-size: 7.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 22px; max-width: 420px; margin-left: auto; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 9.5px; font-weight: 700; }
+
+  .doc-footer {
+    margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 8px; color: var(--muted);
+  }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 4mm 6mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: A4 landscape; margin: 8mm; }
+  }
+
+  @media screen and (max-width: 900px) {
+    .sheet { max-width: 100%; margin: 12px auto; padding: 6mm 3vw 10mm; overflow-x: auto; }
+    table.t { min-width: 760px; }
+    .two-col { grid-template-columns: 1fr; }
+    .summary-strip { flex-wrap: wrap; }
+    .summary-box { min-width: 30%; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+    <a href="index.html">🏠 Menu Utama</a>
+    <a href="statistik-kpi.html" id="linkBack">⬅ Kembali ke Statistik</a>
+  </div>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div class="toolbar-hint no-print">Di jendela print, pilih "Save as PDF" sebagai printer, orientasi Landscape, dan aktifkan opsi "Background graphics" biar warna-warnanya ikut kecetak.</div>
+
+<div class="selector-bar no-print">
+  <div class="field">
+    <label>Project / Kontrak</label>
+    <select id="selectProject"><option value="all">Memuat...</option></select>
+  </div>
+  <div class="field">
+    <label>Tahun</label>
+    <select id="selectTahun"></select>
+  </div>
+  <button onclick="loadReport()">Tampilkan</button>
+</div>
+
+<div id="loadingState" class="loading">Pilih project &amp; tahun, terus klik Tampilkan.</div>
+<div id="errorState" class="error-state" style="display:none;"></div>
+
+<div class="sheet" id="sheet">
+
+  <div class="doc-header">
+    <div class="brand">
+      <img src="logo-bima.png" alt="Logo HSSE BiMa">
+    </div>
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan Statistik &amp; KPI HSSE</h1>
+      <div class="sub" id="fPeriode"></div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell"><div class="label">Project</div><div class="value" id="fProject"></div></div>
+    <div class="info-cell"><div class="label">No. Kontrak</div><div class="value" id="fKontrak"></div></div>
+    <div class="info-cell"><div class="label">Basis Rate</div><div class="value">1.000.000 man-hours</div></div>
+    <div class="info-cell"><div class="label">Sumber Man-Hours</div><div class="value">Absensi SmartGate Fusion4</div></div>
+  </div>
+
+  <div class="summary-strip" id="summaryStrip"></div>
+
+  <div class="sec-title">Rincian per bulan</div>
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Bulan</th><th>Man-Hours</th><th>Pekerja</th><th>FAC</th><th>MTC</th><th>RWC</th><th>LTI</th><th>Fatal</th>
+        <th>Near Miss Inc / CERMAT</th><th>Hari Hilang</th><th>TRIR</th><th>LTIFR</th><th>SR</th>
+        <th>CERMAT + / −</th><th>Inspeksi</th><th>TBM</th><th>PTW Disetujui</th>
+      </tr>
+    </thead>
+    <tbody id="bulanBody"></tbody>
+  </table>
+
+  <div class="two-col">
+    <div>
+      <div class="sec-title">Klasifikasi incident</div>
+      <table class="t"><thead><tr><th style="text-align:left;">Klasifikasi</th><th>Jumlah</th></tr></thead><tbody id="klasBody"></tbody></table>
+    </div>
+    <div>
+      <div class="sec-title">Temuan &amp; tindak lanjut (laporan tahun ini)</div>
+      <table class="t"><thead><tr><th style="text-align:left;">Modul</th><th>Total</th><th>Closed</th><th>Open</th><th>Overdue</th></tr></thead><tbody id="temuanBody"></tbody></table>
+      <div class="note" id="rollingNote"></div>
+    </div>
+  </div>
+
+  <div class="note">
+    TRIR = (MTC + RWC + LTI + Fatality) × 1.000.000 / man-hours · LTIFR = (LTI + Fatality) × 1.000.000 / man-hours ·
+    SR = hari kerja hilang × 1.000.000 / man-hours. Incident dihitung dari tanggal kejadian. Near Miss = Incident + CERMAT.
+    "–" = man-hours bulan itu belum ada.
+  </div>
+
+  <div class="signature-row">
+    <div class="signature-box"><div class="role">Dibuat oleh</div><div class="line">HSE Officer</div></div>
+    <div class="signature-box"><div class="role">Diketahui oleh</div><div class="line">Project Manager</div></div>
+  </div>
+
+  <div class="doc-footer">
+    <span>HSSE-Fusion4 · PT Bilal Mitra Aryatama</span>
+    <span id="fDicetak"></span>
+  </div>
+</div>
+
+<script>
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const KLAS_URUT = ['Fatality','Lost Time Injury','Restricted Work Case','Medical Treatment Case','First Aid Case','Near Miss','Kerusakan Properti','Lingkungan','Keamanan/Security'];
+  const selectProject = document.getElementById('selectProject');
+  const selectTahun = document.getElementById('selectTahun');
+  let projectList = [];
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const now = new Date().getFullYear();
+    let opts = '';
+    for (let y = now - 3; y <= now + 1; y++) opts += `<option value="${y}" ${y === now ? 'selected' : ''}>${y}</option>`;
+    selectTahun.innerHTML = opts;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_active_projects');
+      if (error) throw error;
+      projectList = data || [];
+    } catch (e) { projectList = []; }
+    selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>' +
+      projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('project_id')) selectProject.value = qs.get('project_id');
+    if (qs.get('tahun')) selectTahun.value = qs.get('tahun');
+    if (qs.get('project_id') || qs.get('tahun')) loadReport();
+  });
+
+  function fmtNum(v, d = 0) {
+    if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '–';
+    return Number(v).toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function fmtRate(v) { return (v === null || v === undefined) ? '–' : fmtNum(v, 2); }
+
+  async function loadReport() {
+    const projectId = selectProject.value;
+    const tahun = Number(selectTahun.value);
+    const loading = document.getElementById('loadingState');
+    const errEl = document.getElementById('errorState');
+    const sheet = document.getElementById('sheet');
+    loading.style.display = 'block';
+    loading.textContent = 'Memuat data...';
+    errEl.style.display = 'none';
+    sheet.style.display = 'none';
+    document.getElementById('linkBack').href = `statistik-kpi.html?project_id=${projectId}&tahun=${tahun}`;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_statistik_kpi', {
+        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun, p_basis: 1000000
+      });
+      if (error) throw error;
+      render(data, projectId, tahun);
+      loading.style.display = 'none';
+      sheet.style.display = 'block';
+    } catch (e) {
+      loading.style.display = 'none';
+      errEl.style.display = 'block';
+      errEl.textContent = 'Gagal memuat data: ' + (e.message || e);
+    }
+  }
+
+  function render(d, projectId, tahun) {
+    const p = projectList.find(x => String(x.id) === String(projectId));
+    document.getElementById('fProject').textContent = p ? p.namaProject : 'Semua Project (gabungan)';
+    document.getElementById('fKontrak').textContent = p ? p.noKontrak : '–';
+    document.getElementById('fPeriode').textContent = `Periode Januari – Desember ${tahun}`;
+    document.getElementById('fDicetak').textContent = 'Dicetak ' + new Date().toLocaleString('id-ID');
+
+    const y = d.ytd || {};
+    const lti = d.ltiTerakhir || {};
+    const box = (label, value, sub, cls) =>
+      `<div class="summary-box"><div class="label">${label}</div><div class="value ${cls || ''}">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    const rateCls = v => (v === null || v === undefined) ? '' : (Number(v) === 0 ? 'ok' : 'bad');
+    document.getElementById('summaryStrip').innerHTML =
+      box('Man-Hours YTD', fmtNum(y.manHours), `${y.bulanAdaManHours || 0} bulan ada data`) +
+      box('Rata-rata Pekerja', y.rataPekerja ? fmtNum(y.rataPekerja) : '–') +
+      box('TRIR', fmtRate(y.trir), `${fmtNum(y.recordable)} recordable`, rateCls(y.trir)) +
+      box('LTIFR', fmtRate(y.ltifr), `${fmtNum(Number(y.lti || 0) + Number(y.fatality || 0))} LTI + fatal`, rateCls(y.ltifr)) +
+      box('Severity Rate', fmtRate(y.severityRate), `${fmtNum(y.hariHilang)} hari hilang`) +
+      box('Near Miss', fmtNum(y.nearMiss), `Inc ${fmtNum(y.nearMissIncident)} · CERMAT ${fmtNum(y.nearMissCermat)}`) +
+      box('Hari tanpa LTI', lti.tanggal ? fmtNum(lti.hari) : 'Belum ada LTI', lti.tanggal ? 'sejak ' + new Date(lti.tanggal).toLocaleDateString('id-ID') : '', lti.tanggal ? '' : 'ok');
+
+    document.getElementById('bulanBody').innerHTML = (d.bulan || []).map(b => `<tr>
+        <td class="left">${BULAN_LABEL[b.bulan - 1]}</td><td>${fmtNum(b.manHours)}</td><td>${b.manHours === null ? '–' : fmtNum(b.jumlahPekerja)}</td>
+        <td>${b.fac}</td><td>${b.mtc}</td><td>${b.rwc}</td><td class="${b.lti ? 'bad' : ''}">${b.lti}</td><td class="${b.fatality ? 'bad' : ''}">${b.fatality}</td>
+        <td>${b.nearMissIncident} / ${b.nearMissCermat}</td><td>${b.hariHilang}</td>
+        <td>${fmtRate(b.trir)}</td><td>${fmtRate(b.ltifr)}</td><td>${fmtRate(b.severityRate)}</td>
+        <td>${b.cermatPositif} / ${b.cermatNegatif}</td><td>${b.inspeksi}</td><td>${b.tbm}</td><td>${b.ptwDisetujui}</td></tr>`).join('') +
+      `<tr class="total"><td class="left">YTD</td><td>${fmtNum(y.manHours)}</td><td>${y.rataPekerja ? fmtNum(y.rataPekerja) : '–'}</td>
+        <td>${y.fac}</td><td>${y.mtc}</td><td>${y.rwc}</td><td>${y.lti}</td><td>${y.fatality}</td>
+        <td>${y.nearMissIncident} / ${y.nearMissCermat}</td><td>${y.hariHilang}</td>
+        <td>${fmtRate(y.trir)}</td><td>${fmtRate(y.ltifr)}</td><td>${fmtRate(y.severityRate)}</td>
+        <td>${y.cermatPositif} / ${y.cermatNegatif}</td><td>${y.inspeksi}</td><td>${y.tbm}</td><td>${y.ptwDisetujui}</td></tr>`;
+
+    const klas = d.klasifikasi || {};
+    document.getElementById('klasBody').innerHTML = KLAS_URUT.map(k =>
+      `<tr><td class="left">${k}</td><td class="${['Fatality', 'Lost Time Injury'].includes(k) && klas[k] ? 'bad' : ''}">${klas[k] || 0}</td></tr>`).join('');
+
+    document.getElementById('temuanBody').innerHTML = (d.temuan || []).map(t =>
+      `<tr><td class="left">${escapeHtml(t.modul)}</td><td>${t.total}</td><td>${t.closed}</td><td>${t.open}</td>
+        <td class="${Number(t.overdue) > 0 ? 'bad' : ''}">${t.overdue}</td></tr>`).join('');
+
+    const r = d.rolling12 || {};
+    document.getElementById('rollingNote').textContent =
+      `Rolling 12 bulan (${r.dari} s/d ${r.sampai}): man-hours ${fmtNum(r.manHours)}, TRIR ${fmtRate(r.trir)}, LTIFR ${fmtRate(r.ltifr)}, SR ${fmtRate(r.severityRate)}.`;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+</script>
+</body>
+</html>
