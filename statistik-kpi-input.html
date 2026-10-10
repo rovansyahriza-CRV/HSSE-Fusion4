@@ -57,6 +57,15 @@
   .tag-unmapped { color: var(--accent); font-weight: 700; }
   .log-list { font-size: 12px; color: var(--muted); line-height: 1.7; max-height: 260px; overflow-y: auto; }
   .log-list b { color: var(--navy-dark); }
+  .auto-status { font-size: 12.5px; line-height: 1.7; margin-bottom: 10px; }
+  .auto-status .pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 800; }
+  .pill.on { background: #E6F6EC; color: var(--success); }
+  .pill.off { background: #FDECEC; color: var(--accent); }
+  .auto-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 14px; margin-top: 8px; }
+  .auto-projects label { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; cursor: pointer; }
+  .auto-projects input { margin-top: 2px; width: 16px; height: 16px; flex-shrink: 0; }
+  .row label.switch-row { display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 700; color: var(--text); padding: 9px 0; margin: 0; }
+  .row .switch-row input { width: 18px; height: 18px; padding: 0; }
 </style>
 </head>
 <body>
@@ -130,6 +139,29 @@
   </div>
 
   <div class="box">
+    <div class="box-title">Tarik otomatis tiap malam</div>
+    <div class="auto-status" id="autoStatus">Memuat...</div>
+    <div class="row">
+      <div class="field">
+        <label class="switch-row"><input type="checkbox" id="autoAktif"> Tarik otomatis aktif</label>
+      </div>
+      <div class="field">
+        <label>Jam standar kalau lupa scan pulang (otomatis)</label>
+        <input id="autoJamStandar" type="number" min="1" max="24" step="0.5" value="8">
+      </div>
+      <button type="button" class="btn" id="btnAutoSimpan" onclick="saveAutoConfig()">Simpan setting</button>
+    </div>
+    <div class="hint">
+      Server narik absensi SmartGate sendiri tiap jam 01:00 WIB (tahun berjalan; di bulan Januari tahun lalu juga ikut), gak perlu buka halaman ini.
+      Aturannya sama dengan tombol manual: angka SmartGate diganti, koreksi manual tetap, lokasi yang belum dipetakan gak dihitung.
+    </div>
+    <div style="margin-top:12px;font-size:12px;font-weight:700;color:var(--navy-dark);">Project yang ikut tarik otomatis</div>
+    <div class="hint" style="margin-top:2px;">Default semua ikut. Hilangkan centang kalau project itu gak mau disentuh tarik otomatis (angka SmartGate terakhirnya tetap). Tombol manual di atas tetap narik semua project.</div>
+    <div class="auto-projects" id="autoProjects">Memuat...</div>
+    <div class="status-line" id="autoMsg"></div>
+  </div>
+
+  <div class="box">
     <div class="box-title">2. Pemetaan lokasi absensi SmartGate → project HSSE</div>
     <div class="hint" style="margin-top:0;margin-bottom:8px;">Lokasi diambil dari lokasi scan absensi (Nama Lokasi). Pilih project HSSE buat tiap lokasi; beberapa lokasi boleh ke 1 project. Lokasi yang namanya sama persis dengan Nama Project / No. Kontrak otomatis terpetakan. Man-hours lokasi yang belum dipetakan gak ikut dihitung.</div>
     <div class="tbl-wrap">
@@ -178,6 +210,7 @@
   let picEditor = null; // { nama, qrCodeId }
   let projectList = [];
   let mhRows = {};
+  let autoCfg = null;
 
   const selectTahun = document.getElementById('selectTahun');
   const selectProject = document.getElementById('selectProject');
@@ -192,6 +225,7 @@
     selectProject.addEventListener('change', loadManHours);
     loadMap();
     loadLog();
+    loadAuto();
   });
 
   // ---------------- Identifikasi PIC (pola sama dengan form lain di HSSE-Fusion4) ----------------
@@ -581,6 +615,75 @@
     }
   }
 
+  // ---------------- Tarik otomatis ----------------
+  async function loadAuto() {
+    const statusEl = document.getElementById('autoStatus');
+    const listEl = document.getElementById('autoProjects');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_man_hours_auto');
+      if (error) throw error;
+      if (!data) throw new Error('Setting belum ada. Jalankan SQL 059 dulu.');
+      autoCfg = data;
+      document.getElementById('autoAktif').checked = !!data.aktif;
+      document.getElementById('autoJamStandar').value = data.jamStandar;
+      let terakhir = 'Belum pernah jalan.';
+      if (data.terakhirJalan) {
+        const hasil = (data.terakhirDetail && data.terakhirDetail.hasil) || [];
+        const rinci = hasil.map(h => h.ok
+          ? `${h.tahun}: ${fmtNum(h.barisDisimpan)} baris disimpan${h.belumDipetakan ? `, ⚠️ ${h.belumDipetakan} lokasi belum dipetakan` : ''}`
+          : `${h.tahun}: gagal (${escapeHtml(h.error)})`).join(' · ');
+        terakhir = `Terakhir jalan ${new Date(data.terakhirJalan).toLocaleString('id-ID')} · <b>${escapeHtml(data.terakhirStatus)}</b>${rinci ? ' · ' + rinci : ''}`;
+      }
+      statusEl.innerHTML = `<span class="pill ${data.aktif ? 'on' : 'off'}">${data.aktif ? 'AKTIF' : 'MATI'}</span> ${escapeHtml(data.jadwal)}<br>${terakhir}`;
+      const mati = new Set((data.projectMati || []).map(Number));
+      listEl.innerHTML = projectList.length ? projectList.map(p => `
+        <label><input type="checkbox" data-pid="${p.id}" ${mati.has(Number(p.id)) ? '' : 'checked'} onchange="saveAutoProject(this)">
+          <span>${escapeHtml(p.namaProject)} <span style="color:var(--muted)">(${escapeHtml(p.noKontrak)})</span></span></label>`).join('')
+        : '<span class="hint">Belum ada project aktif.</span>';
+    } catch (e) {
+      statusEl.textContent = 'Gagal memuat setting otomatis: ' + (e.message || e);
+      listEl.innerHTML = '';
+    }
+  }
+
+  async function saveAutoConfig() {
+    if (!requirePicEditor()) return;
+    const aktif = document.getElementById('autoAktif').checked;
+    const jam = Number(document.getElementById('autoJamStandar').value);
+    if (!(jam >= 1 && jam <= 24)) return setStatus('autoMsg', 'Jam standar harus 1-24.', false);
+    try {
+      const { error } = await supabaseClient.rpc('save_man_hours_auto_config', {
+        p_aktif: aktif, p_jam_standar: jam, p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+      });
+      if (error) throw error;
+      setStatus('autoMsg', `✅ Tarik otomatis ${aktif ? 'aktif' : 'dimatikan'}.`, true);
+      loadAuto();
+      loadLog();
+    } catch (e) {
+      setStatus('autoMsg', 'Gagal simpan setting: ' + (e.message || e), false);
+    }
+  }
+
+  async function saveAutoProject(cb) {
+    if (!requirePicEditor()) { cb.checked = !cb.checked; return; }
+    const pid = Number(cb.dataset.pid);
+    const p = projectList.find(x => Number(x.id) === pid);
+    cb.disabled = true;
+    try {
+      const { error } = await supabaseClient.rpc('save_man_hours_auto_project', {
+        p_project_id: pid, p_ikut: cb.checked, p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+      });
+      if (error) throw error;
+      setStatus('autoMsg', `✅ ${p ? p.namaProject : 'Project'} ${cb.checked ? 'ikut' : 'gak ikut'} tarik otomatis.`, true);
+      loadLog();
+    } catch (e) {
+      cb.checked = !cb.checked;
+      setStatus('autoMsg', 'Gagal simpan: ' + (e.message || e), false);
+    } finally {
+      cb.disabled = false;
+    }
+  }
+
   // ---------------- Mapping ----------------
   async function loadMap() {
     const body = document.getElementById('mapBody');
@@ -711,7 +814,11 @@
         let detail = '';
         if (l.aksi === 'Koreksi') detail = `→ ${fmtNum(l.detail.manHours)} MH (${escapeHtml(l.detail.alasan || '')})`;
         if (l.aksi === 'Mapping') detail = `"${escapeHtml(l.detail.lokasiSmartGate)}" → ${escapeHtml(namaProject(l.projectId) || 'gak dihitung')}`;
-        if (l.aksi === 'Tarik SmartGate') detail = `${l.detail.barisDisimpan} baris disimpan`;
+        if (l.aksi === 'Tarik SmartGate' || l.aksi === 'Tarik Otomatis') detail = `${l.detail.barisDisimpan} baris disimpan`;
+        if (l.aksi === 'Tarik Otomatis Gagal') detail = escapeHtml(l.detail.error || '');
+        if (l.aksi === 'Setting Otomatis') detail = l.detail.ikut !== undefined
+          ? (l.detail.ikut ? 'ikut' : 'gak ikut')
+          : `${l.detail.aktif ? 'aktif' : 'mati'}, jam standar ${fmtNum(l.detail.jamStandar)}`;
         return `<div>${waktu} · <b>${escapeHtml(l.aksi)}</b> ${escapeHtml(namaProject(l.projectId))} ${periode} ${detail} · oleh ${escapeHtml(l.oleh)}</div>`;
       }).join('');
     } catch (e) {
