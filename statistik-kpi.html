@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
+<script src="statistik-piramida.js"></script>
 <style>
   .page { max-width: 980px; }
 
@@ -71,6 +72,16 @@
 
   .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13px; }
   .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .pyr-filter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .pyr-filter .field { flex: 1; min-width: 130px; max-width: 200px; }
+  .pyr-band:focus { outline: none; }
+  .pyr-band:hover polygon, .pyr-band:focus polygon { stroke: #1B2650; stroke-width: 2; }
+  .pyr-note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .pyr-details { margin-top: 10px; font-size: 12px; }
+  .pyr-details summary { cursor: pointer; font-weight: 700; color: var(--navy-dark); }
+  .pyr-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .pyr-table th, .pyr-table td { border: 1px solid var(--border); padding: 5px 6px; text-align: center; }
+  .pyr-table thead th { background: var(--navy-dark); color: #fff; font-size: 10.5px; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -135,13 +146,22 @@
     </div>
 
     <div class="chart-card">
+      <h3>Piramida keselamatan</h3>
+      <div class="pyr-filter">
+        <div class="field"><label>Dari bulan</label><select id="pyrDari"></select></div>
+        <div class="field"><label>Sampai bulan</label><select id="pyrSampai"></select></div>
+      </div>
+      <div id="piramida"><div class="empty-state">Memuat piramida...</div></div>
+    </div>
+
+    <div class="chart-card">
       <h3>Man-hours &amp; rate per bulan</h3>
       <div class="chart-wrap"><canvas id="chartRate"></canvas></div>
     </div>
 
     <div class="chart-2col">
       <div class="chart-card">
-        <h3>Klasifikasi incident (piramida)</h3>
+        <h3>Klasifikasi incident</h3>
         <div class="chart-wrap"><canvas id="chartKlas"></canvas></div>
       </div>
       <div class="chart-card">
@@ -195,6 +215,8 @@
   const loadingState = document.getElementById('loadingState');
   const content = document.getElementById('content');
   const warnBox = document.getElementById('warnBox');
+  const pyrDari = document.getElementById('pyrDari');
+  const pyrSampai = document.getElementById('pyrSampai');
   let charts = [];
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -205,6 +227,13 @@
     if (qs.get('tahun')) selectTahun.value = qs.get('tahun');
     selectProject.addEventListener('change', loadKpi);
     selectTahun.addEventListener('change', loadKpi);
+    const pyrOpts = BULAN_LABEL.map((b, i) => `<option value="${i + 1}">${b}</option>`).join('');
+    pyrDari.innerHTML = pyrOpts;
+    pyrSampai.innerHTML = pyrOpts;
+    pyrDari.value = qs.get('bulan_dari') || '1';
+    pyrSampai.value = qs.get('bulan_sampai') || '12';
+    pyrDari.addEventListener('change', () => { if (Number(pyrDari.value) > Number(pyrSampai.value)) pyrSampai.value = pyrDari.value; loadPiramida(); });
+    pyrSampai.addEventListener('change', () => { if (Number(pyrSampai.value) < Number(pyrDari.value)) pyrDari.value = pyrSampai.value; loadPiramida(); });
     loadKpi();
   });
 
@@ -242,7 +271,7 @@
     warnBox.style.display = 'none';
     loadingState.style.display = 'block';
     loadingState.textContent = 'Memuat data...';
-    document.getElementById('btnPdf').href = `statistik-kpi-pdf.html?project_id=${projectId}&tahun=${tahun}`;
+    updatePdfLink();
     try {
       const { data, error } = await supabaseClient.rpc('get_statistik_kpi', {
         p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun, p_basis: BASIS
@@ -253,6 +282,7 @@
       content.style.display = 'block';
       renderCharts(data);
       loadHseProgram(projectId, tahun);
+      loadPiramida();
     } catch (e) {
       loadingState.textContent = 'Gagal memuat data: ' + (e.message || e);
     }
@@ -362,6 +392,27 @@
     } catch (e) {
       setVal('kHseProgram', '–', '');
       setSub('kHseProgramSub', 'gagal memuat');
+    }
+  }
+
+  function updatePdfLink() {
+    document.getElementById('btnPdf').href = `statistik-kpi-pdf.html?project_id=${selectProject.value}&tahun=${selectTahun.value}` +
+      `&bulan_dari=${pyrDari.value || 1}&bulan_sampai=${pyrSampai.value || 12}`;
+  }
+
+  async function loadPiramida() {
+    const el = document.getElementById('piramida');
+    const projectId = selectProject.value;
+    updatePdfLink();
+    try {
+      const { data, error } = await supabaseClient.rpc('get_statistik_piramida', {
+        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: Number(selectTahun.value),
+        p_bulan_dari: Number(pyrDari.value), p_bulan_sampai: Number(pyrSampai.value)
+      });
+      if (error) throw error;
+      renderPiramida(el, data);
+    } catch (e) {
+      el.innerHTML = `<div class="empty-state">Piramida belum bisa dimuat: ${escapeHtml(e.message || e)}<br>Pastikan migrasi 058 udah dijalankan.</div>`;
     }
   }
 

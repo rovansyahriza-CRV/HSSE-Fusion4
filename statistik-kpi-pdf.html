@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="statistik-piramida.js"></script>
 <style>
   :root {
     --navy: #2D3C73;
@@ -55,6 +56,8 @@
     font-weight: 700; font-size: 13px; cursor: pointer; height: 38px;
   }
 
+  .pyr-block { break-inside: avoid; page-break-inside: avoid; margin-top: 4px; }
+  .pyr-note { font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .loading, .error-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px; }
 
   /* ===== Lembar laporan (A4 landscape) ===== */
@@ -206,6 +209,11 @@
     "–" = man-hours bulan itu belum ada.
   </div>
 
+  <div class="pyr-block">
+    <div class="sec-title" id="pyrTitle">Piramida keselamatan</div>
+    <div id="piramida"></div>
+  </div>
+
   <div class="signature-row">
     <div class="signature-box"><div class="role">Dibuat oleh</div><div class="line">HSE Officer</div></div>
     <div class="signature-box"><div class="role">Diketahui oleh</div><div class="line">Project Manager</div></div>
@@ -224,6 +232,7 @@
   const selectProject = document.getElementById('selectProject');
   const selectTahun = document.getElementById('selectTahun');
   let projectList = [];
+  const qsAwal = new URLSearchParams(location.search);
 
   document.addEventListener('DOMContentLoaded', async () => {
     const now = new Date().getFullYear();
@@ -266,6 +275,7 @@
       });
       if (error) throw error;
       render(data, projectId, tahun);
+      await loadPiramida(projectId, tahun);
       loading.style.display = 'none';
       sheet.style.display = 'block';
     } catch (e) {
@@ -319,6 +329,20 @@
     const r = d.rolling12 || {};
     document.getElementById('rollingNote').textContent =
       `Rolling 12 bulan (${r.dari} s/d ${r.sampai}): man-hours ${fmtNum(r.manHours)}, TRIR ${fmtRate(r.trir)}, LTIFR ${fmtRate(r.ltifr)}, SR ${fmtRate(r.severityRate)}.`;
+  }
+
+  async function loadPiramida(projectId, tahun) {
+    const el = document.getElementById('piramida');
+    try {
+      const { data, error } = await supabaseClient.rpc('get_statistik_piramida', {
+        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun,
+        p_bulan_dari: Number(qsAwal.get('bulan_dari') || 1), p_bulan_sampai: Number(qsAwal.get('bulan_sampai') || 12)
+      });
+      if (error) throw error;
+      renderPiramida(el, data, { tabel: false, maxWidth: '200mm' });
+    } catch (e) {
+      el.innerHTML = `<div class="note">Piramida belum bisa dimuat: ${escapeHtml(e.message || e)} (pastikan migrasi 058 udah dijalankan).</div>`;
+    }
   }
 
   function escapeHtml(s) {
