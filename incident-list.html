@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .page { max-width: 900px; }
@@ -355,8 +356,8 @@
       if (!verified) {
         return `<div class="stage-box">
           ${rejectedNote}
-          <div class="approval-gate-text">🔍 Perlu diverifikasi (Author "Investigate Incident/Accident") buat isi &amp; submit investigasi.</div>
-          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'Investigate Incident/Accident')">Verifikasi Investigator</button>
+          <div class="approval-gate-text">🔍 Perlu diverifikasi (PIC "HSSE-INC") buat isi &amp; submit investigasi.</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'HSSE-INC')">Verifikasi Investigator</button>
         </div>`;
       }
       return `<div class="stage-box">
@@ -507,7 +508,7 @@
   // digabung jadi satu aksi per tahap (persis pola CERMAT).
   // =====================================================================================
 
-  // Open -> Investigasi : cuma investigator (Author "Investigate Incident/Accident")
+  // Open -> Investigasi : cuma investigator (PIC "HSSE-INC", alias Author lama "Investigate Incident/Accident")
   // yang berhak isi/ubah Akar Masalah, Tindakan Korektif, dst di sini.
   async function submitInvestigation(idx, id) {
     const verified = pendingApproval[idx];
@@ -708,11 +709,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   function setApprovalStatus(text, kind) {
@@ -725,7 +722,7 @@
   function openApprovalModal(idx, id, requiredTag) {
     approvalContext = { idx, id, requiredTag };
     approvalModalTitle.innerText = `Verifikasi: ${requiredTag}`;
-    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin "${requiredTag}".`;
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin ${HSSEAccess.label(requiredTag)}.`;
     approvalChoiceScreen.style.display = 'block';
     approvalCamWrap.style.display = 'none';
     approvalFaceOval.style.display = 'none';
@@ -872,7 +869,7 @@
     const qrCodeId = getPersonField(person, ['qrCodeId'], '');
 
     if (!hasAuthorTag(person, requiredTag)) {
-      setApprovalStatus(`❌ ${nama} tidak punya izin "${requiredTag}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      setApprovalStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(requiredTag)}. Minta orang yang berwenang buat verifikasi ini.`, 'error');
       btnApprovalScanFaceGo.disabled = false;
       return;
     }

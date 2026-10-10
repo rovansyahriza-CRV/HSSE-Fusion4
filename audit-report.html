@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
@@ -185,7 +186,7 @@
     </div>
 
     <div class="form-group">
-      <label>Tim Auditor (otomatis dari yang punya izin Author "Internal Auditor" -- silang/uncheck yang gak ikut audit ini)</label>
+      <label>Tim Auditor (otomatis dari yang punya PIC "HSSE-AUD" atau Author lama "Internal Auditor" -- silang/uncheck yang gak ikut audit ini)</label>
       <div id="timAuditorCandidates"></div>
       <div id="timAuditorRows"></div>
       <button type="button" class="btn-add-row" onclick="addTimRow()">+ Tambah Anggota Tim Manual</button>
@@ -355,7 +356,7 @@
     }
   }
 
-  // Checkbox otomatis -- semua orang yang punya Author tag "Internal Auditor", dibaca
+  // Checkbox otomatis -- semua orang yang punya PIC "HSSE-AUD" atau Author lama "Internal Auditor", dibaca
   // LANGSUNG dari karyawanTbl lewat get_karyawan_by_author() (bukan dari roster wajah
   // get_all_face_data, yang cuma isi orang yang udah pernah daftar wajah -- jadi auditor
   // yang cuma pakai QR/PIN gak akan ketinggalan). Semua CENTANG DEFAULT, tinggal
@@ -364,9 +365,16 @@
   async function loadTimAuditorCandidates() {
     timAuditorCandidates.innerHTML = '<div class="tim-candidate-empty">Memuat daftar auditor...</div>';
     try {
-      const { data, error } = await fusion4Client.rpc('get_karyawan_by_author', { p_author_tag: REQUIRED_TAG });
-      if (error) throw error;
-      const candidates = (data || []).filter(p => p.qrCodeId !== identifiedQrCodeId);
+      // Tim Auditor = PIC "HSSE-AUD" + alias Author lama "Internal Auditor" (masa transisi).
+      const [byPic, byAuthor] = await Promise.all([
+        fusion4Client.rpc('get_karyawan_by_pic', { p_pic_tag: REQUIRED_TAG }),
+        fusion4Client.rpc('get_karyawan_by_author', { p_author_tag: 'Internal Auditor' })
+      ]);
+      if (byPic.error) throw byPic.error;
+      if (byAuthor.error) throw byAuthor.error;
+      const seen = new Set();
+      const candidates = [...(byPic.data || []), ...(byAuthor.data || [])]
+        .filter(p => p.qrCodeId !== identifiedQrCodeId && !seen.has(p.qrCodeId) && seen.add(p.qrCodeId));
       renderTimAuditorCandidates(candidates);
     } catch (e) {
       console.error('Gagal memuat roster auditor:', e.message);
@@ -484,9 +492,9 @@
   // =====================================================================================
   // IDENTIFIKASI LEAD AUDITOR -- sama persis pola di hse-meeting-report.html / ptw-report.html
   // (Scan QR/Wajah/PIN dicocokkan ke database karyawan Fusion4, read-only), gated
-  // Author tag "Internal Auditor".
+  // PIC "HSSE-AUD" (alias Author lama "Internal Auditor", lihat hsseAccess.js).
   // =====================================================================================
-  const REQUIRED_TAG = 'Internal Auditor';
+  const REQUIRED_TAG = 'HSSE-AUD';
   const FACE_MATCH_THRESHOLD = 0.45;
   const FACE_AMBIGUITY_MARGIN = 0.12;
   const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
@@ -530,11 +538,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   async function ensureAllFaceData() {
@@ -620,7 +624,7 @@
       if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
       const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
       if (!hasAuthorTag(match, REQUIRED_TAG)) {
-        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
       }
       confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
     } catch (e) {
@@ -684,7 +688,7 @@
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
       if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
-        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+        setIdStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
         stopIdCamera();
         idGateButtons.style.display = 'flex';
         return;
@@ -793,7 +797,7 @@
       return;
     }
     if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
-      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Internal Audit ini.`, 'error');
       btnIdScanFace.disabled = false;
       return;
     }

@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .page { max-width: 900px; }
@@ -345,8 +346,8 @@
       if (!verified) {
         return `<div class="stage-box">
           ${r.catatanPenolakan ? `<div class="warning-box"><b>Penutupan ditolak HSE</b>${escapeHtml(r.catatanPenolakan)}</div>` : ''}
-          <div class="approval-gate-text">🔍 Identifikasi dulu buat ajukan penutupan (siapa aja boleh, gak perlu izin khusus).</div>
-          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, null)">Identifikasi</button>
+          <div class="approval-gate-text">🔍 Perlu diverifikasi (PIC "HSSE-PTW") buat ajukan penutupan.</div>
+          <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, 'HSSE-PTW')">Verifikasi PIC PTW</button>
         </div>`;
       }
       return `<div class="stage-box">
@@ -632,8 +633,8 @@
   }
 
   // =====================================================================================
-  // MODAL VERIFIKASI IDENTITAS -- scan wajah atau PIN. requiredTag null = cuma
-  // identifikasi (gak ada gate izin), dipakai buat "ajukan penutupan" di status Aktif.
+  // MODAL VERIFIKASI IDENTITAS -- scan wajah atau PIN. requiredTag = kode PIC (HSSE-…)
+  // atau tag Author, dicek lewat HSSEAccess.allows(). null = cuma identifikasi.
   // =====================================================================================
   const FACE_MATCH_THRESHOLD = 0.45;
   const FACE_AMBIGUITY_MARGIN = 0.12;
@@ -675,11 +676,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   function setApprovalStatus(text, kind) {
@@ -693,7 +690,7 @@
     approvalContext = { idx, id, requiredTag };
     approvalModalTitle.innerText = requiredTag ? `Verifikasi: ${requiredTag}` : 'Identifikasi';
     approvalModalSub.innerText = requiredTag
-      ? `Scan wajah atau input PIN -- khusus yang punya izin "${requiredTag}".`
+      ? `Scan wajah atau input PIN -- khusus yang punya izin ${HSSEAccess.label(requiredTag)}.`
       : 'Scan wajah atau input PIN buat identifikasi siapa yang melakukan aksi ini.';
     approvalChoiceScreen.style.display = 'block';
     approvalCamWrap.style.display = 'none';
@@ -838,7 +835,7 @@
     const qrCodeId = getPersonField(person, ['qrCodeId'], '');
 
     if (requiredTag && !hasAuthorTag(person, requiredTag)) {
-      setApprovalStatus(`❌ ${nama} tidak punya izin "${requiredTag}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      setApprovalStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(requiredTag)}. Minta orang yang berwenang buat verifikasi ini.`, 'error');
       btnApprovalScanFaceGo.disabled = false;
       return;
     }

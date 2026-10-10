@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <style>
   .page { max-width: 1100px; }
 
@@ -198,6 +199,22 @@
     <a href="hse-program-monitor.html" class="pdf-link" style="margin-top:10px;">📊 Lihat Monitor Actual vs Target</a>
   </div>
 
+  <div class="project-dates-card" id="picGateCard" style="display:block;">
+    <div class="pd-title">Verifikasi PIC HSE Program (wajib sebelum simpan)</div>
+    <div class="project-dates-row">
+      <div class="field">
+        <label>QR Code ID</label>
+        <input id="picQr" autocomplete="off" placeholder="Scan/ketik QR Code ID">
+      </div>
+      <div class="field">
+        <label>atau PIN</label>
+        <input id="picPin" type="password" inputmode="numeric" placeholder="PIN Fusion4">
+      </div>
+      <button type="button" class="pd-save-btn" onclick="verifyPicEditor()">Verifikasi</button>
+    </div>
+    <div class="pd-hint" id="picGateStatus">Siapa aja boleh liat. Buat ubah Use/N/A, target, realisasi manual, atau durasi project, butuh PIC "HSSE-PRG".</div>
+  </div>
+
   <div class="selector-row">
     <div class="field">
       <label>Project / Kontrak</label>
@@ -309,6 +326,52 @@
   let programItems = [];
   let projectMap = {}; // id -> {tanggalMulaiProject, tanggalSelesaiProject, ...}
 
+  // Gate PIC HSE Program -- identitas dibaca dari Fusion4 (QR / PIN), dicek lewat HSSEAccess.
+  const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+  const REQUIRED_PIC = 'HSSE-PRG';
+  let picEditor = null; // { nama, qrCodeId }
+
+  function setPicGateStatus(text, ok) {
+    const el = document.getElementById('picGateStatus');
+    el.textContent = text;
+    el.style.color = ok ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)';
+  }
+
+  async function verifyPicEditor() {
+    const qr = document.getElementById('picQr').value.trim();
+    const pin = document.getElementById('picPin').value.trim();
+    if (!qr && !pin) return setPicGateStatus('Isi QR Code ID atau PIN dulu.', false);
+    try {
+      let person = null;
+      if (qr) {
+        const { data, error } = await fusion4Client.rpc('get_person_face_data', { p_qrcode: qr.toUpperCase() });
+        if (error) throw error;
+        if (data && data.status !== 'NOT_FOUND') person = data.person || null;
+      } else {
+        const { data, error } = await fusion4Client.rpc('get_all_face_data');
+        if (error) throw error;
+        person = (data || []).find(x => String(x.digitalPin || '').trim() === pin) || null;
+      }
+      if (!person) return setPicGateStatus('Identitas tidak ditemukan.', false);
+      const nama = person.nama || person.NamaPersonnel || 'Tanpa nama';
+      if (!HSSEAccess.allows(person, REQUIRED_PIC)) {
+        picEditor = null;
+        return setPicGateStatus(`${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_PIC)}.`, false);
+      }
+      picEditor = { nama, qrCodeId: person.qrCodeId || qr };
+      setPicGateStatus(`✅ Terverifikasi: ${nama} -- boleh ubah & simpan HSE Program.`, true);
+    } catch (e) {
+      setPicGateStatus('Gagal verifikasi: ' + e.message, false);
+    }
+  }
+
+  function requirePicEditor() {
+    if (picEditor) return true;
+    alert(`Verifikasi dulu di kotak "Verifikasi PIC HSE Program" (butuh ${HSSEAccess.label(REQUIRED_PIC)}).`);
+    document.getElementById('picGateCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
     setupTahunOptions();
     await loadProjects();
@@ -381,6 +444,7 @@
   async function saveProjectDates() {
     const projectId = Number(selectProject.value);
     if (!projectId) return;
+    if (!requirePicEditor()) return;
     const btn = document.getElementById('pdSaveBtn');
     btn.textContent = 'Menyimpan...';
     try {
@@ -776,6 +840,7 @@
   async function saveRow(itemId) {
     const item = findItem(itemId);
     if (!item) return;
+    if (!requirePicEditor()) return;
     const projectId = Number(selectProject.value);
     const tahun = Number(selectTahun.value);
     const row = document.getElementById(`row-${itemId}`);

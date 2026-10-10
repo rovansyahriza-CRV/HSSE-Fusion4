@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
@@ -254,7 +255,7 @@
   const FACE_MATCH_THRESHOLD = 0.45;
   const FACE_AMBIGUITY_MARGIN = 0.12;
   const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
-  const LEADER_TAG = 'Leader Toolbox Meeting';
+  const LEADER_TAG = 'HSSE-TBM';
 
   let leaderNama = null, leaderQrCodeId = null;
   let idFacingMode = "environment";
@@ -416,16 +417,12 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   // =====================================================================================
   // IDENTIFIKASI LEADER -- sama pola scan QR/Wajah kayak form lain, TAPI di sini juga
-  // dicek Author "Leader Toolbox Meeting" sebelum diloloskan (beda dari *-report.html
+  // dicek PIC "HSSE-TBM" (alias Author lama "Leader Toolbox Meeting") sebelum diloloskan (beda dari *-report.html
   // lain yang cuma identifikasi tanpa gate izin).
   // =====================================================================================
   function setIdStatus(text, kind) {
@@ -512,7 +509,7 @@
       }
       if (!hasAuthorTag(data.person, LEADER_TAG)) {
         const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
-        setIdStatus(`❌ ${nama} tidak punya izin "${LEADER_TAG}". Minta orang yang berwenang buat mulai sesi ini.`, 'error');
+        setIdStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(LEADER_TAG)}. Minta orang yang berwenang buat mulai sesi ini.`, 'error');
         stopIdCamera(); idGateButtons.style.display = 'flex'; return;
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
@@ -594,7 +591,7 @@
       btnIdScanFace.disabled = false; return;
     }
     if (!hasAuthorTag(best.person, LEADER_TAG)) {
-      setIdStatus(`❌ ${best.person.nama} tidak punya izin "${LEADER_TAG}". Minta orang yang berwenang buat mulai sesi ini.`, 'error');
+      setIdStatus(`❌ ${best.person.nama} tidak punya izin ${HSSEAccess.label(LEADER_TAG)}. Minta orang yang berwenang buat mulai sesi ini.`, 'error');
       btnIdScanFace.disabled = false; return;
     }
     confirmLeaderIdentity(best.person.nama, best.person.qrCodeId);

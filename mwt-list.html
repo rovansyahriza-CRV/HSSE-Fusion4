@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <style>
   .page { max-width: 900px; }
   .top-actions { margin-bottom: 14px; }
@@ -146,7 +147,7 @@
 
 </div>
 
-<!-- ===== Modal verifikasi identitas -- tutup paksa sesi MWT, khusus Author "Admin MWT" ===== -->
+<!-- ===== Modal verifikasi identitas -- tutup paksa sesi MWT, khusus PIC "HSSE-MWT" (alias Author lama "Admin MWT") ===== -->
 <div class="approval-modal-backdrop" id="approvalModalBackdrop">
   <div class="approval-modal">
     <h3>Verifikasi: Admin MWT</h3>
@@ -180,7 +181,7 @@
 <script>
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const fusion4Client = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
-  const REQUIRED_TAG_ADMIN = 'Admin MWT';
+  const REQUIRED_TAG_ADMIN = 'HSSE-MWT';
   let currentStatusFilter = '';
   let currentProjectFilter = '';
   let reports = [];
@@ -398,11 +399,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   function setApprovalStatus(text, kind) {
@@ -414,7 +411,7 @@
 
   function startCloseSession(sessionId, noMWT) {
     approvalContext = { sessionId, noMWT };
-    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin "${REQUIRED_TAG_ADMIN}", buat menutup paksa sesi ${noMWT}. Setelah ditutup, sesi ini gak bisa ditambah kunjungan lagi.`;
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin ${HSSEAccess.label(REQUIRED_TAG_ADMIN)}, buat menutup paksa sesi ${noMWT}. Setelah ditutup, sesi ini gak bisa ditambah kunjungan lagi.`;
     approvalChoiceScreen.style.display = 'block';
     approvalCamWrap.style.display = 'none';
     approvalFaceOval.style.display = 'none';
@@ -561,7 +558,7 @@
     const qrCodeId = getPersonField(person, ['qrCodeId'], '');
 
     if (!hasAuthorTag(person, REQUIRED_TAG_ADMIN)) {
-      setApprovalStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG_ADMIN}". Minta orang yang berwenang buat nutup sesi ini.`, 'error');
+      setApprovalStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG_ADMIN)}. Minta orang yang berwenang buat nutup sesi ini.`, 'error');
       btnApprovalScanFaceGo.disabled = false;
       return;
     }

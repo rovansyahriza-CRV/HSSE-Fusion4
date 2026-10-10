@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .page { max-width: 1180px; }
@@ -59,12 +60,12 @@
   </div>
 
   <div class="card">
-    <h2>Verifikasi Author</h2>
+    <h2>Verifikasi PIC</h2>
     <p class="hint">Pola verifikasi mengikuti modul existing: gunakan QR Code atau PIN dari Fusion4. Tidak ada login/credential baru.</p>
     <div class="toolbar" style="margin-top:10px;">
       <div class="field"><label>QR Code ID</label><input id="authorQr" placeholder="Scan/ketik QR Code ID"></div>
       <div class="field"><label>PIN (opsional)</label><input id="authorPin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
-      <button onclick="verifyAuthor()">Verifikasi <b>Training Matrix Admin</b></button>
+      <button onclick="verifyAuthor()">Verifikasi <b>PIC HSSE-TRM</b></button>
     </div>
     <div id="authStatus" class="status"></div>
   </div>
@@ -106,7 +107,7 @@
 
   <section id="adminPanel" class="card hidden">
     <h2>Add Master Training / Posisi</h2>
-    <p class="hint" style="margin-bottom:12px;">Gunakan menu ini untuk menambah master baru. Wajib verifikasi Author <b>Training Matrix Admin</b> terlebih dahulu.</p>
+    <p class="hint" style="margin-bottom:12px;">Gunakan menu ini untuk menambah master baru. Wajib verifikasi PIC <b>HSSE-TRM</b> (atau Author lama Training Matrix Admin) terlebih dahulu.</p>
     <div class="form-grid">
       <div class="field"><label>Kode training</label><input id="masterTrainingCode" placeholder="CONTOH_TRAINING"></div>
       <div class="field"><label>Nama training</label><input id="masterTrainingName"></div>
@@ -135,10 +136,10 @@
 const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
 let positions = [], trainings = [], matrix = [], employees = [], records = [], author = null;
-const requiredAuthor = 'Training Matrix Admin';
+const requiredAuthor = 'HSSE-TRM'; // PIC Training Matrix (alias Author lama "Training Matrix Admin")
 
 function setStatus(id, text, ok=false) { const el=document.getElementById(id); el.textContent=text; el.className='status '+(ok?'ok':'error'); }
-function hasAuthor(person) { return (person && String(person.author || '').split(',').some(x=>x.trim().toLowerCase()===requiredAuthor.toLowerCase())); }
+function hasAuthor(person) { return HSSEAccess.allows(person, requiredAuthor); }
 async function verifyAuthor() {
   const qr=document.getElementById('authorQr').value.trim(), pin=document.getElementById('authorPin').value.trim();
   if (!qr && !pin) return setStatus('authStatus','Isi QR Code ID atau PIN Fusion4.');
@@ -147,7 +148,7 @@ async function verifyAuthor() {
     if (qr) { const {data,error}=await fusion4.rpc('get_person_face_data',{p_qrcode:qr}); if(error) throw error; person=data && (data.person || data); }
     else { const {data,error}=await fusion4.rpc('get_all_face_data'); if(error) throw error; person=(data||[]).find(x=>String(x.digitalPin||'')===pin); }
     if (!person) return setStatus('authStatus','Identitas tidak ditemukan.');
-    if (!hasAuthor(person)) return setStatus('authStatus','Identitas ditemukan, tetapi belum punya Author "Training Matrix Admin".');
+    if (!hasAuthor(person)) return setStatus('authStatus','Identitas ditemukan, tetapi belum punya '+HSSEAccess.label(requiredAuthor)+'.');
     author=person; setStatus('authStatus','Terverifikasi: '+(person.nama||person.namaPersonnel||'Author'),true);
   } catch(e) { setStatus('authStatus','Gagal verifikasi: '+e.message); }
 }

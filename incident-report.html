@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
@@ -265,6 +266,8 @@
 
   let identifiedNama = null;
   let identifiedQrCodeId = null;
+  // Lapor butuh PIC modul ini (keputusan CRV 2026-10-10) -- dicek lewat HSSEAccess.
+  const REQUIRED_PIC = 'HSSE-INC';
   let idFacingMode = "environment";
   let idQrScanning = false;
   let idFaceModelsLoaded = false;
@@ -401,7 +404,7 @@
         return;
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
-      confirmIdentity(nama, qrId);
+      confirmIdentity(nama, qrId, data.person);
     } catch (e) {
       setIdStatus('❌ Gagal cek QR: ' + e.message, 'error');
       stopIdCamera();
@@ -490,6 +493,7 @@
     const sorted = allFaceDataCache.map(p => ({
       qrCodeId: p.qrCodeId,
       nama: p.nama,
+      person: p,
       distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
     })).sort((a, b) => a.distance - b.distance);
 
@@ -509,10 +513,17 @@
       return;
     }
 
-    confirmIdentity(best.nama, best.qrCodeId);
+    confirmIdentity(best.nama, best.qrCodeId, best.person);
   }
 
-  function confirmIdentity(nama, qrCodeId) {
+  function confirmIdentity(nama, qrCodeId, person) {
+    if (!HSSEAccess.allows(person, REQUIRED_PIC)) {
+      stopIdCamera();
+      setIdStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_PIC)}. Minta orang yang berwenang buat lapor Incident/Accident.`, 'error');
+      idGateButtons.style.display = 'flex';
+      btnIdScanFace.disabled = false;
+      return;
+    }
     identifiedNama = nama;
     identifiedQrCodeId = qrCodeId;
     stopIdCamera();

@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
@@ -791,7 +792,7 @@
   const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights";
   // Cuma yang punya izin Author ini yang boleh isi/ajukan Permit to Work & JSA --
   // form ini butuh pemahaman teknis, gak sembarangan orang.
-  const REQUIRED_TAG = 'Permit & JSA';
+  const REQUIRED_TAG = 'HSSE-PTW';
 
   let identifiedNama = null;
   let identifiedQrCodeId = null;
@@ -832,11 +833,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   async function ensureAllFaceData() {
@@ -922,7 +919,7 @@
       if (!match) return setIdStatus('❌ PIN tidak dikenali.', 'error');
       const namaMatch = getPersonField(match, ['nama'], '(tanpa nama)');
       if (!hasAuthorTag(match, REQUIRED_TAG)) {
-        return setIdStatus(`❌ ${namaMatch} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+        return setIdStatus(`❌ ${namaMatch} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
       }
       confirmIdentity(namaMatch, getPersonField(match, ['qrCodeId'], ''));
     } catch (e) {
@@ -986,7 +983,7 @@
       }
       const nama = getPersonField(data.person, ['nama', 'NamaPersonnel', 'Nama', 'name'], qrId);
       if (!hasAuthorTag(data.person, REQUIRED_TAG)) {
-        setIdStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+        setIdStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
         stopIdCamera();
         idGateButtons.style.display = 'flex';
         return;
@@ -1095,7 +1092,7 @@
       return;
     }
     if (!hasAuthorTag(best.person, REQUIRED_TAG)) {
-      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
+      setIdStatus(`❌ ${getPersonField(best.person, ['nama'], '')} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat isi Permit to Work ini.`, 'error');
       btnIdScanFace.disabled = false;
       return;
     }

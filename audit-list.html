@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
 <style>
   .page { max-width: 900px; }
@@ -458,11 +459,7 @@
   }
 
   function hasAuthorTag(person, tag) {
-    const raw = getPersonField(person, ['author'], null);
-    if (!raw) return false;
-    const target = tag.trim().toLowerCase();
-    if (Array.isArray(raw)) return raw.some(x => String(x).trim().toLowerCase() === target);
-    return String(raw).split(/[,;|]/).map(s => s.trim().toLowerCase()).includes(target);
+    return HSSEAccess.allows(person, tag);
   }
 
   function setApprovalStatus(text, kind) {
@@ -475,7 +472,7 @@
   function startCloseTemuan(auditId, temuanId) {
     approvalContext = { auditId, temuanId };
     approvalModalTitle.innerText = `Verifikasi: ${REQUIRED_TAG}`;
-    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin "${REQUIRED_TAG}", buat memverifikasi & menutup temuan ini.`;
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin ${HSSEAccess.label(REQUIRED_TAG)}, buat memverifikasi & menutup temuan ini.`;
     approvalChoiceScreen.style.display = 'block';
     approvalCamWrap.style.display = 'none';
     approvalFaceOval.style.display = 'none';
@@ -622,7 +619,7 @@
     const qrCodeId = getPersonField(person, ['qrCodeId'], '');
 
     if (!hasAuthorTag(person, REQUIRED_TAG)) {
-      setApprovalStatus(`❌ ${nama} tidak punya izin "${REQUIRED_TAG}". Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      setApprovalStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(REQUIRED_TAG)}. Minta orang yang berwenang buat verifikasi ini.`, 'error');
       btnApprovalScanFaceGo.disabled = false;
       return;
     }
