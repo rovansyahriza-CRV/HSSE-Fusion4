@@ -29,6 +29,8 @@
 --   project lokasi scan (lokasiTbl."Project"). HSSE (migrasi #060/#061) masukin man-hours
 --   ke project HSSE dengan kode yang sama.
 --   Update 2026-10-12: tambah "KodeProject"; versi kedua: ikut TYPE karyawan dulu.
+--   Versi ketiga: baris karyawan ber-TYPE keluar dengan "Lokasi" NULL (dikelompokkan per kode +
+--   bulan), biar "JumlahPekerja" gak dobel waktu orang yang sama scan di beberapa lokasi.
 -- =====================================================================================
 
 DROP FUNCTION IF EXISTS public.get_hsse_man_hours(INT, INT, NUMERIC);
@@ -88,7 +90,11 @@ AS $$
     ),
     k AS (
         SELECT
-            COALESCE(NULLIF(trim(l."NamaLokasi"), ''), NULLIF(j.lok, ''), '(Tanpa Lokasi)') AS lokasi,
+            -- Karyawan yang punya TYPE: lokasi dikosongin, jadi 1 orang dihitung sekali per kode per
+            -- bulan walau scan di beberapa lokasi. Lokasi cuma dipakai buat yang gak punya TYPE.
+            CASE WHEN NULLIF(trim(kr."Type"), '') IS NOT NULL THEN NULL
+                 ELSE COALESCE(NULLIF(trim(l."NamaLokasi"), ''), NULLIF(j.lok, ''), '(Tanpa Lokasi)')
+            END AS lokasi,
             COALESCE(NULLIF(trim(kr."Type"), ''), NULLIF(trim(l."Project"), '')) AS kode,
             EXTRACT(MONTH FROM j."Tanggal")::INT AS bulan,
             j."QrCodeId",
@@ -122,7 +128,7 @@ AS $$
         COUNT(*) FILTER (WHERE estimasi)::INT
     FROM k
     GROUP BY lokasi, kode, bulan
-    ORDER BY lokasi, kode, bulan;
+    ORDER BY kode, lokasi NULLS FIRST, bulan;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_hsse_man_hours(INT, INT, NUMERIC) FROM PUBLIC;

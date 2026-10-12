@@ -605,7 +605,7 @@
       const total = (rows || []).reduce((s, r) => s + Number(r.ManHours || 0), 0);
       const unmapped = (res && res.belumDipetakan) || [];
       let msg = `✅ ${(rows || []).length} baris dari SmartGate (${fmtNum(total)} man-hours), ${res.barisDisimpan} baris project/bulan disimpan.`;
-      if (unmapped.length) msg += ` ⚠️ Ada absensi yang karyawannya belum punya kode project (TYPE) di SmartGate, man-hours-nya belum ikut (lokasi: ${unmapped.map(u => u.lokasiSmartGate).join(', ')}).`;
+      if (unmapped.length) msg += ` ⚠️ Ada absensi yang karyawannya belum punya kode project (TYPE) di SmartGate, man-hours-nya belum ikut (lokasi: ${unmapped.map(u => u.lokasiSmartGate || ("kode " + (u.kodeSmartGate || "?"))).join(', ')}).`;
       msg += infoSinkron;
       setStatus('tarikStatus', msg, unmapped.length ? null : true);
       await Promise.all([loadManHours(), loadLog(), loadAuto()]);
