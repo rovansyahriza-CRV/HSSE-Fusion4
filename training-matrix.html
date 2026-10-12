@@ -140,6 +140,8 @@ const requiredAuthor = 'HSSE-TRM'; // PIC Training Matrix (alias Author lama "Tr
 
 function setStatus(id, text, ok=false) { const el=document.getElementById(id); el.textContent=text; el.className='status '+(ok?'ok':'error'); }
 function hasAuthor(person) { return HSSEAccess.allows(person, requiredAuthor); }
+// Nama + QR pelaku dikirim ke RPC; server yang nyatat & (tahap 3) ngecek PIC-nya.
+function actor() { return { p_nama: author?.nama||author?.namaPersonnel||'', p_qr: String(author?.qrCodeId||author?.QrCodeId||'') }; }
 async function verifyAuthor() {
   const qr=document.getElementById('authorQr').value.trim(), pin=document.getElementById('authorPin').value.trim();
   if (!qr && !pin) return setStatus('authStatus','Isi QR Code ID atau PIN Fusion4.');
@@ -150,6 +152,7 @@ async function verifyAuthor() {
     if (!person) return setStatus('authStatus','Identitas tidak ditemukan.');
     if (!hasAuthor(person)) return setStatus('authStatus','Identitas ditemukan, tetapi belum punya '+HSSEAccess.label(requiredAuthor)+'.');
     author=person; setStatus('authStatus','Terverifikasi: '+(person.nama||person.namaPersonnel||'Author'),true);
+    renderMatrix(); await loadRecords();
   } catch(e) { setStatus('authStatus','Gagal verifikasi: '+e.message); }
 }
 function showTab(tab) {
@@ -193,10 +196,7 @@ function renderMatrix() {
 }
 async function saveMatrix(id,positionId,trainingId,status) {
   if(!author) return setStatus('authStatus','Verifikasi Author dulu.');
-  const values={RequirementStatus:status,UpdatedAt:new Date().toISOString()};
-  const result=id
-    ? await hsse.from('trainingMatrixTbl').update(values).eq('Id',id)
-    : await hsse.from('trainingMatrixTbl').insert({PositionId:positionId,TrainingId:trainingId,...values}).select('Id,PositionId,TrainingId,RequirementStatus').single();
+  const result=await hsse.rpc('save_training_matrix_status',{p_position_id:positionId,p_training_id:trainingId,p_status:status,...actor()});
   const error=result.error;
   if(error) return setStatus('authStatus','Gagal menyimpan matrix: '+error.message);
   if(id) {
@@ -212,8 +212,7 @@ async function saveTrainingMaster() {
   if(!author) return setStatus('trainingMasterStatus','Verifikasi Author dulu.');
   const code=document.getElementById('masterTrainingCode').value.trim().toUpperCase(), name=document.getElementById('masterTrainingName').value.trim();
   if(!code||!name) return setStatus('trainingMasterStatus','Kode dan nama training wajib diisi.');
-  const payload={KodeTraining:code,NamaTraining:name,Deskripsi:document.getElementById('masterTrainingDescription').value.trim(),TargetPeserta:document.getElementById('masterTrainingTarget').value.trim(),FrekuensiBerlaku:document.getElementById('masterTrainingFrequency').value.trim(),Penyedia:document.getElementById('masterTrainingProvider').value.trim(),Urutan:Number(document.getElementById('masterTrainingOrder').value)||0,IsActive:document.getElementById('masterTrainingActive').value==='true',UpdatedAt:new Date().toISOString()};
-  const {error}=await hsse.from('trainingMasterTbl').insert(payload);
+  const {error}=await hsse.rpc('save_training_master',{p_kode:code,p_nama_training:name,p_deskripsi:document.getElementById('masterTrainingDescription').value.trim(),p_target_peserta:document.getElementById('masterTrainingTarget').value.trim(),p_frekuensi:document.getElementById('masterTrainingFrequency').value.trim(),p_penyedia:document.getElementById('masterTrainingProvider').value.trim(),p_urutan:Number(document.getElementById('masterTrainingOrder').value)||0,p_aktif:document.getElementById('masterTrainingActive').value==='true',...actor()});
   if(error) return setStatus('trainingMasterStatus','Gagal menambah training: '+error.message);
   setStatus('trainingMasterStatus','Training master berhasil ditambahkan.',true); await loadMasters(); await loadMatrix();
 }
@@ -221,8 +220,7 @@ async function savePositionMaster() {
   if(!author) return setStatus('positionMasterStatus','Verifikasi Author dulu.');
   const name=document.getElementById('masterPositionName').value.trim();
   if(!name) return setStatus('positionMasterStatus','Nama posisi wajib diisi.');
-  const payload={NamaPosisi:name,Kategori:document.getElementById('masterPositionCategory').value,Urutan:Number(document.getElementById('masterPositionOrder').value)||0,IsActive:document.getElementById('masterPositionActive').value==='true',UpdatedAt:new Date().toISOString()};
-  const {error}=await hsse.from('positionMasterTbl').insert(payload);
+  const {error}=await hsse.rpc('save_position_master',{p_nama_posisi:name,p_kategori:document.getElementById('masterPositionCategory').value,p_urutan:Number(document.getElementById('masterPositionOrder').value)||0,p_aktif:document.getElementById('masterPositionActive').value==='true',...actor()});
   if(error) return setStatus('positionMasterStatus','Gagal menambah posisi: '+error.message);
   setStatus('positionMasterStatus','Posisi master berhasil ditambahkan.',true); await loadMasters(); await loadMatrix();
 }
@@ -233,14 +231,16 @@ async function saveRecord() {
   try {
     const file=document.getElementById('certificateFile').files[0]; let upload=null;
     if(file) upload=await uploadLampiranToDrive(file);
-    const payload={Fusion4KaryawanId:Number(document.getElementById('employeeId').value),NamaKaryawanSnapshot:emp.nama||'',NamaPosisiSnapshot:document.getElementById('recordPosition').value,TrainingId:Number(document.getElementById('recordTraining').value),TanggalTraining:document.getElementById('trainingDate').value,BerlakuMulai:document.getElementById('validFrom').value||null,TanggalKadaluarsa:document.getElementById('expiryDate').value||null,Penyedia:document.getElementById('provider').value,NomorSertifikat:document.getElementById('certificateNo').value,CertificateFileName:upload?.fileName||null,CertificateFileUrl:upload?.viewUrl||upload?.directUrl||null,CertificateFileId:upload?.fileId||null,Status:document.getElementById('recordStatus').value,Catatan:document.getElementById('recordNotes').value,UpdatedAt:new Date().toISOString()};
+    const payload={Fusion4KaryawanId:Number(document.getElementById('employeeId').value),NamaKaryawanSnapshot:emp.nama||'',NamaPosisiSnapshot:document.getElementById('recordPosition').value,TrainingId:Number(document.getElementById('recordTraining').value),TanggalTraining:document.getElementById('trainingDate').value,BerlakuMulai:document.getElementById('validFrom').value||null,TanggalKadaluarsa:document.getElementById('expiryDate').value||null,Penyedia:document.getElementById('provider').value,NomorSertifikat:document.getElementById('certificateNo').value,CertificateFileName:upload?.fileName||null,CertificateFileUrl:upload?.viewUrl||upload?.directUrl||null,CertificateFileId:upload?.fileId||null,Status:document.getElementById('recordStatus').value,Catatan:document.getElementById('recordNotes').value};
     if(!payload.TanggalTraining || !payload.Fusion4KaryawanId) return setStatus('recordStatusMsg','Tanggal training dan ID karyawan wajib tersedia.');
-    const {error}=await hsse.from('trainingRecordTbl').insert(payload); if(error) throw error;
+    const {error}=await hsse.rpc('save_training_record',{p_record:payload,...actor()}); if(error) throw error;
     setStatus('recordStatusMsg','Training record tersimpan.',true); document.getElementById('certificateFile').value=''; await loadRecords();
   } catch(e) { setStatus('recordStatusMsg','Gagal menyimpan record: '+e.message); }
 }
 async function loadRecords() {
-  const {data,error}=await hsse.from('trainingRecordTbl').select('*,trainingMasterTbl(NamaTraining)').order('TanggalTraining',{ascending:false}).limit(100);
+  // Records berisi data personal: cuma dimuat setelah verifikasi PIC.
+  if(!author) { document.getElementById('recordsBody').innerHTML='<tr><td colspan="6">Verifikasi PIC dulu untuk melihat training records.</td></tr>'; return; }
+  const {data,error}=await hsse.rpc('get_training_records',{...actor(),p_limit:100});
   if(error) return setStatus('recordStatusMsg','Gagal memuat records: '+error.message);
   records=data||[]; document.getElementById('recordsBody').innerHTML=records.map(r=>`<tr><td>${r.TanggalTraining||''}</td><td>${escapeHtml(r.NamaKaryawanSnapshot)}</td><td>${escapeHtml(r.trainingMasterTbl?.NamaTraining||'')}</td><td>${escapeHtml(r.Status)}</td><td>${r.TanggalKadaluarsa||'-'}</td><td>${r.CertificateFileUrl?`<a href="${encodeURI(r.CertificateFileUrl)}" target="_blank" rel="noopener">Buka</a>`:'-'}</td></tr>`).join('');
 }
