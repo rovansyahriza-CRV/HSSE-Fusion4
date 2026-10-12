@@ -824,6 +824,7 @@
       }
       const { error } = await supabaseClient.rpc('tbm_finish_session', {
         p_id: currentSessionId, p_catatan: catatan, p_foto_list: fotoList,
+        p_aktor_nama: leaderNama, p_aktor_qr: leaderQrCodeId,
       });
       if (error) throw error;
 

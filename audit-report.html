@@ -919,7 +919,9 @@
     planCreatedCard.style.display = 'none';
     setStatus('⏳ Membuka pelaksanaan audit...', 'info');
     try {
-      const { error: startErr } = await supabaseClient.rpc('start_audit_pelaksanaan', { p_id: currentAuditId });
+      const { error: startErr } = await supabaseClient.rpc('start_audit_pelaksanaan', {
+        p_id: currentAuditId, p_aktor_nama: identifiedNama, p_aktor_qr: identifiedQrCodeId,
+      });
       if (startErr) throw startErr;
       const { data, error } = await supabaseClient.rpc('get_audit_by_id', { p_id: currentAuditId });
       if (error) throw error;
@@ -1176,6 +1178,8 @@
         p_temuan_list: temuanPayload,
         p_catatan_umum: catatanUmum,
         p_foto_umum_list: fotoUmumList,
+        p_aktor_nama: identifiedNama,
+        p_aktor_qr: identifiedQrCodeId,
       });
       if (error) throw error;
 

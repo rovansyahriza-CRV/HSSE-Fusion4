@@ -285,6 +285,11 @@
     </table>
   </div>
 
+  <div class="project-dates-card" id="logCard" style="display:none;">
+    <div class="pd-title">Riwayat Perubahan (audit trail)</div>
+    <div id="logBody" class="pd-hint">Memuat...</div>
+  </div>
+
 </div>
 
 <script>
@@ -404,6 +409,43 @@
     }
   }
 
+  // Riwayat perubahan HSE Program (SQL 066): siapa ubah apa, sebelum -> sesudah.
+  const LOG_LABEL = { statusPakai: 'Use/N/A', targetQty: 'Target qty', frequency: 'Frequency',
+    targetBulanan: 'Target bulanan', realisasiManualBulanan: 'Realisasi manual',
+    tanggalMulai: 'Tgl mulai', tanggalSelesai: 'Tgl selesai' };
+  function logRingkas(sebelum, sesudah) {
+    if (!sebelum) return 'Item pertama kali disimpan';
+    const bentuk = v => (v && typeof v === 'object') ? Object.values(v).join('/') : (v ?? '-');
+    return Object.keys(sesudah || {})
+      .filter(k => JSON.stringify(sebelum[k] ?? null) !== JSON.stringify(sesudah[k] ?? null))
+      .map(k => `${LOG_LABEL[k] || k}: ${bentuk(sebelum[k])} → ${bentuk(sesudah[k])}`)
+      .join('; ') || '-';
+  }
+  async function loadLog() {
+    const logCard = document.getElementById('logCard'), logBody = document.getElementById('logBody');
+    const projectId = Number(selectProject.value), tahun = Number(selectTahun.value);
+    if (!projectId) { logCard.style.display = 'none'; return; }
+    logCard.style.display = 'block';
+    try {
+      const { data, error } = await supabaseClient.rpc('get_hse_program_log', { p_project_id: projectId, p_tahun: tahun, p_limit: 50 });
+      if (error) throw error;
+      const rows = data || [];
+      logBody.innerHTML = rows.length
+        ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <tr><th style="text-align:left;padding:4px;">Waktu</th><th style="text-align:left;padding:4px;">Aksi</th><th style="text-align:left;padding:4px;">Item</th><th style="text-align:left;padding:4px;">Perubahan</th><th style="text-align:left;padding:4px;">Oleh</th></tr>
+            ${rows.map(r => `<tr style="border-top:1px solid #e5e7eb;">
+              <td style="padding:4px;white-space:nowrap;">${escapeHtml(new Date(r.waktu).toLocaleString('id-ID'))}</td>
+              <td style="padding:4px;">${escapeHtml(r.aksi)}</td>
+              <td style="padding:4px;">${escapeHtml(r.item || '-')}</td>
+              <td style="padding:4px;">${escapeHtml(logRingkas(r.sebelum, r.sesudah))}</td>
+              <td style="padding:4px;white-space:nowrap;">${escapeHtml(r.oleh)} (${escapeHtml(r.olehQr)})</td></tr>`).join('')}
+          </table></div>`
+        : 'Belum ada perubahan tercatat untuk project & tahun ini (pencatatan mulai sejak SQL 066).';
+    } catch (e) {
+      logBody.textContent = 'Gagal memuat riwayat: ' + (e.message || e);
+    }
+  }
+
   async function loadProgram() {
     const projectId = selectProject.value;
     const tahun = selectTahun.value;
@@ -436,6 +478,7 @@
       loadingState.style.display = 'none';
       tableWrap.style.display = 'block';
       summaryRow.style.display = 'flex';
+      loadLog();
     } catch (e) {
       loadingState.textContent = 'Gagal memuat HSE Program: ' + (e.message || e);
     }
@@ -451,9 +494,11 @@
       const { error } = await supabaseClient.rpc('update_project_dates', {
         p_project_id: projectId,
         p_tanggal_mulai: pdMulai.value || null,
-        p_tanggal_selesai: pdSelesai.value || null
+        p_tanggal_selesai: pdSelesai.value || null,
+        p_aktor_nama: picEditor.nama, p_aktor_qr: picEditor.qrCodeId
       });
       if (error) throw error;
+      loadLog();
       if (projectMap[projectId]) {
         projectMap[projectId].tanggalMulaiProject = pdMulai.value || null;
         projectMap[projectId].tanggalSelesaiProject = pdSelesai.value || null;
@@ -884,9 +929,11 @@
         p_project_id: projectId, p_tahun: tahun, p_item_id: itemId,
         p_status_pakai: item.statusPakai, p_target_bulanan: targetBulanan,
         p_target_qty: targetQty, p_frequency: frequency,
-        p_realisasi_manual_bulanan: realisasiManualBulanan
+        p_realisasi_manual_bulanan: realisasiManualBulanan,
+        p_aktor_nama: picEditor.nama, p_aktor_qr: picEditor.qrCodeId
       });
       if (error) throw error;
+      loadLog();
       item.targetBulanan = targetBulanan;
       item.targetQty = targetQty;
       item.frequency = frequency;
