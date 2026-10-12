@@ -196,7 +196,7 @@ async function loadProjects() {
     if (error) throw error;
     projects = data || [];
     $('projectFilter').innerHTML = '<option value="">Semua Project</option>' +
-      projects.map(p => `<option value="${p.id}">${esc(p.namaProject)} (${esc(p.noKontrak)})</option>`).join('');
+      projects.map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)} (${esc(p.noKontrak)})</option>`).join('');
   } catch (e) {
     console.error('Gagal memuat project:', e.message);
   }

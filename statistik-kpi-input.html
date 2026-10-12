@@ -163,7 +163,7 @@
 
   <div class="box">
     <div class="box-title">2. Pemetaan lokasi absensi SmartGate → project HSSE</div>
-    <div class="hint" style="margin-top:0;margin-bottom:8px;">Lokasi diambil dari lokasi scan absensi (Nama Lokasi). Pilih project HSSE buat tiap lokasi; beberapa lokasi boleh ke 1 project. Lokasi yang namanya sama persis dengan Nama Project / No. Kontrak otomatis terpetakan. Man-hours lokasi yang belum dipetakan gak ikut dihitung.</div>
+    <div class="hint" style="margin-top:0;margin-bottom:8px;">Lokasi diambil dari lokasi scan absensi (Nama Lokasi). Default tiap lokasi ikut kode project (Operational Code) lokasi itu di master lokasi SmartGate, jadi cukup isi kode project lokasinya di SmartGate. Pilih "Manual" kalau mau dipaksa ke project lain, atau "Gak dihitung". Lokasi tanpa kode dan tanpa pemetaan manual gak ikut dihitung.</div>
     <div class="tbl-wrap">
       <table class="mh-table" style="min-width:560px;">
         <thead><tr><th style="text-align:left;">Lokasi absensi SmartGate</th><th>Project HSSE</th><th style="width:90px;"></th></tr></thead>
@@ -575,7 +575,7 @@
       if (error) throw error;
       projectList = data || [];
       selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
-        projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+        projectList.map(p => `<option value="${p.id}">${escapeHtml(p.label || p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
     } catch (e) {
       selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
     }
@@ -594,8 +594,21 @@
     const jamStandar = Number(document.getElementById('jamStandar').value) || 8;
     const btn = document.getElementById('btnTarik');
     btn.disabled = true;
-    setStatus('tarikStatus', `Narik absensi SmartGate tahun ${tahun}...`);
+    setStatus('tarikStatus', 'Sinkron daftar project dari SmartGate...');
     try {
+      // Master project (Operational Code) ikut SmartGate. Gagal sinkron gak menghentikan tarik man-hours.
+      let infoSinkron = '';
+      try {
+        const { data: sk, error: errSk } = await supabaseClient.rpc('sinkron_project_smartgate', {
+          p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+        });
+        if (errSk) throw errSk;
+        if (sk && sk.projectBaru && sk.projectBaru.length) infoSinkron = ` Project baru dari SmartGate: ${sk.projectBaru.join(', ')}.`;
+        await loadProjects();
+      } catch (e) {
+        infoSinkron = ` ⚠️ Sinkron project gagal (${e.message || e}).`;
+      }
+      setStatus('tarikStatus', `Narik absensi SmartGate tahun ${tahun}...`);
       const { data: rows, error } = await fusion4Client.rpc('get_hsse_man_hours', { p_tahun: tahun, p_bulan: null, p_jam_standar: jamStandar });
       if (error) throw error;
       const { data: res, error: err2 } = await supabaseClient.rpc('save_man_hours_smartgate', {
@@ -605,9 +618,10 @@
       const total = (rows || []).reduce((s, r) => s + Number(r.ManHours || 0), 0);
       const unmapped = (res && res.belumDipetakan) || [];
       let msg = `✅ ${(rows || []).length} baris dari SmartGate (${fmtNum(total)} man-hours), ${res.barisDisimpan} baris project/bulan disimpan.`;
-      if (unmapped.length) msg += ` ⚠️ ${unmapped.length} lokasi belum dipetakan ke project (lihat bagian 2), man-hours-nya belum ikut.`;
+      if (unmapped.length) msg += ` ⚠️ ${unmapped.length} lokasi belum punya kode project di SmartGate & belum dipetakan (lihat bagian 2), man-hours-nya belum ikut.`;
+      msg += infoSinkron;
       setStatus('tarikStatus', msg, unmapped.length ? null : true);
-      await Promise.all([loadMap(), loadManHours(), loadLog()]);
+      await Promise.all([loadMap(), loadManHours(), loadLog(), loadAuto()]);
     } catch (e) {
       setStatus('tarikStatus', 'Gagal tarik: ' + (e.message || e), false);
     } finally {
@@ -638,7 +652,7 @@
       const mati = new Set((data.projectMati || []).map(Number));
       listEl.innerHTML = projectList.length ? projectList.map(p => `
         <label><input type="checkbox" data-pid="${p.id}" ${mati.has(Number(p.id)) ? '' : 'checked'} onchange="saveAutoProject(this)">
-          <span>${escapeHtml(p.namaProject)} <span style="color:var(--muted)">(${escapeHtml(p.noKontrak)})</span></span></label>`).join('')
+          <span>${escapeHtml(p.label || p.namaProject)} <span style="color:var(--muted)">(${escapeHtml(p.noKontrak)})</span></span></label>`).join('')
         : '<span class="hint">Belum ada project aktif.</span>';
     } catch (e) {
       statusEl.textContent = 'Gagal memuat setting otomatis: ' + (e.message || e);
@@ -674,7 +688,7 @@
         p_project_id: pid, p_ikut: cb.checked, p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
       });
       if (error) throw error;
-      setStatus('autoMsg', `✅ ${p ? p.namaProject : 'Project'} ${cb.checked ? 'ikut' : 'gak ikut'} tarik otomatis.`, true);
+      setStatus('autoMsg', `✅ ${p ? (p.label || p.namaProject) : 'Project'} ${cb.checked ? 'ikut' : 'gak ikut'} tarik otomatis.`, true);
       loadLog();
     } catch (e) {
       cb.checked = !cb.checked;
@@ -695,17 +709,28 @@
         body.innerHTML = '<tr><td colspan="3">Belum ada. Klik "Tarik dari SmartGate" dulu, nanti daftar lokasi muncul di sini.</td></tr>';
         return;
       }
-      body.innerHTML = list.map((m, i) => `
+      const labelProject = id => { const p = projectList.find(x => Number(x.id) === Number(id)); return p ? (p.label || p.namaProject) : null; };
+      body.innerHTML = list.map((m, i) => {
+        const kodeInfo = m.kodeSmartGate
+          ? `kode SmartGate ${escapeHtml(m.kodeSmartGate)}${m.projectIdKode ? '' : ' (belum ada di HSSE)'}`
+          : 'belum punya kode di SmartGate';
+        const tag = m.mode === 'abaikan' ? '<span class="tag-unmapped">· gak dihitung</span>'
+          : m.projectIdEfektif ? '' : '<span class="tag-unmapped">· belum masuk project</span>';
+        const otomatis = m.projectIdKode ? `Ikut kode SmartGate → ${escapeHtml(labelProject(m.projectIdKode) || m.kodeSmartGate)}`
+          : 'Ikut kode SmartGate (belum ada kode, gak dihitung)';
+        return `
         <tr>
-          <td class="left">${escapeHtml(m.lokasiSmartGate)} ${m.projectId ? '' : '<span class="tag-unmapped">· belum dipetakan</span>'}</td>
+          <td class="left">${escapeHtml(m.lokasiSmartGate)} ${tag}<div class="hint" style="margin:2px 0 0;">${kodeInfo}</div></td>
           <td>
             <select id="map-${i}" data-f4="${escapeHtml(m.lokasiSmartGate)}">
-              <option value="">-- Gak dihitung --</option>
-              ${projectList.map(p => `<option value="${p.id}" ${Number(m.projectId) === Number(p.id) ? 'selected' : ''}>${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('')}
+              <option value="" ${m.mode === 'kode' ? 'selected' : ''}>${otomatis}</option>
+              <option value="skip" ${m.mode === 'abaikan' ? 'selected' : ''}>-- Gak dihitung --</option>
+              ${projectList.map(p => `<option value="${p.id}" ${m.mode === 'manual' && Number(m.projectId) === Number(p.id) ? 'selected' : ''}>Manual: ${escapeHtml(p.label || p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('')}
             </select>
           </td>
           <td><button type="button" class="btn small" onclick="saveMap(${i})">Simpan</button></td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     } catch (e) {
       body.innerHTML = `<tr><td colspan="3">Gagal memuat: ${escapeHtml(e.message || e)}</td></tr>`;
     }
@@ -716,8 +741,8 @@
     const sel = document.getElementById('map-' + i);
     try {
       const { error } = await supabaseClient.rpc('save_man_hours_project_map', {
-        p_lokasi: sel.dataset.f4, p_project_id: sel.value ? Number(sel.value) : null,
-        p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || ''
+        p_lokasi: sel.dataset.f4, p_project_id: /^\d+$/.test(sel.value) ? Number(sel.value) : null,
+        p_nama: picEditor.nama, p_qr: picEditor.qrCodeId || '', p_abaikan: sel.value === 'skip'
       });
       if (error) throw error;
       setStatus('tarikStatus', `✅ Pemetaan lokasi "${sel.dataset.f4}" disimpan. Klik "Tarik dari SmartGate" lagi biar angkanya ikut kehitung.`, true);
@@ -813,7 +838,9 @@
         const periode = l.bulan ? `${BULAN_LABEL[l.bulan - 1]} ${l.tahun}` : (l.tahun || '');
         let detail = '';
         if (l.aksi === 'Koreksi') detail = `→ ${fmtNum(l.detail.manHours)} MH (${escapeHtml(l.detail.alasan || '')})`;
-        if (l.aksi === 'Mapping') detail = `"${escapeHtml(l.detail.lokasiSmartGate)}" → ${escapeHtml(namaProject(l.projectId) || 'gak dihitung')}`;
+        if (l.aksi === 'Mapping') detail = `"${escapeHtml(l.detail.lokasiSmartGate)}" → ${escapeHtml(l.detail.mode === 'kode' ? 'ikut kode SmartGate' : (namaProject(l.projectId) || 'gak dihitung'))}`;
+        if (l.aksi === 'Sinkron Project') detail = `project baru: ${escapeHtml((l.detail.projectBaru || []).join(', '))}`;
+        if (l.aksi === 'Sinkron Project Gagal') detail = escapeHtml(l.detail.error || '');
         if (l.aksi === 'Tarik SmartGate' || l.aksi === 'Tarik Otomatis') detail = `${l.detail.barisDisimpan} baris disimpan`;
         if (l.aksi === 'Tarik Otomatis Gagal') detail = escapeHtml(l.detail.error || '');
         if (l.aksi === 'Setting Otomatis') detail = l.detail.ikut !== undefined

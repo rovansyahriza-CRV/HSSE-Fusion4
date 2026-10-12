@@ -246,14 +246,36 @@
     selectTahun.innerHTML = opts;
   }
 
+
+  // Pilihan gabungan: All = Corporate + semua project, All Project = project client,
+  // Corporate = kode internal 9xx. Selain itu value = id project.
+  const SCOPE_LIST = [
+    ['all', 'All (Corporate + semua project)', 'ALL'],
+    ['all_project', 'All Project (project client)', 'ALL_PROJECT'],
+    ['corporate', 'Corporate (kode internal 9xx)', 'CORPORATE']
+  ];
+  function scopeOptionsHtml(list) {
+    return '<optgroup label="Gabungan">' + SCOPE_LIST.map(s => `<option value="${s[0]}">${s[1]}</option>`).join('') + '</optgroup>' +
+      (list && list.length ? '<optgroup label="Per project">' +
+        list.map(p => `<option value="${p.id}">${escapeHtml(p.label || p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('') + '</optgroup>' : '');
+  }
+  function scopeParams(v) {
+    if (/^\d+$/.test(String(v))) return { p_project_id: Number(v), p_scope: null };
+    const s = SCOPE_LIST.find(x => x[0] === v);
+    return { p_project_id: null, p_scope: s ? s[2] : 'ALL' };
+  }
+  function scopeLabel(v) {
+    const s = SCOPE_LIST.find(x => x[0] === v);
+    return s ? s[1] : SCOPE_LIST[0][1];
+  }
+
   async function loadProjects() {
     try {
       const { data, error } = await supabaseClient.rpc('get_active_projects');
       if (error) throw error;
-      selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>' +
-        (data || []).map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+      selectProject.innerHTML = scopeOptionsHtml(data || []);
     } catch (e) {
-      selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>';
+      selectProject.innerHTML = scopeOptionsHtml([]);
     }
   }
 
@@ -274,7 +296,7 @@
     updatePdfLink();
     try {
       const { data, error } = await supabaseClient.rpc('get_statistik_kpi', {
-        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun, p_basis: BASIS
+        ...scopeParams(projectId), p_tahun: tahun, p_basis: BASIS
       });
       if (error) throw error;
       render(data, tahun);
@@ -371,7 +393,7 @@
   }
 
   async function loadHseProgram(projectId, tahun) {
-    if (projectId === 'all') {
+    if (scopeParams(projectId).p_project_id === null) {
       setVal('kHseProgram', '–', '');
       setSub('kHseProgramSub', 'pilih 1 project buat lihat');
       return;
@@ -406,7 +428,7 @@
     updatePdfLink();
     try {
       const { data, error } = await supabaseClient.rpc('get_statistik_piramida', {
-        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: Number(selectTahun.value),
+        ...scopeParams(projectId), p_tahun: Number(selectTahun.value),
         p_bulan_dari: Number(pyrDari.value), p_bulan_sampai: Number(pyrSampai.value)
       });
       if (error) throw error;

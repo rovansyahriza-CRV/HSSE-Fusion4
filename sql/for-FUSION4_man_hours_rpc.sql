@@ -22,8 +22,10 @@
 --   -> LokasiPulang -> LokasiIstirahat). Kalau cocok sama lokasiTbl.NamaLokasi /
 --   KodeLokasi, dipakai NamaLokasi resminya (biar beda huruf besar/kecil gak pecah jadi
 --   2 lokasi). Kalau gak cocok, dipakai teks aslinya. Kosong -> '(Tanpa Lokasi)'.
---   Master lokasi Fusion4 gak nyimpen project, jadi tiap lokasi dipetakan ke project
---   HSSE di halaman statistik-kpi-input.html.
+--   "KodeProject" = lokasiTbl.Project (Operational Code: 014, 015, 901...) dari lokasi itu.
+--   HSSE (migrasi #060) otomatis masukin man-hours lokasi ke project HSSE dengan kode yang
+--   sama. Lokasi yang belum punya kode bisa dipetakan manual di statistik-kpi-input.html.
+--   Update 2026-10-12: tambah kolom "KodeProject".
 -- =====================================================================================
 
 DROP FUNCTION IF EXISTS public.get_hsse_man_hours(INT, INT, NUMERIC);
@@ -35,6 +37,7 @@ CREATE OR REPLACE FUNCTION public.get_hsse_man_hours(
 )
 RETURNS TABLE (
     "Lokasi" TEXT,
+    "KodeProject" TEXT,
     "Tahun" INT,
     "Bulan" INT,
     "JumlahPekerja" INT,
@@ -83,13 +86,14 @@ AS $$
     k AS (
         SELECT
             COALESCE(NULLIF(trim(l."NamaLokasi"), ''), NULLIF(j.lok, ''), '(Tanpa Lokasi)') AS lokasi,
+            NULLIF(trim(l."Project"), '') AS kode,
             EXTRACT(MONTH FROM j."Tanggal")::INT AS bulan,
             j."QrCodeId",
             LEAST(GREATEST(COALESCE(j.jam_hitung, p_jam_standar), 0), 24) AS jam,
             (j.jam_hitung IS NULL) AS estimasi
         FROM j
         LEFT JOIN LATERAL (
-            SELECT lt."NamaLokasi"
+            SELECT lt."NamaLokasi", lt."Project"
             FROM "lokasiTbl" lt
             WHERE j.lok IS NOT NULL
               AND (lower(trim(lt."NamaLokasi")) = lower(j.lok) OR lower(trim(lt."KodeLokasi")) = lower(j.lok))
@@ -99,6 +103,7 @@ AS $$
     )
     SELECT
         lokasi,
+        kode,
         p_tahun,
         bulan,
         COUNT(DISTINCT "QrCodeId")::INT,
@@ -106,8 +111,8 @@ AS $$
         ROUND(SUM(jam)::NUMERIC, 1),
         COUNT(*) FILTER (WHERE estimasi)::INT
     FROM k
-    GROUP BY lokasi, bulan
-    ORDER BY lokasi, bulan;
+    GROUP BY lokasi, kode, bulan
+    ORDER BY lokasi, kode, bulan;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_hsse_man_hours(INT, INT, NUMERIC) FROM PUBLIC;
@@ -124,6 +129,9 @@ GRANT EXECUTE ON FUNCTION public.get_hsse_man_hours(INT, INT, NUMERIC) TO anon, 
 -- WHERE ab."JamMasuk1" IS NOT NULL AND EXTRACT(YEAR FROM ab."Tanggal") = EXTRACT(YEAR FROM CURRENT_DATE)
 -- GROUP BY 1, 2 ORDER BY 3 DESC;
 --
--- 2. Hasil RPC tahun ini:
+-- 2. Lokasi + kode project-nya:
+-- SELECT "KodeLokasi", "NamaLokasi", "Project" FROM "lokasiTbl" ORDER BY "Project" NULLS LAST, "NamaLokasi";
+--
+-- 3. Hasil RPC tahun ini:
 -- SELECT * FROM public.get_hsse_man_hours(EXTRACT(YEAR FROM CURRENT_DATE)::INT);
 -- -------------------------------------------------------------------------------------

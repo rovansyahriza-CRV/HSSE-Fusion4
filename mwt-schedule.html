@@ -153,7 +153,7 @@
         return;
       }
       selectProject.innerHTML = '<option value="">-- Pilih Project --</option>' +
-        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak}) -- ${p.tipeKonstruksi}</option>`).join('');
+        projectList.map(p => `<option value="${p.id}">${p.label || p.namaProject} (${p.noKontrak})${p.tipeProject === 'INTERNAL' ? '' : ' -- ' + p.tipeKonstruksi}</option>`).join('');
     } catch (e) {
       selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
       setStatus('❌ Gagal memuat daftar project: ' + e.message, 'error');

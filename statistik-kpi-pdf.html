@@ -244,13 +244,34 @@
       if (error) throw error;
       projectList = data || [];
     } catch (e) { projectList = []; }
-    selectProject.innerHTML = '<option value="all">Semua Project (gabungan)</option>' +
-      projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+    selectProject.innerHTML = scopeOptionsHtml(projectList);
     const qs = new URLSearchParams(location.search);
     if (qs.get('project_id')) selectProject.value = qs.get('project_id');
     if (qs.get('tahun')) selectTahun.value = qs.get('tahun');
     if (qs.get('project_id') || qs.get('tahun')) loadReport();
   });
+
+  // Pilihan gabungan: All = Corporate + semua project, All Project = project client,
+  // Corporate = kode internal 9xx. Selain itu value = id project.
+  const SCOPE_LIST = [
+    ['all', 'All (Corporate + semua project)', 'ALL'],
+    ['all_project', 'All Project (project client)', 'ALL_PROJECT'],
+    ['corporate', 'Corporate (kode internal 9xx)', 'CORPORATE']
+  ];
+  function scopeOptionsHtml(list) {
+    return '<optgroup label="Gabungan">' + SCOPE_LIST.map(s => `<option value="${s[0]}">${s[1]}</option>`).join('') + '</optgroup>' +
+      (list && list.length ? '<optgroup label="Per project">' +
+        list.map(p => `<option value="${p.id}">${escapeHtml(p.label || p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('') + '</optgroup>' : '');
+  }
+  function scopeParams(v) {
+    if (/^\d+$/.test(String(v))) return { p_project_id: Number(v), p_scope: null };
+    const s = SCOPE_LIST.find(x => x[0] === v);
+    return { p_project_id: null, p_scope: s ? s[2] : 'ALL' };
+  }
+  function scopeLabel(v) {
+    const s = SCOPE_LIST.find(x => x[0] === v);
+    return s ? s[1] : SCOPE_LIST[0][1];
+  }
 
   function fmtNum(v, d = 0) {
     if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '–';
@@ -271,7 +292,7 @@
     document.getElementById('linkBack').href = `statistik-kpi.html?project_id=${projectId}&tahun=${tahun}`;
     try {
       const { data, error } = await supabaseClient.rpc('get_statistik_kpi', {
-        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun, p_basis: 1000000
+        ...scopeParams(projectId), p_tahun: tahun, p_basis: 1000000
       });
       if (error) throw error;
       render(data, projectId, tahun);
@@ -287,7 +308,7 @@
 
   function render(d, projectId, tahun) {
     const p = projectList.find(x => String(x.id) === String(projectId));
-    document.getElementById('fProject').textContent = p ? p.namaProject : 'Semua Project (gabungan)';
+    document.getElementById('fProject').textContent = p ? (p.label || p.namaProject) : scopeLabel(projectId);
     document.getElementById('fKontrak').textContent = p ? p.noKontrak : '–';
     document.getElementById('fPeriode').textContent = `Periode Januari – Desember ${tahun}`;
     document.getElementById('fDicetak').textContent = 'Dicetak ' + new Date().toLocaleString('id-ID');
@@ -335,7 +356,7 @@
     const el = document.getElementById('piramida');
     try {
       const { data, error } = await supabaseClient.rpc('get_statistik_piramida', {
-        p_project_id: projectId === 'all' ? null : Number(projectId), p_tahun: tahun,
+        ...scopeParams(projectId), p_tahun: tahun,
         p_bulan_dari: Number(qsAwal.get('bulan_dari') || 1), p_bulan_sampai: Number(qsAwal.get('bulan_sampai') || 12)
       });
       if (error) throw error;

@@ -197,7 +197,7 @@
       if (error) throw error;
       const projectList = data || [];
       selectProjectFilter.innerHTML = '<option value="">-- Semua Project --</option>' +
-        projectList.map(p => `<option value="${p.id}">${p.namaProject} (${p.noKontrak})</option>`).join('');
+        projectList.map(p => `<option value="${p.id}">${p.label || p.namaProject} (${p.noKontrak})</option>`).join('');
     } catch (e) {
       console.error('Gagal memuat daftar project:', e.message);
     }

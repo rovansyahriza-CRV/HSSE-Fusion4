@@ -168,7 +168,7 @@
       selectProject.innerHTML = projectList.length === 0
         ? '<option value="">Belum ada project aktif</option>'
         : '<option value="">-- Pilih Project --</option>' +
-          projectList.map(p => `<option value="${p.id}">${escapeHtml(p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
+          projectList.map(p => `<option value="${p.id}">${escapeHtml(p.label || p.namaProject)} (${escapeHtml(p.noKontrak)})</option>`).join('');
     } catch (e) {
       selectProject.innerHTML = '<option value="">Gagal memuat project</option>';
     }
