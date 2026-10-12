@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usulan Contoh Generik JSA — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="hiradcRisk.js"></script>
+<style>
+  .page { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; }
+  button { border: 0; border-radius: 9px; padding: 9px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.ok { background: var(--success, #107C41); } button.danger { background: var(--accent, #D13438); }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .pills { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .pill-btn { padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface, #fff); font-size: 12px; font-weight: 700; color: var(--muted); }
+  .pill-btn.active { background: var(--navy, #2D3C73); color: #fff; border-color: var(--navy, #2D3C73); }
+  .u-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .u-title { font-size: 15px; font-weight: 800; color: var(--navy-dark); }
+  .u-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .chip.menunggu { background: #FDF3E3; color: #8A6100; }
+  .chip.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .chip.ditolak { background: #FCEAE8; color: var(--accent, #D13438); }
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .cmp.single { grid-template-columns: 1fr; }
+  .cmp-col { border: 1px solid var(--border); border-radius: 10px; padding: 10px; font-size: 12.5px; background: #FAFBFE; }
+  .cmp-col h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; color: var(--navy); }
+  .cmp-col .k { font-size: 10.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-top: 6px; }
+  .cmp-col .v { white-space: pre-wrap; }
+  .risk-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+  .risk-rendah { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .risk-sedang { background: #FDF3E3; color: #8A6100; }
+  .risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-ekstrem { background: #FCEAE8; color: var(--accent, #D13438); }
+  .decide { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13.5px; }
+  @media (max-width: 640px) { .cmp { grid-template-columns: 1fr; } .u-top { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="hiradc-list.html" class="back-to-menu">⬅ Daftar HIRADC</a>
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Usulan Contoh Generik JSA</h1></div></div>
+    <p>Baris HIRADC yang diusulkan jadi contoh JSA umum per Jenis Pekerjaan di form PTW. Template PTW baru berubah setelah usulan disetujui.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi (buat setujui / tolak)</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Setujui/tolak butuh <span id="needLabel"></span>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="pills" id="pills">
+    <button type="button" class="pill-btn active" data-s="Menunggu">⏳ Menunggu</button>
+    <button type="button" class="pill-btn" data-s="Disetujui">✅ Disetujui</button>
+    <button type="button" class="pill-btn" data-s="Ditolak">❌ Ditolak</button>
+    <button type="button" class="pill-btn" data-s="">Semua</button>
+  </div>
+  <div class="status-line" id="actStatus"></div>
+  <div id="list"><div class="empty-state">Memuat usulan...</div></div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const REQUIRED = 'HSSE-PTW';
+const R = HiradcRisk;
+const $ = id => document.getElementById(id);
+let aktor = null, status = 'Menunggu', rows = [];
+
+function esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('needLabel').textContent = HSSEAccess.label(REQUIRED);
+  document.querySelectorAll('#pills .pill-btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#pills .pill-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); status = b.dataset.s; load();
+  });
+  load();
+});
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    let person = null;
+    if (qr) {
+      const { data, error } = await fusion4.rpc('get_person_face_data', { p_qrcode: qr.toUpperCase() });
+      if (error) throw error;
+      if (data && data.status !== 'NOT_FOUND') person = data.person || null;
+    } else {
+      const { data, error } = await fusion4.rpc('get_all_face_data');
+      if (error) throw error;
+      person = (data || []).find(x => String(x.digitalPin || '').trim() === pin) || null;
+    }
+    if (!person) return setLine('gateStatus', 'Identitas tidak ditemukan.');
+    const nama = person.nama || person.NamaPersonnel || 'Tanpa nama';
+    if (!HSSEAccess.allows(person, REQUIRED)) { aktor = null; render(); return setLine('gateStatus', `${nama} tidak punya izin ${HSSEAccess.label(REQUIRED)}.`); }
+    aktor = { nama, qrCodeId: person.qrCodeId || qr.toUpperCase() };
+    setLine('gateStatus', `✅ Terverifikasi: ${nama}, boleh setujui/tolak usulan.`, true);
+    render();
+  } catch (e) { setLine('gateStatus', 'Gagal verifikasi: ' + e.message); }
+}
+
+async function load() {
+  $('list').innerHTML = '<div class="empty-state">Memuat usulan...</div>';
+  const { data, error } = await hsse.rpc('get_jsa_template_usulan', { p_status: status || null });
+  if (error) { $('list').innerHTML = `<div class="empty-state">❌ Gagal memuat: ${esc(error.message)}</div>`; return; }
+  rows = data || [];
+  render();
+}
+
+function risk(l, s) { const r = R.level(l, s); return `<span class="risk-badge ${r.cls}">${r.label} ${l}x${s}=${l * s}</span>`; }
+function col(title, x) {
+  return `<div class="cmp-col"><h4>${title}</h4>
+    <div class="k">Langkah</div><div class="v">${esc(x.langkah)}</div>
+    <div class="k">Bahaya</div><div class="v">${esc(x.bahaya)}</div>
+    <div class="k">Pengendalian</div><div class="v">${esc(x.pengendalian)}</div>
+    <div class="k">Risiko awal → sisa</div><div class="v">${risk(x.likelihoodAwal, x.severityAwal)} → ${risk(x.likelihoodSisa, x.severitySisa)}</div></div>`;
+}
+
+function render() {
+  if (!rows.length) { $('list').innerHTML = '<div class="empty-state">Tidak ada usulan.</div>'; return; }
+  $('list').innerHTML = rows.map(u => {
+    const ganti = u.mode === 'Ganti' && u.target;
+    return `<div class="card">
+      <div class="u-top">
+        <div>
+          <div class="u-title">${esc(u.jenisPekerjaan)} · ${u.mode === 'Ganti' ? 'Ganti baris generik' : 'Tambah baris baru'}</div>
+          <div class="u-meta">Dari <a href="hiradc-form.html?id=${u.hiradcId}">${esc(u.noDokumenHiradc || 'HIRADC')}</a> · diusulkan ${esc(u.diusulkanOleh)} ${R.tgl(u.tanggalDiusulkan)}
+            ${u.diputuskanOleh ? ` · diputuskan ${esc(u.diputuskanOleh)} ${R.tgl(u.tanggalDiputuskan)}` : ''}</div>
+          ${u.alasan ? `<div class="u-meta">Alasan: ${esc(u.alasan)}</div>` : ''}
+          ${u.catatanKeputusan ? `<div class="u-meta">Catatan keputusan: ${esc(u.catatanKeputusan)}</div>` : ''}
+        </div>
+        <span class="chip ${u.status.toLowerCase()}">${esc(u.status)}</span>
+      </div>
+      <div class="cmp ${ganti ? '' : 'single'}">
+        ${ganti && u.status === 'Menunggu' ? col('Generik sekarang', u.target) : ''}
+        ${col(u.status === 'Menunggu' ? 'Usulan' : 'Isi usulan', u)}
+      </div>
+      ${u.status === 'Menunggu' && aktor ? `<div class="decide">
+        <div class="field"><label>Catatan (wajib kalau ditolak)</label><input id="cat-${u.id}"></div>
+        <div class="row" style="margin-top:8px;">
+          <button type="button" class="ok" onclick="decide(${u.id}, true)">✅ Setujui &amp; ubah template</button>
+          <button type="button" class="danger" onclick="decide(${u.id}, false)">❌ Tolak</button>
+        </div></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function decide(id, setuju) {
+  if (!aktor) return setLine('actStatus', 'Verifikasi dulu.');
+  const catatan = $('cat-' + id).value.trim();
+  if (!setuju && !catatan) return setLine('actStatus', 'Tulis alasan kenapa ditolak.');
+  if (!confirm(setuju ? 'Setujui? Template JSA PTW untuk jenis pekerjaan ini langsung berubah.' : 'Tolak usulan ini?')) return;
+  const { error } = await hsse.rpc('decide_jsa_template_usulan', { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId,
+    p_id: id, p_setuju: setuju, p_catatan: catatan || null });
+  if (error) return setLine('actStatus', 'Gagal: ' + error.message);
+  setLine('actStatus', setuju ? '✅ Disetujui, template PTW sudah diperbarui.' : '❌ Usulan ditolak.', true);
+  load();
+}
+</script>
+</body>
+</html>

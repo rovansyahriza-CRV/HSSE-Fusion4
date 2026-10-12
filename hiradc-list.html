@@ -74,6 +74,7 @@
   </div>
 
   <a href="hiradc-form.html" class="btn-block">➕ Susun HIRADC Baru</a>
+  <a href="hiradc-usulan.html" class="btn-secondary" id="usulanLink" style="margin:-6px 0 16px;">📥 Usulan contoh generik JSA PTW</a>
 
   <div class="tiles">
     <div class="tile"><div class="v" id="tBerlaku">-</div><div class="k">Dokumen berlaku</div></div>
@@ -112,13 +113,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('projectFilter').addEventListener('change', load);
   $('statusFilter').addEventListener('change', load);
   $('refreshBtn').onclick = load;
-  await Promise.all([loadProjects(), load()]);
+  await Promise.all([loadProjects(), load(), loadUsulan()]);
 });
 
 async function loadProjects() {
   const { data } = await db.rpc('get_active_projects');
   $('projectFilter').innerHTML = '<option value="">Semua Project</option>' +
     (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+}
+
+async function loadUsulan() {
+  const { data } = await db.rpc('get_jsa_template_usulan', { p_status: 'Menunggu' });
+  const n = (data || []).length;
+  if (n) $('usulanLink').innerHTML = `📥 Usulan contoh generik JSA PTW <b style="color:var(--accent,#D13438);">(${n} menunggu)</b>`;
 }
 
 function dueSoon(r) {

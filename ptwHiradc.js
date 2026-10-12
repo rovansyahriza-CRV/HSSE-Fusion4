@@ -31,8 +31,9 @@
     m.innerHTML = `
       <div class="hiradc-box">
         <h3>Ambil dari HIRADC</h3>
-        <div style="font-size:12px;color:var(--muted);">Baris HIRADC yang sudah Disetujui untuk project ini. Centang yang relevan, nanti jadi baris JSA (tetap bisa diedit).</div>
+        <div style="font-size:12px;color:var(--muted);">Baris HIRADC yang sudah Disetujui untuk project ini. HIRADC = penilaian khusus project/area; contoh generik = template umum per Jenis Pekerjaan. Centang yang relevan, nanti jadi baris JSA (tetap bisa diedit).</div>
         <label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-top:8px;"><input type="checkbox" id="hiradcAll" style="width:auto;"> Pilih semua</label>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-top:4px;"><input type="checkbox" id="hiradcGanti" style="width:auto;" checked> Ganti baris contoh generik (Jenis Pekerjaan) yang belum diedit</label>
         <div id="hiradcList"></div>
         <div class="hiradc-actions">
           <button type="button" style="background:#E8ECF8;color:var(--navy-dark);" onclick="PtwHiradc.close()">Batal</button>
@@ -81,11 +82,22 @@
     return [...row.querySelectorAll('textarea')].every(t => !t.value.trim());
   }
 
+  // Baris yang isinya masih persis contoh generik dari ptwJsaTemplateTbl (variabel jsaTemplate
+  // di ptw-report.html) -- dianggap belum disesuaikan, jadi boleh diganti baris HIRADC.
+  function rowIsUntouchedGeneric(row) {
+    const tpl = (typeof jsaTemplate !== 'undefined' && Array.isArray(jsaTemplate)) ? jsaTemplate : [];
+    const v = sel => ((row.querySelector(sel) || {}).value || '').trim();
+    const langkah = v('[id^="jsa-langkah-"]'), bahaya = v('[id^="jsa-bahaya-"]'), pengendalian = v('[id^="jsa-pengendalian-"]');
+    return tpl.some(t => (t.langkah || '').trim() === langkah && (t.bahaya || '').trim() === bahaya
+      && (t.pengendalian || '').trim() === pengendalian);
+  }
+
   function apply() {
     const picked = [...document.querySelectorAll('#hiradcList input[data-i]:checked')].map(c => items[Number(c.dataset.i)]);
     if (!picked.length) { alert('Belum ada baris yang dicentang.'); return; }
-    // buang baris JSA kosong biar gak nyisa langkah kosong
-    [...jsaRows.children].forEach(r => { if (rowIsEmpty(r)) r.remove(); });
+    // buang baris JSA kosong, plus contoh generik yang belum diedit kalau dicentang
+    const ganti = document.getElementById('hiradcGanti').checked;
+    [...jsaRows.children].forEach(r => { if (rowIsEmpty(r) || (ganti && rowIsUntouchedGeneric(r))) r.remove(); });
     picked.forEach(it => addJsaRow({
       langkah: it.aktivitas,
       bahaya: it.risiko ? `${it.bahaya}\nRisiko: ${it.risiko}` : it.bahaya,

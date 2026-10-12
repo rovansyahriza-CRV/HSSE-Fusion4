@@ -66,6 +66,12 @@
   .actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .sticky-actions { position: sticky; bottom: 0; background: var(--bg, #F4F6FB); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
   .hidden { display: none !important; }
+  .asal-tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--navy); background: #EEF2FC; border-radius: 999px; padding: 2px 9px; margin-left: 6px; }
+  .usulan-tag { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; margin-left: 6px; }
+  .usulan-tag.menunggu { background: #FDF3E3; color: #8A6100; }
+  .usulan-tag.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .usulan-tag.ditolak { background: #FCEAE8; color: var(--accent, #D13438); }
+  .usulan-box { margin-top: 10px; border: 1.5px dashed var(--navy); border-radius: 10px; padding: 10px; background: #fff; }
   @media (max-width: 640px) { .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; } }
 </style>
 </head>
@@ -118,6 +124,11 @@
         <div id="matrixBox"></div>
       </details>
     </div>
+    <div class="row editable-only" style="margin-top:12px;">
+      <div class="field"><label>Mulai dari contoh generik PTW (opsional)</label><select id="genJenis"><option value="">-- pilih jenis pekerjaan --</option></select></div>
+      <button type="button" class="secondary" onclick="importGeneric()">📥 Isi dari contoh generik</button>
+    </div>
+    <div class="hint editable-only" style="margin-top:4px;">Contoh generik = template JSA per jenis pekerjaan yang dipakai form PTW. Di sini jadi titik awal, lalu sesuaikan dengan kondisi project/area.</div>
     <div id="items" style="margin-top:12px;"></div>
     <button type="button" class="secondary editable-only" onclick="addItem()">➕ Tambah Baris Bahaya</button>
   </div>
@@ -164,7 +175,7 @@ function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCo
 
 document.addEventListener('DOMContentLoaded', async () => {
   $('matrixBox').innerHTML = R.matrixHtml();
-  await Promise.all([loadProjects(), loadDepts()]);
+  await Promise.all([loadProjects(), loadDepts(), loadJenis()]);
   const id = new URLSearchParams(location.search).get('id');
   if (id) await loadDoc(Number(id)); else { addItem(); render(); }
 });
@@ -199,6 +210,26 @@ async function loadDoc(id) {
   $('items').innerHTML = '';
   (doc.items || []).forEach(addItem);
   render();
+}
+
+async function loadJenis() {
+  const { data } = await hsse.rpc('get_jenis_pekerjaan_list');
+  $('genJenis').innerHTML += (data || []).map(j => `<option>${esc(j)}</option>`).join('');
+}
+
+// Template JSA generik PTW (ptwJsaTemplateTbl): pengendalian di template = yang nurunin skor
+// awal ke sisa, jadi masuk ke "pengendalian tambahan". Risiko/dampak dikosongkan buat diisi.
+async function importGeneric() {
+  const jenis = $('genJenis').value;
+  if (!jenis) return setLine('saveStatus', 'Pilih jenis pekerjaan dulu.');
+  const { data, error } = await hsse.rpc('get_ptw_jsa_template', { p_jenis_pekerjaan: jenis });
+  if (error) return setLine('saveStatus', 'Gagal memuat contoh generik: ' + error.message);
+  if (!data || !data.length) return setLine('saveStatus', 'Belum ada contoh generik buat ' + jenis + '.');
+  [...$('items').children].forEach(el => { const it = readItem(el); if (!it.aktivitas && !it.bahaya && !it.risiko) el.remove(); });
+  data.forEach(t => addItem({ aktivitas: t.langkah, bahaya: t.bahaya, pengendalianTambahan: t.pengendalian,
+    likelihoodAwal: t.likelihoodAwal, severityAwal: t.severityAwal, likelihoodSisa: t.likelihoodSisa, severitySisa: t.severitySisa,
+    asalJenisPekerjaan: jenis, asalTemplateId: t.id }));
+  setLine('saveStatus', `${data.length} baris dari contoh generik "${jenis}" ditambahkan. Lengkapi kolom Risiko / Dampak sebelum simpan.`, true);
 }
 
 // ---------- verifikasi ----------
@@ -266,6 +297,7 @@ function render() {
   $('btnRevisi').textContent = doc && doc.adaRevisiTerbuka ? '📝 Buka Revisi yang Sedang Disusun' : '📝 Buat Revisi';
   $('btnHapus').classList.toggle('hidden', !(doc && ed));
   $('btnPdf').classList.toggle('hidden', !doc);
+  document.querySelectorAll('.approved-only').forEach(el => el.classList.toggle('hidden', st !== 'Disetujui'));
   if (doc) $('btnPdf').href = 'hiradc-pdf.html?id=' + doc.id;
   renumber();
 }
@@ -283,9 +315,14 @@ function addItem(p) {
   const div = document.createElement('div');
   div.className = 'item';
   div.dataset.n = n;
+  div.dataset.id = p.id || '';
+  div.dataset.asalJenis = p.asalJenisPekerjaan || '';
+  div.dataset.asalId = p.asalTemplateId || '';
+  const us = p.usulan;
   div.innerHTML = `
     <div class="item-head">
-      <span class="item-no"></span>
+      <span><span class="item-no"></span>${p.asalJenisPekerjaan ? `<span class="asal-tag" title="Diisi dari contoh generik PTW">🔗 Generik: ${esc(p.asalJenisPekerjaan)}</span>` : ''}${us ? `<span class="usulan-tag ${esc(us.status.toLowerCase())}" title="${esc(us.catatan || '')}">Usulan generik: ${esc(us.status)}</span>` : ''}</span>
+      <span class="approved-only hidden">${p.id ? `<button type="button" class="secondary" style="padding:6px 10px;font-size:11.5px;" ${us && us.status === 'Menunggu' ? 'disabled' : ''} onclick="openUsulan(${n})">⬆️ Usulkan jadi generik</button>` : ''}</span>
       <span class="item-tools editable-only">
         <button type="button" class="secondary" onclick="moveItem(${n},-1)" title="Naik">▲</button>
         <button type="button" class="secondary" onclick="moveItem(${n},1)" title="Turun">▼</button>
@@ -369,7 +406,55 @@ function readItem(el) {
   el.querySelectorAll('[data-k]').forEach(f => { o[f.dataset.k] = f.value.trim(); });
   ['likelihoodAwal', 'severityAwal', 'likelihoodSisa', 'severitySisa'].forEach(k => o[k] = Number(o[k]));
   o.hierarki = [...el.querySelectorAll('[data-h]:checked')].map(c => c.dataset.h);
+  o.asalJenisPekerjaan = el.dataset.asalJenis || null;
+  o.asalTemplateId = el.dataset.asalId ? Number(el.dataset.asalId) : null;
   return o;
+}
+
+// ---------- usulan jadi contoh generik PTW (SQL 068) ----------
+function openUsulan(n) {
+  if (!needAktor('bisaSusun')) return;
+  const el = itemEl(n);
+  const old = el.querySelector('.usulan-box');
+  if (old) { old.remove(); return; }
+  const it = readItem(el);
+  const jenisOpts = [...$('genJenis').options].filter(o => o.value).map(o => o.value);
+  const box = document.createElement('div');
+  box.className = 'usulan-box';
+  box.innerHTML = `
+    <div class="phase-title">Usulkan jadi contoh generik JSA PTW</div>
+    <div class="hint" style="margin-bottom:8px;">Usulan dikirim ke PIC HSSE-PTW. Template PTW baru berubah setelah disetujui.</div>
+    <div class="row">
+      <div class="field"><label>Jenis pekerjaan</label><select data-u="jenisPekerjaan">${jenisOpts.map(j => `<option ${j === it.asalJenisPekerjaan ? 'selected' : ''}>${esc(j)}</option>`).join('')}</select></div>
+      <div class="field"><label>Mode</label><select data-u="mode">
+        <option value="Tambah">Tambah baris baru</option>
+        ${it.asalTemplateId ? '<option value="Ganti" selected>Ganti baris generik asalnya</option>' : ''}
+      </select></div>
+    </div>
+    <div class="row"><div class="field"><label>Langkah kerja</label><input data-u="langkah" value="${esc(it.aktivitas)}"></div></div>
+    <div class="row">
+      <div class="field"><label>Bahaya</label><textarea data-u="bahaya">${esc(it.risiko ? it.bahaya + '\nRisiko: ' + it.risiko : it.bahaya)}</textarea></div>
+      <div class="field"><label>Pengendalian</label><textarea data-u="pengendalian">${esc([it.pengendalianExisting, it.pengendalianTambahan].filter(Boolean).join('\n'))}</textarea></div>
+    </div>
+    <div class="row"><div class="field"><label>Alasan (kenapa layak jadi contoh umum)</label><input data-u="alasan"></div></div>
+    <div class="actions" style="margin-top:8px;">
+      <button type="button" onclick="kirimUsulan(${n})">Kirim usulan</button>
+      <button type="button" class="secondary" onclick="openUsulan(${n})">Batal</button>
+    </div>`;
+  el.appendChild(box);
+}
+
+async function kirimUsulan(n) {
+  if (!needAktor('bisaSusun')) return;
+  const el = itemEl(n), it = readItem(el), box = el.querySelector('.usulan-box');
+  const u = {};
+  box.querySelectorAll('[data-u]').forEach(f => u[f.dataset.u] = f.value.trim());
+  Object.assign(u, { likelihoodAwal: it.likelihoodAwal, severityAwal: it.severityAwal,
+                     likelihoodSisa: it.likelihoodSisa, severitySisa: it.severitySisa });
+  const { error } = await hsse.rpc('propose_jsa_template', { ...aktorArgs(), p_hiradc_item_id: Number(el.dataset.id), p_usulan: u });
+  if (error) return setLine('saveStatus', 'Gagal kirim usulan: ' + error.message);
+  await loadDoc(doc.id);
+  setLine('saveStatus', '✅ Usulan terkirim, menunggu keputusan PIC HSSE-PTW.', true);
 }
 
 // ---------- simpan / ajukan / approve ----------
