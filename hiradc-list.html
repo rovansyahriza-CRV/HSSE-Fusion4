@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daftar HIRADC — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hiradcRisk.js"></script>
+<style>
+  .page { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .btn-block {
+    width: 100%; padding: 13px; border: none; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; box-sizing: border-box;
+    background: var(--navy); color: #fff; margin-bottom: 16px;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .tile { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+  .tile .v { font-size: 24px; font-weight: 800; color: var(--navy-dark); }
+  .tile .k { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+  .tile.warn .v { color: var(--accent, #D13438); }
+  .filter-card {
+    background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px;
+    display: grid; grid-template-columns: 2fr 1.5fr 1fr auto; gap: 10px; align-items: flex-end;
+  }
+  .filter-card .field { display: flex; flex-direction: column; gap: 4px; }
+  .filter-card label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .filter-card input, .filter-card select {
+    padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .btn-secondary {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 700;
+    cursor: pointer; color: var(--navy-dark); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .doc-card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .doc-card:hover { border-color: var(--navy); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  .doc-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .doc-no { font-size: 12px; font-family: monospace; color: var(--muted); font-weight: 600; }
+  .doc-title { font-size: 16px; font-weight: 800; color: var(--navy-dark); margin: 3px 0 2px; }
+  .doc-meta { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .status-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.draft { background: #EEF2FC; color: var(--navy); }
+  .status-chip.menunggu-approval { background: #FDF3E3; color: #8A6100; }
+  .status-chip.dikembalikan { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.tidak-berlaku { background: #EEF0F4; color: var(--muted); }
+  .risk-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+  .risk-row .lbl { font-weight: 800; color: var(--muted); margin-right: 4px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-right: 3px; }
+  .risk-rendah { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .risk-sedang { background: #FDF3E3; color: #8A6100; }
+  .risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-ekstrem { background: #FCEAE8; color: var(--accent, #D13438); }
+  .due { color: var(--accent, #D13438); font-weight: 800; }
+  .card-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13.5px; }
+  @media (max-width: 760px) {
+    .filter-card { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .doc-top { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>HIRADC / Risk Register</h1></div></div>
+    <p>Identifikasi bahaya, penilaian risiko, dan pengendalian per project/area. Dokumen yang Disetujui bisa dipakai sebagai sumber JSA di PTW.</p>
+  </div>
+
+  <a href="hiradc-form.html" class="btn-block">➕ Susun HIRADC Baru</a>
+
+  <div class="tiles">
+    <div class="tile"><div class="v" id="tBerlaku">-</div><div class="k">Dokumen berlaku</div></div>
+    <div class="tile"><div class="v" id="tProses">-</div><div class="k">Draft / menunggu approval</div></div>
+    <div class="tile warn"><div class="v" id="tTinggi">-</div><div class="k">Risiko sisa Tinggi/Ekstrem</div></div>
+    <div class="tile warn"><div class="v" id="tDue">-</div><div class="k">Review jatuh tempo (≤30 hari)</div></div>
+  </div>
+
+  <div class="filter-card">
+    <div class="field"><label>Pencarian</label><input id="searchInput" placeholder="No. dokumen, judul, aktivitas, bahaya..."></div>
+    <div class="field"><label>Project</label><select id="projectFilter"><option value="">Semua Project</option></select></div>
+    <div class="field"><label>Status</label>
+      <select id="statusFilter">
+        <option value="">Semua (kecuali tidak berlaku)</option>
+        <option>Draft</option><option>Menunggu Approval</option><option>Dikembalikan</option>
+        <option>Disetujui</option><option>Tidak Berlaku</option>
+      </select>
+    </div>
+    <button type="button" class="btn-secondary" id="refreshBtn" style="padding:10px 16px;">🔄 Muat Ulang</button>
+  </div>
+
+  <div id="list"><div class="empty-state">Memuat HIRADC...</div></div>
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const R = HiradcRisk;
+let rows = [];
+
+function esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('searchInput').addEventListener('input', debounce(load, 300));
+  $('projectFilter').addEventListener('change', load);
+  $('statusFilter').addEventListener('change', load);
+  $('refreshBtn').onclick = load;
+  await Promise.all([loadProjects(), load()]);
+});
+
+async function loadProjects() {
+  const { data } = await db.rpc('get_active_projects');
+  $('projectFilter').innerHTML = '<option value="">Semua Project</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+}
+
+function dueSoon(r) {
+  if (r.status !== 'Disetujui' || !r.tanggalReviewBerikut) return false;
+  const days = (new Date(r.tanggalReviewBerikut + 'T00:00:00') - new Date()) / 86400000;
+  return days <= 30;
+}
+
+async function load() {
+  $('list').innerHTML = '<div class="empty-state">Memuat HIRADC...</div>';
+  const status = $('statusFilter').value;
+  const { data, error } = await db.rpc('get_hiradc_list', {
+    p_project_id: $('projectFilter').value ? Number($('projectFilter').value) : null,
+    p_status: status || null,
+    p_search: $('searchInput').value.trim() || null
+  });
+  if (error) { $('list').innerHTML = `<div class="empty-state">❌ Gagal memuat: ${esc(error.message)}</div>`; return; }
+  rows = (data || []).filter(r => status || r.status !== 'Tidak Berlaku');
+  const berlaku = rows.filter(r => r.status === 'Disetujui');
+  $('tBerlaku').textContent = berlaku.length;
+  $('tProses').textContent = rows.filter(r => ['Draft', 'Menunggu Approval', 'Dikembalikan'].includes(r.status)).length;
+  $('tTinggi').textContent = berlaku.reduce((n, r) => n + (r.sisa.Tinggi || 0) + (r.sisa.Ekstrem || 0), 0);
+  $('tDue').textContent = berlaku.filter(dueSoon).length;
+  render();
+}
+
+function pills(counts) {
+  return R.LEVELS.filter(l => counts[l]).map(l => `<span class="pill risk-${l.toLowerCase()}">${counts[l]} ${l}</span>`).join('') || '-';
+}
+
+function render() {
+  if (!rows.length) { $('list').innerHTML = '<div class="empty-state">Belum ada HIRADC sesuai filter.</div>'; return; }
+  $('list').innerHTML = rows.map(r => `
+    <div class="doc-card">
+      <div class="doc-top">
+        <div>
+          <div class="doc-no">${esc(r.noDokumen)} · Rev. ${r.revisi}</div>
+          <div class="doc-title">${esc(r.judul)}</div>
+          <div class="doc-meta">
+            ${esc(r.kodeOperational ? r.kodeOperational + ' · ' : '')}${esc(r.namaProject)}${r.lokasiArea ? ' · ' + esc(r.lokasiArea) : ''}${r.departemen ? ' · ' + esc(r.departemen) : ''}<br>
+            ${r.jumlahItem} bahaya · disusun ${esc(r.disusunOleh || '-')}
+            ${r.disetujuiOleh ? ` · disetujui ${esc(r.disetujuiOleh)} ${R.tgl(r.tanggalDisetujui)}` : ''}
+            ${r.tanggalReviewBerikut && r.status === 'Disetujui' ? ` · <span class="${dueSoon(r) ? 'due' : ''}">review ${R.tgl(r.tanggalReviewBerikut)}</span>` : ''}
+            ${r.adaRevisiTerbuka ? ' · <b>revisi sedang disusun</b>' : ''}
+          </div>
+        </div>
+        <span class="status-chip ${r.status.toLowerCase().replaceAll(' ', '-')}">${esc(r.status)}</span>
+      </div>
+      <div class="risk-row">
+        <div><span class="lbl">Awal:</span>${pills(r.awal)}</div>
+        <div><span class="lbl">Sisa:</span>${pills(r.sisa)}</div>
+      </div>
+      <div class="card-buttons">
+        <a class="btn-secondary" href="hiradc-form.html?id=${r.id}">${['Draft', 'Dikembalikan'].includes(r.status) ? '✏️ Edit' : r.status === 'Menunggu Approval' ? '🔎 Review / Approve' : '👁️ Buka'}</a>
+        <a class="btn-secondary" href="hiradc-pdf.html?id=${r.id}" target="_blank">🖨️ Cetak PDF</a>
+      </div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>

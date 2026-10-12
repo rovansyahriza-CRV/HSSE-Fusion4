@@ -12,6 +12,7 @@
 <script src="config.js"></script>
 <script src="hsseAccess.js"></script>
 <script src="driveBridge.js"></script>
+<script src="ptwHiradc.js"></script>
 <style>
   .form-group { margin-bottom: 14px; }
   .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
@@ -241,6 +242,7 @@
     <p style="margin-bottom:12px;" id="jsaHint">Uraikan langkah kerja, potensi bahaya di tiap langkah, dan pengendalian risikonya.</p>
     <div id="jsaRows"></div>
     <button type="button" class="btn-add-row" onclick="addJsaRow()">+ Tambah Langkah Kerja</button>
+    <button type="button" class="btn-add-row" onclick="PtwHiradc.open()">📋 Ambil dari HIRADC</button>
   </div>
 
   <div class="card" id="hazardArea">

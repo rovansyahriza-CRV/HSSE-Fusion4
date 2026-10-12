@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form HIRADC — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="hiradcRisk.js"></script>
+<style>
+  .page { max-width: 1080px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; }
+  .status-chip.draft { background: #EEF2FC; color: var(--navy); }
+  .status-chip.menunggu-approval { background: #FDF3E3; color: #8A6100; }
+  .status-chip.dikembalikan { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.tidak-berlaku { background: #EEF0F4; color: var(--muted); }
+  .note-box { background: #FFF8E6; border: 1px solid #F3D48A; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 10px; white-space: pre-wrap; }
+
+  .item { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #FCFDFF; }
+  .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .item-no { font-weight: 800; color: var(--navy-dark); font-size: 13px; }
+  .item-tools button { padding: 6px 10px; font-size: 11.5px; }
+  .item .row + .row { margin-top: 8px; }
+  .phase { border-radius: 10px; padding: 10px; margin-top: 8px; }
+  .phase.awal { background: #F5F7FC; }
+  .phase.sisa { background: #F2FAF5; }
+  .phase-title { font-size: 11px; font-weight: 800; color: var(--navy); text-transform: uppercase; margin-bottom: 6px; }
+  .risk-badge { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .risk-badge.risk-rendah { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .risk-badge.risk-sedang { background: #FDF3E3; color: #8A6100; }
+  .risk-badge.risk-tinggi { background: #FDE9DC; color: #C2540F; }
+  .risk-badge.risk-ekstrem { background: #FCEAE8; color: var(--accent, #D13438); }
+  .hier { display: flex; gap: 6px; flex-wrap: wrap; }
+  .hier label { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--text); display: inline-flex; gap: 4px; align-items: center;
+    border: 1.5px solid var(--border); border-radius: 999px; padding: 4px 10px; background: #fff; cursor: pointer; }
+  .hier input { width: auto; margin: 0; }
+
+  .matrix { border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+  .matrix td, .matrix th { border: 1px solid #fff; width: 44px; height: 30px; text-align: center; font-weight: 800; }
+  .matrix th { background: transparent; color: var(--muted); font-size: 10px; }
+  .m-rendah { background: #CDEFD9; } .m-sedang { background: #FBE7B5; } .m-tinggi { background: #F9CDAE; } .m-ekstrem { background: #F4B1AC; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sticky-actions { position: sticky; bottom: 0; background: var(--bg, #F4F6FB); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) { .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="hiradc-list.html" class="back-to-menu">⬅ Daftar HIRADC</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>HIRADC</h1></div></div>
+    <p>Hazard Identification, Risk Assessment &amp; Determining Control. Penilaian risiko pakai matriks 5x5 yang sama dengan JSA di PTW.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Susun/edit/ajukan butuh PIC <b>HSSE-HRC</b>; setujui/kembalikan butuh Author <b>Approve HIRADC</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Dokumen baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <span class="status-chip draft" id="docStatus">Draft</span>
+    </div>
+    <div id="approvalNote" class="note-box hidden"></div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Project / Kontrak</label><select id="hProject"></select></div>
+      <div class="field wide"><label>Judul / Area / Aktivitas Utama</label><input id="hJudul" placeholder="cth. Hydrotest pipa 8 inch Section A"></div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <div class="field"><label>Lokasi / Area</label><input id="hLokasi"></div>
+      <div class="field"><label>Departemen / Fungsi</label><input id="hDept" list="deptList"><datalist id="deptList"></datalist></div>
+      <div class="field wide"><label>Tim Penyusun</label><input id="hTim" placeholder="Nama-nama tim, pisah koma"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <h2 style="margin:0;">Identifikasi Bahaya &amp; Penilaian Risiko</h2>
+      <details>
+        <summary class="hint" style="cursor:pointer;">Lihat matriks risiko 5x5</summary>
+        <div id="matrixBox"></div>
+      </details>
+    </div>
+    <div id="items" style="margin-top:12px;"></div>
+    <button type="button" class="secondary editable-only" onclick="addItem()">➕ Tambah Baris Bahaya</button>
+  </div>
+
+  <div class="card hidden" id="approveCard">
+    <h2>Approval</h2>
+    <div class="row">
+      <div class="field small"><label>Review Berikutnya</label><input type="date" id="aReview"></div>
+      <div class="field wide"><label>Catatan (wajib kalau dikembalikan)</label><textarea id="aCatatan"></textarea></div>
+    </div>
+    <div class="actions" style="margin-top:10px;">
+      <button type="button" class="ok" onclick="approve(true)">✅ Setujui</button>
+      <button type="button" class="danger" onclick="approve(false)">↩️ Kembalikan</button>
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <div class="actions">
+      <button type="button" class="secondary editable-only" onclick="save(false)">💾 Simpan Draft</button>
+      <button type="button" class="editable-only" onclick="save(true)">📤 Simpan &amp; Ajukan Approval</button>
+      <button type="button" class="secondary hidden" id="btnRevisi" onclick="revise()">📝 Buat Revisi</button>
+      <a class="hidden" id="btnPdf" target="_blank"><button type="button" class="secondary">🖨️ Cetak PDF</button></a>
+      <button type="button" class="danger hidden" id="btnHapus" onclick="hapus()">🗑️ Hapus Draft</button>
+    </div>
+    <div class="status-line" id="saveStatus"></div>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const PIC_TAG = 'HSSE-HRC';
+const APPROVER_TAG = 'Approve HIRADC';
+const R = HiradcRisk;
+const $ = id => document.getElementById(id);
+
+let doc = null;          // detail dari get_hiradc_detail (null = baru)
+let aktor = null;        // { nama, qrCodeId, bisaSusun, bisaApprove }
+let itemSeq = 0;
+
+function esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('matrixBox').innerHTML = R.matrixHtml();
+  await Promise.all([loadProjects(), loadDepts()]);
+  const id = new URLSearchParams(location.search).get('id');
+  if (id) await loadDoc(Number(id)); else { addItem(); render(); }
+});
+
+async function loadProjects() {
+  const { data, error } = await hsse.rpc('get_active_projects');
+  if (error) return setLine('saveStatus', 'Gagal memuat project: ' + error.message);
+  $('hProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}${p.noKontrak ? ' (' + esc(p.noKontrak) + ')' : ''}</option>`).join('');
+}
+
+async function loadDepts() {
+  try {
+    const { data } = await fusion4.rpc('get_departemen_list');
+    $('deptList').innerHTML = (data || []).map(d => `<option value="${esc(d.namaDept || d.NamaDept || d.nama || d)}">`).join('');
+  } catch (e) { /* opsional */ }
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_hiradc_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'HIRADC tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'hiradc-form.html?id=' + doc.id);
+  if (!$('hProject').querySelector(`option[value="${doc.projectId}"]`)) {
+    $('hProject').insertAdjacentHTML('beforeend', `<option value="${doc.projectId}">${esc(doc.namaProject)}</option>`);
+  }
+  $('hProject').value = doc.projectId;
+  $('hJudul').value = doc.judul || '';
+  $('hLokasi').value = doc.lokasiArea || '';
+  $('hDept').value = doc.departemen || '';
+  $('hTim').value = doc.timPenyusun || '';
+  $('items').innerHTML = '';
+  (doc.items || []).forEach(addItem);
+  render();
+}
+
+// ---------- verifikasi ----------
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    let person = null;
+    if (qr) {
+      const { data, error } = await fusion4.rpc('get_person_face_data', { p_qrcode: qr.toUpperCase() });
+      if (error) throw error;
+      if (data && data.status !== 'NOT_FOUND') person = data.person || null;
+    } else {
+      const { data, error } = await fusion4.rpc('get_all_face_data');
+      if (error) throw error;
+      person = (data || []).find(x => String(x.digitalPin || '').trim() === pin) || null;
+    }
+    if (!person) return setLine('gateStatus', 'Identitas tidak ditemukan.');
+    const nama = person.nama || person.NamaPersonnel || 'Tanpa nama';
+    const bisaSusun = HSSEAccess.allows(person, PIC_TAG);
+    const bisaApprove = HSSEAccess.allows(person, APPROVER_TAG);
+    if (!bisaSusun && !bisaApprove) {
+      aktor = null; render();
+      return setLine('gateStatus', `${nama} belum punya ${HSSEAccess.label(PIC_TAG)} atau ${HSSEAccess.label(APPROVER_TAG)}.`);
+    }
+    aktor = { nama, qrCodeId: person.qrCodeId || qr.toUpperCase(), bisaSusun, bisaApprove };
+    const peran = [bisaSusun && 'susun/edit', bisaApprove && 'approve'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${nama} (${peran}).`, true);
+    render();
+  } catch (e) { setLine('gateStatus', 'Gagal verifikasi: ' + e.message); }
+}
+
+// ---------- tampilan sesuai status & peran ----------
+function editable() {
+  const st = doc ? doc.status : 'Draft';
+  return ['Draft', 'Dikembalikan'].includes(st) && (!aktor || aktor.bisaSusun);
+}
+
+function render() {
+  const st = doc ? doc.status : 'Draft';
+  $('docNo').textContent = doc ? `${doc.noDokumen} · Rev. ${doc.revisi}` : 'Dokumen baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    doc.disusunOleh && `Disusun: ${doc.disusunOleh}`,
+    doc.diajukanOleh && `Diajukan: ${doc.diajukanOleh} ${R.tgl(doc.tanggalDiajukan)}`,
+    doc.disetujuiOleh && `Disetujui: ${doc.disetujuiOleh} ${R.tgl(doc.tanggalDisetujui)}`,
+    doc.tanggalReviewBerikut && `Review berikut: ${R.tgl(doc.tanggalReviewBerikut)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docStatus').textContent = st;
+  $('docStatus').className = 'status-chip ' + st.toLowerCase().replaceAll(' ', '-');
+  const note = doc && doc.catatanApproval;
+  $('approvalNote').classList.toggle('hidden', !note);
+  if (note) $('approvalNote').textContent = (st === 'Dikembalikan' ? '↩️ Dikembalikan: ' : '📝 Catatan approval: ') + note;
+
+  const ed = editable();
+  document.querySelectorAll('#items input, #items select, #items textarea, #hJudul, #hLokasi, #hDept, #hTim')
+    .forEach(el => el.disabled = !ed);
+  $('hProject').disabled = !ed || !!doc;
+  document.querySelectorAll('.editable-only').forEach(el => el.classList.toggle('hidden', !ed));
+  $('approveCard').classList.toggle('hidden', !(st === 'Menunggu Approval' && aktor && aktor.bisaApprove));
+  if (!$('aReview').value) {
+    const d = new Date(); d.setFullYear(d.getFullYear() + 1);
+    $('aReview').value = d.toISOString().slice(0, 10);
+  }
+  $('btnRevisi').classList.toggle('hidden', !(st === 'Disetujui' && (!aktor || aktor.bisaSusun)));
+  $('btnRevisi').textContent = doc && doc.adaRevisiTerbuka ? '📝 Buka Revisi yang Sedang Disusun' : '📝 Buat Revisi';
+  $('btnHapus').classList.toggle('hidden', !(doc && ed));
+  $('btnPdf').classList.toggle('hidden', !doc);
+  if (doc) $('btnPdf').href = 'hiradc-pdf.html?id=' + doc.id;
+  renumber();
+}
+
+// ---------- baris bahaya ----------
+function opts(list, sel) { return list.map(v => `<option ${v === sel ? 'selected' : ''}>${esc(v)}</option>`).join(''); }
+function riskOpts(labels, sel) {
+  return Object.keys(labels).map(k => `<option value="${k}" ${Number(sel) === Number(k) ? 'selected' : ''}>${k} - ${labels[k]}</option>`).join('');
+}
+
+function addItem(p) {
+  p = p || {};
+  const n = itemSeq++;
+  const hier = p.hierarki || [];
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.dataset.n = n;
+  div.innerHTML = `
+    <div class="item-head">
+      <span class="item-no"></span>
+      <span class="item-tools editable-only">
+        <button type="button" class="secondary" onclick="moveItem(${n},-1)" title="Naik">▲</button>
+        <button type="button" class="secondary" onclick="moveItem(${n},1)" title="Turun">▼</button>
+        <button type="button" class="secondary" onclick="copyItem(${n})" title="Duplikat">⧉</button>
+        <button type="button" class="danger" onclick="removeItem(${n})" title="Hapus">✕</button>
+      </span>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Aktivitas / Tahapan Kerja</label><input data-k="aktivitas" value="${esc(p.aktivitas)}"></div>
+      <div class="field small"><label>Kondisi</label><select data-k="kondisi">${opts(R.KONDISI, p.kondisi || 'Rutin')}</select></div>
+      <div class="field small"><label>Kategori</label><select data-k="kategori">${opts(R.KATEGORI, p.kategori || 'Keselamatan')}</select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Bahaya</label><textarea data-k="bahaya">${esc(p.bahaya)}</textarea></div>
+      <div class="field"><label>Risiko / Dampak</label><textarea data-k="risiko">${esc(p.risiko)}</textarea></div>
+    </div>
+    <div class="phase awal">
+      <div class="phase-title">Risiko awal (sebelum pengendalian tambahan)</div>
+      <div class="row">
+        <div class="field"><label>Kemungkinan (L)</label><select data-k="likelihoodAwal" onchange="badge(${n})">${riskOpts(R.LIKELIHOOD, p.likelihoodAwal || 1)}</select></div>
+        <div class="field"><label>Keparahan (S)</label><select data-k="severityAwal" onchange="badge(${n})">${riskOpts(R.SEVERITY, p.severityAwal || 1)}</select></div>
+        <div class="field small" style="justify-content:flex-end;"><span class="risk-badge" data-badge="awal"></span></div>
+      </div>
+      <div class="row"><div class="field"><label>Pengendalian yang sudah ada</label><textarea data-k="pengendalianExisting">${esc(p.pengendalianExisting)}</textarea></div></div>
+    </div>
+    <div class="phase sisa">
+      <div class="phase-title">Pengendalian tambahan &amp; risiko sisa</div>
+      <div class="row"><div class="field"><label>Hierarki pengendalian</label>
+        <div class="hier">${R.HIERARKI.map(h => `<label><input type="checkbox" data-h="${esc(h)}" ${hier.includes(h) ? 'checked' : ''}> ${esc(h)}</label>`).join('')}</div>
+      </div></div>
+      <div class="row"><div class="field"><label>Pengendalian tambahan (wajib kalau risiko sisa Tinggi/Ekstrem)</label><textarea data-k="pengendalianTambahan">${esc(p.pengendalianTambahan)}</textarea></div></div>
+      <div class="row">
+        <div class="field"><label>Kemungkinan sisa (L)</label><select data-k="likelihoodSisa" onchange="badge(${n})">${riskOpts(R.LIKELIHOOD, p.likelihoodSisa || 1)}</select></div>
+        <div class="field"><label>Keparahan sisa (S)</label><select data-k="severitySisa" onchange="badge(${n})">${riskOpts(R.SEVERITY, p.severitySisa || 1)}</select></div>
+        <div class="field small" style="justify-content:flex-end;"><span class="risk-badge" data-badge="sisa"></span></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>PIC tindak lanjut</label><input data-k="picTindakLanjut" value="${esc(p.picTindakLanjut)}"></div>
+        <div class="field small"><label>Target selesai</label><input type="date" data-k="targetSelesai" value="${esc(p.targetSelesai)}"></div>
+        <div class="field"><label>Peraturan / standar terkait</label><input data-k="peraturan" value="${esc(p.peraturan)}" placeholder="cth. Permenaker 8/2020"></div>
+      </div>
+    </div>`;
+  $('items').appendChild(div);
+  badge(n);
+  renumber();
+  return div;
+}
+
+function itemEl(n) { return $('items').querySelector(`.item[data-n="${n}"]`); }
+function badge(n) {
+  const el = itemEl(n);
+  ['awal', 'sisa'].forEach(ph => {
+    const l = el.querySelector(`[data-k="likelihood${ph === 'awal' ? 'Awal' : 'Sisa'}"]`).value;
+    const s = el.querySelector(`[data-k="severity${ph === 'awal' ? 'Awal' : 'Sisa'}"]`).value;
+    const r = R.level(l, s);
+    const b = el.querySelector(`[data-badge="${ph}"]`);
+    b.textContent = `${r.label} (${l}x${s}=${l * s})`;
+    b.className = 'risk-badge ' + r.cls;
+  });
+}
+function renumber() { [...$('items').children].forEach((el, i) => el.querySelector('.item-no').textContent = `Bahaya #${i + 1}`); }
+function removeItem(n) {
+  if ($('items').children.length <= 1) return alert('Minimal 1 baris bahaya.');
+  if (confirm('Hapus baris ini?')) { itemEl(n).remove(); renumber(); }
+}
+function moveItem(n, dir) {
+  const el = itemEl(n);
+  const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+  if (!sib) return;
+  dir < 0 ? $('items').insertBefore(el, sib) : $('items').insertBefore(sib, el);
+  renumber();
+}
+function copyItem(n) {
+  const data = readItem(itemEl(n));
+  const div = addItem(data);
+  $('items').insertBefore(div, itemEl(n).nextElementSibling);
+  renumber();
+}
+function readItem(el) {
+  const o = {};
+  el.querySelectorAll('[data-k]').forEach(f => { o[f.dataset.k] = f.value.trim(); });
+  ['likelihoodAwal', 'severityAwal', 'likelihoodSisa', 'severitySisa'].forEach(k => o[k] = Number(o[k]));
+  o.hierarki = [...el.querySelectorAll('[data-h]:checked')].map(c => c.dataset.h);
+  return o;
+}
+
+// ---------- simpan / ajukan / approve ----------
+function needAktor(bisa) {
+  if (aktor && aktor[bisa]) return true;
+  alert('Verifikasi dulu di kotak "Verifikasi" di atas (' +
+    (bisa === 'bisaApprove' ? HSSEAccess.label(APPROVER_TAG) : HSSEAccess.label(PIC_TAG)) + ').');
+  $('gateCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return false;
+}
+
+function validate(items) {
+  if (!doc && !$('hProject').value) return 'Pilih project dulu.';
+  if (!$('hJudul').value.trim()) return 'Judul / area wajib diisi.';
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.aktivitas || !it.bahaya || !it.risiko) return `Bahaya #${i + 1}: aktivitas, bahaya, dan risiko wajib diisi.`;
+    if (it.likelihoodSisa * it.severitySisa >= 10 && !it.pengendalianTambahan)
+      return `Bahaya #${i + 1}: risiko sisa masih Tinggi/Ekstrem, isi pengendalian tambahan.`;
+  }
+  return null;
+}
+
+async function save(ajukan) {
+  if (!needAktor('bisaSusun')) return;
+  const items = [...$('items').children].map(readItem);
+  const err = validate(items);
+  if (err) return setLine('saveStatus', err);
+  const naik = items.filter(it => it.likelihoodSisa * it.severitySisa > it.likelihoodAwal * it.severityAwal).length;
+  if (naik && !confirm(`${naik} baris punya risiko sisa lebih tinggi dari risiko awal. Tetap simpan?`)) return;
+  setLine('saveStatus', 'Menyimpan...', true);
+  try {
+    const header = { projectId: Number($('hProject').value), judul: $('hJudul').value, lokasiArea: $('hLokasi').value,
+                     departemen: $('hDept').value, timPenyusun: $('hTim').value };
+    let { data, error } = await hsse.rpc('save_hiradc', { ...aktorArgs(), p_id: doc ? doc.id : null, p_header: header, p_items: items });
+    if (error) throw error;
+    if (ajukan) {
+      ({ data, error } = await hsse.rpc('submit_hiradc', { ...aktorArgs(), p_id: data.id }));
+      if (error) throw error;
+    }
+    await loadDoc(data.id);
+    setLine('saveStatus', ajukan ? '✅ Tersimpan & diajukan, menunggu approval.' : '✅ Draft tersimpan.', true);
+  } catch (e) { setLine('saveStatus', 'Gagal: ' + e.message); }
+}
+
+async function approve(setuju) {
+  if (!needAktor('bisaApprove')) return;
+  const catatan = $('aCatatan').value.trim();
+  if (!setuju && !catatan) return setLine('saveStatus', 'Tulis alasan kenapa dikembalikan.');
+  if (!confirm(setuju ? 'Setujui HIRADC ini?' : 'Kembalikan HIRADC ini ke penyusun?')) return;
+  try {
+    const { error } = await hsse.rpc('approve_hiradc', { ...aktorArgs(), p_id: doc.id, p_setuju: setuju,
+      p_catatan: catatan || null, p_tanggal_review_berikut: setuju ? ($('aReview').value || null) : null });
+    if (error) throw error;
+    await loadDoc(doc.id);
+    setLine('saveStatus', setuju ? '✅ Disetujui.' : '↩️ Dikembalikan ke penyusun.', true);
+  } catch (e) { setLine('saveStatus', 'Gagal: ' + e.message); }
+}
+
+async function revise() {
+  if (!needAktor('bisaSusun')) return;
+  try {
+    const { data, error } = await hsse.rpc('revise_hiradc', { ...aktorArgs(), p_id: doc.id });
+    if (error) throw error;
+    await loadDoc(data.id);
+    setLine('saveStatus', `📝 Revisi ${data.revisi} siap diedit. Versi lama tetap berlaku sampai revisi ini disetujui.`, true);
+  } catch (e) { setLine('saveStatus', 'Gagal: ' + e.message); }
+}
+
+async function hapus() {
+  if (!needAktor('bisaSusun')) return;
+  if (!confirm('Hapus draft HIRADC ini? Tidak bisa dibatalkan.')) return;
+  const { error } = await hsse.rpc('delete_hiradc', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('saveStatus', 'Gagal: ' + error.message);
+  location.href = 'hiradc-list.html';
+}
+</script>
+</body>
+</html>
