@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drill &amp; ERP — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="drillCommon.js"></script>
+<style>
+  .page { max-width: 960px; margin: 0 auto; padding: 20px; }
+  .top-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .btn-main {
+    flex: 1; min-width: 200px; padding: 13px; border: none; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; box-sizing: border-box;
+    background: var(--navy); color: #fff;
+  }
+  .btn-main.alt { background: #E8ECF8; color: var(--navy-dark); }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .tile { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+  .tile .v { font-size: 24px; font-weight: 800; color: var(--navy-dark); }
+  .tile .k { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+  .tile.warn .v { color: var(--accent, #D13438); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface, #fff); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--text); }
+  .tab.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .tab .n { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--accent, #D13438); color: #fff; font-size: 11px; }
+  .filter-card {
+    background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px;
+    display: grid; grid-template-columns: 1.6fr 1fr 1fr 0.8fr auto; gap: 10px; align-items: flex-end;
+  }
+  .filter-card .field { display: flex; flex-direction: column; gap: 4px; }
+  .filter-card label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .filter-card select, .filter-card input {
+    padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .btn-secondary {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 700;
+    cursor: pointer; color: var(--navy-dark); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .doc-card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .doc-card:hover { border-color: var(--navy); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  .doc-card.late { border-left: 4px solid var(--accent, #D13438); }
+  .doc-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .doc-no { font-size: 12px; font-family: monospace; color: var(--muted); font-weight: 600; }
+  .doc-title { font-size: 16px; font-weight: 800; color: var(--navy-dark); margin: 3px 0 2px; }
+  .doc-meta { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .jenis-chip { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: #EEF2FC; color: var(--navy); margin-right: 6px; }
+  .status-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.direncanakan { background: #EEF2FC; color: var(--navy); }
+  .status-chip.berlangsung { background: #E6F4FF; color: #0B5CAD; }
+  .status-chip.menunggu-approval { background: #FDF3E3; color: #8A6100; }
+  .status-chip.dikembalikan { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.dibatalkan { background: #EEF0F4; color: var(--muted); }
+  .status-chip.open { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.closed { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .kpi-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+  .kpi-row b { color: var(--navy-dark); }
+  .warn-text { color: var(--accent, #D13438); font-weight: 800; }
+  .card-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13.5px; }
+  .hidden { display: none !important; }
+  @media (max-width: 760px) {
+    .filter-card { grid-template-columns: 1fr 1fr; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .doc-top { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="index.html" class="back-to-menu">⬅ Menu Utama</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Drill &amp; Emergency Response Plan</h1></div></div>
+    <p>Jadwal dan laporan drill tanggap darurat (fire, muster, medical, spill, gas), temuan &amp; tindak lanjut, serta review Emergency Response Plan. Laporan yang disetujui otomatis masuk realisasi HSE Program.</p>
+  </div>
+
+  <div class="top-actions">
+    <a href="drill-form.html" class="btn-main">➕ Jadwalkan Drill</a>
+    <a href="erp-review-form.html" class="btn-main alt">📘 Catat Review ERP</a>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="v" id="tRencana">-</div><div class="k">Drill dijadwalkan</div></div>
+    <div class="tile"><div class="v" id="tSelesai">-</div><div class="k">Drill disetujui (tahun ini)</div></div>
+    <div class="tile warn"><div class="v" id="tApproval">-</div><div class="k">Menunggu approval</div></div>
+    <div class="tile warn"><div class="v" id="tTemuan">-</div><div class="k">Temuan open</div></div>
+  </div>
+
+  <div class="tabs">
+    <button type="button" class="tab active" data-tab="drill">🚨 Drill</button>
+    <button type="button" class="tab" data-tab="temuan">🛠️ Temuan &amp; Tindak Lanjut <span class="n hidden" id="nTemuan"></span></button>
+    <button type="button" class="tab" data-tab="erp">📘 Review ERP <span class="n hidden" id="nErp"></span></button>
+  </div>
+
+  <div class="filter-card">
+    <div class="field"><label>Project</label><select id="fProject"><option value="">Semua Project</option></select></div>
+    <div class="field" data-for="drill"><label>Jenis</label><select id="fJenis"><option value="">Semua jenis</option></select></div>
+    <div class="field" data-for="drill"><label>Status</label>
+      <select id="fStatus">
+        <option value="">Semua status</option>
+        <option>Direncanakan</option><option>Berlangsung</option><option>Menunggu Approval</option>
+        <option>Dikembalikan</option><option>Disetujui</option><option>Dibatalkan</option>
+      </select>
+    </div>
+    <div class="field" data-for="temuan"><label>Status temuan</label>
+      <select id="fTemuanStatus"><option value="Open">Open</option><option value="Closed">Closed</option><option value="">Semua</option></select>
+    </div>
+    <div class="field" data-for="drill erp"><label>Tahun</label><select id="fTahun"></select></div>
+    <button type="button" class="btn-secondary" id="btnRefresh" style="padding:10px 16px;">🔄 Muat Ulang</button>
+  </div>
+
+  <div id="list"><div class="empty-state">Memuat...</div></div>
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const D = DrillCommon, esc = D.esc;
+const $ = id => document.getElementById(id);
+let tab = 'drill';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const y = new Date().getFullYear();
+  $('fTahun').innerHTML = '<option value="">Semua tahun</option>' + [y + 1, y, y - 1, y - 2].map(t => `<option ${t === y ? 'selected' : ''}>${t}</option>`).join('');
+  $('fJenis').innerHTML += D.JENIS.map(j => `<option>${esc(j)}</option>`).join('');
+  const qTab = new URLSearchParams(location.search).get('tab');
+  if (['drill', 'temuan', 'erp'].includes(qTab)) tab = qTab;
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { tab = b.dataset.tab; load(); });
+  ['fProject', 'fJenis', 'fStatus', 'fTemuanStatus', 'fTahun'].forEach(id => $(id).addEventListener('change', load));
+  $('fProject').addEventListener('change', loadTiles);
+  $('btnRefresh').onclick = load;
+  await loadProjects();
+  await Promise.all([load(), loadTiles()]);
+});
+
+async function loadProjects() {
+  const { data } = await db.rpc('get_active_projects');
+  $('fProject').innerHTML = '<option value="">Semua Project</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+}
+
+function projectId() { return $('fProject').value ? Number($('fProject').value) : null; }
+function tahun() { return $('fTahun').value ? Number($('fTahun').value) : null; }
+
+async function loadTiles() {
+  const y = new Date().getFullYear();
+  const [all, temuan, erp] = await Promise.all([
+    db.rpc('get_drill_list', { p_project_id: projectId(), p_tahun: null, p_status: null, p_jenis: null }),
+    db.rpc('get_drill_temuan_list', { p_project_id: projectId(), p_status: 'Open' }),
+    db.rpc('get_erp_review_list', { p_project_id: projectId(), p_tahun: null })
+  ]);
+  const rows = all.data || [];
+  $('tRencana').textContent = rows.filter(r => r.status === 'Direncanakan').length;
+  $('tSelesai').textContent = rows.filter(r => r.status === 'Disetujui' && new Date(r.tanggalMulai).getFullYear() === y).length;
+  const erpRows = erp.data || [];
+  const erpWait = erpRows.filter(r => r.status === 'Menunggu Approval').length;
+  $('tApproval').textContent = rows.filter(r => r.status === 'Menunggu Approval').length + erpWait;
+  const nTemuan = (temuan.data || []).length;
+  $('tTemuan').textContent = nTemuan;
+  $('nTemuan').textContent = nTemuan; $('nTemuan').classList.toggle('hidden', !nTemuan);
+  const nErp = erpRows.filter(r => r.status !== 'Disetujui' || (r.terbaru && erpDue(r))).length;
+  $('nErp').textContent = nErp; $('nErp').classList.toggle('hidden', !nErp);
+}
+
+function erpDue(r) {
+  if (r.status !== 'Disetujui' || !r.terbaru || !r.tanggalReviewBerikut) return false;
+  return (new Date(r.tanggalReviewBerikut + 'T00:00:00') - new Date()) / 86400000 <= 30;
+}
+
+function telat(r) {
+  return r.status === 'Direncanakan' && new Date(r.tanggalRencana) < new Date(Date.now() - 86400000);
+}
+
+async function load() {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.filter-card [data-for]').forEach(el => el.classList.toggle('hidden', !el.dataset.for.split(' ').includes(tab)));
+  history.replaceState(null, '', 'drill-list.html' + (tab === 'drill' ? '' : '?tab=' + tab));
+  $('list').innerHTML = '<div class="empty-state">Memuat...</div>';
+  if (tab === 'drill') return loadDrill();
+  if (tab === 'temuan') return loadTemuan();
+  return loadErp();
+}
+
+async function loadDrill() {
+  const { data, error } = await db.rpc('get_drill_list', {
+    p_project_id: projectId(), p_tahun: tahun(), p_status: $('fStatus').value || null, p_jenis: $('fJenis').value || null
+  });
+  if (error) return $('list').innerHTML = `<div class="empty-state">❌ Gagal memuat: ${esc(error.message)}</div>`;
+  const rows = data || [];
+  if (!rows.length) return $('list').innerHTML = '<div class="empty-state">Belum ada drill sesuai filter.</div>';
+  $('list').innerHTML = rows.map(r => {
+    const persen = D.hadirPersen(r);
+    const done = ['Menunggu Approval', 'Dikembalikan', 'Disetujui'].includes(r.status);
+    return `
+    <div class="doc-card ${telat(r) ? 'late' : ''}">
+      <div class="doc-top">
+        <div>
+          <div class="doc-no">${esc(r.noDrill)}</div>
+          <div class="doc-title"><span class="jenis-chip">${esc(r.jenisDrill)}</span>${esc(r.judul)}</div>
+          <div class="doc-meta">
+            ${esc(r.kodeOperational ? r.kodeOperational + ' · ' : '')}${esc(r.namaProject)}${r.lokasiArea ? ' · ' + esc(r.lokasiArea) : ''}<br>
+            ${r.tanggalMulai ? 'Dilaksanakan ' + D.tglJam(r.tanggalMulai) : 'Rencana ' + D.tglJam(r.tanggalRencana)}
+            ${!r.diumumkan ? ' · <b>tanpa pemberitahuan</b>' : ''}
+            ${telat(r) ? ' · <span class="warn-text">lewat jadwal, belum dilaksanakan</span>' : ''}
+            ${r.status === 'Dibatalkan' && r.alasanBatal ? ' · batal: ' + esc(r.alasanBatal) : ''}
+            ${r.disetujuiOleh && r.status === 'Disetujui' ? ` · disetujui ${esc(r.disetujuiOleh)} ${D.tgl(r.tanggalDisetujui)}` : ''}
+          </div>
+        </div>
+        <span class="status-chip ${D.statusCls(r.status)}">${esc(r.status)}</span>
+      </div>
+      ${done || r.status === 'Berlangsung' ? `<div class="kpi-row">
+        <div>Hadir: <b>${r.jumlahHadir}</b>${r.jumlahOrangDiArea ? ` / ${r.jumlahOrangDiArea} (${persen}%)` : ''}</div>
+        ${r.waktuResponMenit !== null && r.waktuResponMenit !== undefined ? `<div>Waktu respon: <b>${r.waktuResponMenit} menit</b></div>` : ''}
+        ${r.temuanTotal ? `<div>Temuan: <b>${r.temuanOpen}</b> open / ${r.temuanTotal}</div>` : ''}
+      </div>` : ''}
+      <div class="card-buttons">
+        <a class="btn-secondary" href="drill-form.html?id=${r.id}">${
+          r.status === 'Direncanakan' ? '▶️ Buka / Mulai' : r.status === 'Berlangsung' ? '📋 Absen &amp; Laporan' :
+          r.status === 'Menunggu Approval' ? '🔎 Review / Approve' : r.status === 'Dikembalikan' ? '✏️ Perbaiki Laporan' : '👁️ Buka'}</a>
+        ${done ? `<a class="btn-secondary" href="drill-pdf.html?id=${r.id}" target="_blank">🖨️ Cetak Laporan</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadTemuan() {
+  const { data, error } = await db.rpc('get_drill_temuan_list', { p_project_id: projectId(), p_status: $('fTemuanStatus').value || null });
+  if (error) return $('list').innerHTML = `<div class="empty-state">❌ Gagal memuat: ${esc(error.message)}</div>`;
+  const rows = data || [];
+  if (!rows.length) return $('list').innerHTML = '<div class="empty-state">Tidak ada temuan sesuai filter.</div>';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  $('list').innerHTML = rows.map(t => {
+    const lewat = t.status === 'Open' && t.targetSelesai && new Date(t.targetSelesai + 'T00:00:00') < today;
+    return `
+    <div class="doc-card ${lewat ? 'late' : ''}">
+      <div class="doc-top">
+        <div>
+          <div class="doc-no">${esc(t.noDrill)} · ${esc(t.jenisDrill)} · ${D.tgl(t.tanggalDrill)}</div>
+          <div class="doc-title" style="font-size:14.5px;">${esc(t.temuan)}</div>
+          <div class="doc-meta">
+            ${t.rekomendasi ? 'Rekomendasi: ' + esc(t.rekomendasi) + '<br>' : ''}
+            ${esc(t.namaProject)} · PIC: ${esc(t.picTindakLanjut || '-')} · target ${D.tgl(t.targetSelesai)}
+            ${lewat ? ' · <span class="warn-text">lewat target</span>' : ''}
+            ${t.status === 'Closed' ? `<br>Ditutup ${esc(t.ditutupOleh || '')} ${D.tgl(t.tanggalDitutup)}: ${esc(t.catatanPenutupan || '')}` : ''}
+          </div>
+        </div>
+        <span class="status-chip ${D.statusCls(t.status)}">${esc(t.status)}</span>
+      </div>
+      <div class="card-buttons"><a class="btn-secondary" href="drill-form.html?id=${t.drillId}#temuan">${t.status === 'Open' ? '✅ Tutup di laporan drill' : '👁️ Buka drill'}</a></div>
+    </div>`;
+  }).join('');
+}
+
+async function loadErp() {
+  const { data, error } = await db.rpc('get_erp_review_list', { p_project_id: projectId(), p_tahun: tahun() });
+  if (error) return $('list').innerHTML = `<div class="empty-state">❌ Gagal memuat: ${esc(error.message)}</div>`;
+  const rows = data || [];
+  if (!rows.length) return $('list').innerHTML = '<div class="empty-state">Belum ada review ERP sesuai filter.</div>';
+  $('list').innerHTML = rows.map(r => `
+    <div class="doc-card ${erpDue(r) ? 'late' : ''}">
+      <div class="doc-top">
+        <div>
+          <div class="doc-no">${esc(r.noDokumenErp)}${r.revisiErp ? ' · Rev. ' + esc(r.revisiErp) : ''}</div>
+          <div class="doc-title">${esc(r.judulErp || 'Emergency Response Plan')} — ${esc(r.hasil)}</div>
+          <div class="doc-meta">
+            ${esc(r.kodeOperational ? r.kodeOperational + ' · ' : '')}${esc(r.namaProject)} · review ${esc(r.jenisReview)} ${D.tgl(r.tanggalReview)}
+            ${r.noDrill ? ' · terkait ' + esc(r.noDrill) : ''}<br>
+            Dicatat ${esc(r.dicatatOleh || '-')}${r.disetujuiOleh && r.status === 'Disetujui' ? ` · disetujui ${esc(r.disetujuiOleh)} ${D.tgl(r.tanggalDisetujui)}` : ''}
+            ${r.status === 'Disetujui' && r.terbaru ? ` · <span class="${erpDue(r) ? 'warn-text' : ''}">review berikutnya ${D.tgl(r.tanggalReviewBerikut)}</span>` : ''}
+          </div>
+        </div>
+        <span class="status-chip ${D.statusCls(r.status)}">${esc(r.status)}</span>
+      </div>
+      <div class="card-buttons">
+        <a class="btn-secondary" href="erp-review-form.html?id=${r.id}">${r.status === 'Menunggu Approval' ? '🔎 Review / Approve' : r.status === 'Dikembalikan' ? '✏️ Perbaiki' : '👁️ Buka'}</a>
+        ${r.linkDokumen ? `<a class="btn-secondary" href="${esc(r.linkDokumen)}" target="_blank" rel="noopener">📄 Dokumen ERP</a>` : ''}
+      </div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>

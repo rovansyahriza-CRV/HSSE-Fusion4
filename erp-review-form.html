@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review ERP — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="drillCommon.js"></script>
+<style>
+  .page { max-width: 860px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 70px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; background: #EEF2FC; color: var(--navy); }
+  .status-chip.menunggu-approval { background: #FDF3E3; color: #8A6100; }
+  .status-chip.dikembalikan { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.disetujui { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .note-box { background: #FFF8E6; border: 1px solid #F3D48A; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 10px; white-space: pre-wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) { .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="drill-list.html?tab=erp" class="back-to-menu">⬅ Daftar Review ERP</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Review Emergency Response Plan</h1></div></div>
+    <p>Catat setiap review dokumen ERP (tahunan, pasca drill, pasca insiden, atau perubahan operasi). Review yang disetujui masuk realisasi HSE Program.</p>
+  </div>
+
+  <div class="card">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Catat/ubah butuh PIC <b>HSSE-DRL</b>; setujui/kembalikan butuh Author <b>Approve Drill</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <div><b id="docTitle">Review baru</b><div class="hint" id="docMeta"></div></div>
+      <span class="status-chip" id="docStatus">Baru</span>
+    </div>
+    <div id="approvalNote" class="note-box hidden"></div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Project / Kontrak</label><select id="fProject" class="ed" onchange="loadDrills()"></select></div>
+      <div class="field"><label>Tanggal Review</label><input type="date" id="fTanggal" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>No. Dokumen ERP</label><input id="fNo" class="ed" placeholder="cth. BIMA-ERP-014-01"></div>
+      <div class="field small"><label>Revisi</label><input id="fRev" class="ed" placeholder="cth. 02"></div>
+      <div class="field wide"><label>Judul Dokumen</label><input id="fJudul" class="ed" placeholder="Emergency Response Plan Project ..."></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Jenis Review</label><select id="fJenis" class="ed"></select></div>
+      <div class="field wide"><label>Drill terkait (opsional)</label><select id="fDrill" class="ed"><option value="">-- tidak terkait drill --</option></select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Tim Reviewer</label><input id="fTim" class="ed" placeholder="Nama-nama reviewer, pisah koma"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Hasil Review</label>
+        <select id="fHasil" class="ed"><option value="">-- pilih --</option><option>Masih Sesuai</option><option>Perlu Revisi</option></select>
+      </div>
+      <div class="field"><label>Review Berikutnya</label><input type="date" id="fNext" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Ringkasan perubahan (wajib kalau Perlu Revisi)</label><textarea id="fRingkasan" class="ed" placeholder="cth. update nomor kontak darurat klinik, muster point 2 dipindah, tambah skenario H2S"></textarea></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Tindak lanjut</label><textarea id="fTindak" class="ed"></textarea></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Link dokumen ERP (Google Drive)</label><input id="fLink" class="ed" placeholder="https://drive.google.com/..."></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="ed-only" onclick="save()">📤 Simpan &amp; Ajukan Approval</button>
+      <button type="button" class="danger hidden" id="btnHapus" onclick="hapus()">🗑️ Hapus</button>
+      <a id="btnLink" class="hidden" target="_blank" rel="noopener"><button type="button" class="secondary">📄 Buka Dokumen ERP</button></a>
+    </div>
+    <div class="status-line" id="saveStatus"></div>
+  </div>
+
+  <div class="card hidden" id="approveCard">
+    <h2>Approval</h2>
+    <div class="field"><label>Catatan (wajib kalau dikembalikan)</label><textarea id="aCatatan"></textarea></div>
+    <div class="actions">
+      <button type="button" class="ok" onclick="approve(true)">✅ Setujui</button>
+      <button type="button" class="danger" onclick="approve(false)">↩️ Kembalikan</button>
+    </div>
+    <div class="status-line" id="approveStatus"></div>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const D = DrillCommon, esc = D.esc;
+const $ = id => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+let doc = null, aktor = null;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('fJenis').innerHTML = D.JENIS_REVIEW.map(j => `<option>${esc(j)}</option>`).join('');
+  const now = new Date();
+  $('fTanggal').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  $('fTanggal').addEventListener('change', () => { if (!doc) $('fNext').value = plusYear($('fTanggal').value); });
+  $('fNext').value = plusYear($('fTanggal').value);
+  const { data } = await hsse.rpc('get_active_projects');
+  $('fProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+  if (qs.get('id')) return loadDoc(Number(qs.get('id')));
+  if (qs.get('projectId')) $('fProject').value = qs.get('projectId');
+  await loadDrills();
+  if (qs.get('drillId')) { $('fDrill').value = qs.get('drillId'); $('fJenis').value = 'Pasca Drill'; }
+  render();
+});
+
+function plusYear(v) {
+  if (!v) return '';
+  const md = v.slice(5) === '02-29' ? '02-28' : v.slice(5);
+  return `${Number(v.slice(0, 4)) + 1}-${md}`;
+}
+
+async function loadDrills() {
+  const keep = $('fDrill').value;
+  $('fDrill').innerHTML = '<option value="">-- tidak terkait drill --</option>';
+  if (!$('fProject').value) return;
+  const { data } = await hsse.rpc('get_drill_list', { p_project_id: Number($('fProject').value), p_tahun: null, p_status: null, p_jenis: null });
+  $('fDrill').innerHTML += (data || []).filter(d => d.tanggalMulai)
+    .map(d => `<option value="${d.id}">${esc(d.noDrill)} · ${esc(d.jenisDrill)} · ${D.tgl(d.tanggalMulai)} (${esc(d.status)})</option>`).join('');
+  if (keep) $('fDrill').value = keep;
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_erp_review_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'Review ERP tidak ditemukan.');
+  doc = data;
+  $('fProject').value = doc.projectId;
+  await loadDrills();
+  $('fTanggal').value = doc.tanggalReview;
+  $('fNo').value = doc.noDokumenErp || '';
+  $('fRev').value = doc.revisiErp || '';
+  $('fJudul').value = doc.judulErp || '';
+  $('fJenis').value = doc.jenisReview;
+  $('fDrill').value = doc.drillId || '';
+  $('fTim').value = doc.timReviewer || '';
+  $('fHasil').value = doc.hasil;
+  $('fNext').value = doc.tanggalReviewBerikut || '';
+  $('fRingkasan').value = doc.ringkasanPerubahan || '';
+  $('fTindak').value = doc.tindakLanjut || '';
+  $('fLink').value = doc.linkDokumen || '';
+  render();
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await D.verifyAktor(fusion4, qr, pin);
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${[aktor.bisaPic && 'PIC drill', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ')}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const st = doc ? doc.status : 'Baru';
+  $('docTitle').textContent = doc ? `${doc.noDokumenErp}${doc.revisiErp ? ' Rev. ' + doc.revisiErp : ''}` : 'Review baru';
+  $('docMeta').textContent = doc ? [
+    `Dicatat: ${doc.dicatatOleh || '-'}`,
+    doc.disetujuiOleh && st === 'Disetujui' && `Disetujui: ${doc.disetujuiOleh} ${D.tgl(doc.tanggalDisetujui)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docStatus').textContent = st;
+  $('docStatus').className = 'status-chip ' + D.statusCls(st);
+  const note = doc && doc.catatanApproval;
+  $('approvalNote').classList.toggle('hidden', !note);
+  if (note) $('approvalNote').textContent = (st === 'Dikembalikan' ? '↩️ Dikembalikan: ' : '📝 Catatan approval: ') + note;
+  const ed = st !== 'Disetujui' && (!aktor || aktor.bisaPic);
+  document.querySelectorAll('.ed').forEach(el => el.disabled = !ed);
+  document.querySelectorAll('.ed-only').forEach(el => el.classList.toggle('hidden', !ed));
+  $('btnHapus').classList.toggle('hidden', !(doc && ed));
+  $('btnLink').classList.toggle('hidden', !(doc && doc.linkDokumen));
+  if (doc && doc.linkDokumen) $('btnLink').href = doc.linkDokumen;
+  $('approveCard').classList.toggle('hidden', !(st === 'Menunggu Approval' && aktor && aktor.bisaApprove));
+}
+
+async function save() {
+  if (!aktor || !aktor.bisaPic) return setLine('saveStatus', 'Verifikasi dulu di atas (PIC HSSE-DRL).');
+  const d = {
+    projectId: $('fProject').value, tanggalReview: $('fTanggal').value, noDokumenErp: $('fNo').value.trim(),
+    revisiErp: $('fRev').value.trim(), judulErp: $('fJudul').value.trim(), jenisReview: $('fJenis').value,
+    drillId: $('fDrill').value || null, timReviewer: $('fTim').value.trim(), hasil: $('fHasil').value,
+    tanggalReviewBerikut: $('fNext').value || null, ringkasanPerubahan: $('fRingkasan').value.trim(),
+    tindakLanjut: $('fTindak').value.trim(), linkDokumen: $('fLink').value.trim()
+  };
+  if (!d.projectId) return setLine('saveStatus', 'Pilih project dulu.');
+  if (!d.noDokumenErp) return setLine('saveStatus', 'No. dokumen ERP wajib diisi.');
+  if (!d.hasil) return setLine('saveStatus', 'Pilih hasil review.');
+  setLine('saveStatus', 'Menyimpan...', true);
+  const { data, error } = await hsse.rpc('save_erp_review', { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId, p_id: doc ? doc.id : null, p_data: d });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  history.replaceState(null, '', 'erp-review-form.html?id=' + data.id);
+  await loadDoc(data.id);
+  setLine('saveStatus', '✅ Tersimpan dan diajukan. Menunggu approval pemegang Author "Approve Drill".', true);
+}
+
+async function hapus() {
+  if (!aktor || !aktor.bisaPic) return setLine('saveStatus', 'Verifikasi dulu di atas (PIC HSSE-DRL).');
+  if (!confirm('Hapus catatan review ERP ini?')) return;
+  const { error } = await hsse.rpc('delete_erp_review', { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId, p_id: doc.id });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  location.href = 'drill-list.html?tab=erp';
+}
+
+async function approve(setuju) {
+  const catatan = $('aCatatan').value.trim();
+  if (!setuju && !catatan) return setLine('approveStatus', 'Tulis alasan kenapa dikembalikan.');
+  const { error } = await hsse.rpc('approve_erp_review', { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId, p_id: doc.id, p_setuju: setuju, p_catatan: catatan || null });
+  if (error) return setLine('approveStatus', '❌ ' + error.message);
+  $('aCatatan').value = '';
+  await loadDoc(doc.id);
+  setLine('saveStatus', setuju ? '✅ Review ERP disetujui.' : '↩️ Review dikembalikan ke PIC.', true);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drill Tanggap Darurat — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="driveBridge.js"></script>
+<script src="drillCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; }
+  .status-chip.direncanakan { background: #EEF2FC; color: var(--navy); }
+  .status-chip.berlangsung { background: #E6F4FF; color: #0B5CAD; }
+  .status-chip.menunggu-approval { background: #FDF3E3; color: #8A6100; }
+  .status-chip.dikembalikan, .status-chip.open { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.disetujui, .status-chip.closed { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.dibatalkan { background: #EEF0F4; color: var(--muted); }
+  .note-box { background: #FFF8E6; border: 1px solid #F3D48A; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 10px; white-space: pre-wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .hidden { display: none !important; }
+
+  .cam-box { position: relative; max-width: 420px; border-radius: 12px; overflow: hidden; background: #000; margin-top: 10px; }
+  .cam-box video { width: 100%; display: block; }
+  .cam-box .qr-frame { position: absolute; inset: 18% 22%; border: 3px solid var(--safety-yellow, #F5A623); border-radius: 12px; }
+  .scan-feedback { border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 700; margin-top: 10px; text-align: center; }
+  .scan-feedback.success { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .scan-feedback.warn { background: #FDF3E3; color: #8A6100; }
+  .scan-feedback.error { background: #FCEAE8; color: var(--accent, #D13438); }
+  .att-head { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .att-count b { font-size: 20px; color: var(--navy); }
+  table.att { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  table.att th, table.att td { border-bottom: 1px solid var(--border); padding: 7px 8px; text-align: left; }
+  table.att th { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  table.eval { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.eval th, table.eval td { border-bottom: 1px solid var(--border); padding: 6px; vertical-align: top; }
+  table.eval th { font-size: 11px; color: var(--muted); text-transform: uppercase; text-align: left; }
+  table.eval td:nth-child(2) { width: 120px; } table.eval td:last-child { width: 36px; }
+  .temuan { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #FCFDFF; }
+  .temuan-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .temuan-no { font-weight: 800; color: var(--navy-dark); font-size: 13px; }
+  .close-info { font-size: 12px; color: var(--success, #107C41); margin-top: 6px; white-space: pre-wrap; }
+  .kpi { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin-top: 8px; }
+  .kpi b { color: var(--navy-dark); font-size: 16px; }
+  .photo-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .photo { position: relative; width: 110px; height: 110px; border-radius: 10px; overflow: hidden; border: 1.5px dashed var(--border); background: #F8FAFC; display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; }
+  .photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo .rm { position: absolute; top: 4px; right: 4px; padding: 2px 7px; font-size: 11px; background: rgba(0,0,0,.6); }
+  .sticky-actions { position: sticky; bottom: 0; background: var(--bg, #F4F6FB); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
+  @media (max-width: 640px) { .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; } table.eval td:nth-child(2) { width: 96px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="drill-list.html" class="back-to-menu">⬅ Daftar Drill &amp; ERP</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Drill Tanggap Darurat</h1></div></div>
+    <p>Rencana → mulai drill &amp; absen peserta → laporan, evaluasi, temuan → approval. Laporan yang disetujui masuk realisasi HSE Program.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Rencana, mulai, absen, laporan &amp; tutup temuan butuh PIC <b>HSSE-DRL</b>; setujui/kembalikan laporan butuh Author <b>Approve Drill</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <!-- ========== RENCANA ========== -->
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Drill baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <span class="status-chip direncanakan" id="docStatus">Direncanakan</span>
+    </div>
+    <div id="approvalNote" class="note-box hidden"></div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Project / Kontrak</label><select id="pProject" class="plan"></select></div>
+      <div class="field"><label>Jenis Drill</label><select id="pJenis" class="plan"></select></div>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Judul</label><input id="pJudul" class="plan" placeholder="cth. Fire drill area gudang bahan kimia"></div>
+      <div class="field"><label>Lokasi / Area</label><input id="pLokasi" class="plan"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Skenario</label><textarea id="pSkenario" class="plan" placeholder="cth. Kebakaran kecil di gudang B akibat korsleting, 1 korban luka bakar ringan, evakuasi ke muster point 2"></textarea></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Tanggal &amp; Jam Rencana</label><input type="datetime-local" id="pTanggal" class="plan"></div>
+      <div class="field"><label>Pemberitahuan</label>
+        <select id="pDiumumkan" class="plan"><option value="true">Diumumkan sebelumnya</option><option value="false">Tanpa pemberitahuan (unannounced)</option></select>
+      </div>
+      <div class="field"><label>Koordinator</label><input id="pKoordinator" class="plan"></div>
+      <div class="field small"><label>Target Peserta</label><input type="number" min="0" id="pTarget" class="plan"></div>
+    </div>
+    <div class="actions plan-actions">
+      <button type="button" onclick="savePlan()">💾 Simpan Rencana</button>
+    </div>
+    <div class="actions hidden" id="startBox">
+      <div class="field small" style="flex:0 0 220px;"><label>Jam alarm / mulai (kosong = sekarang)</label><input type="datetime-local" id="startTime"></div>
+      <button type="button" class="ok" onclick="startDrill()">▶️ Mulai Drill</button>
+      <button type="button" class="secondary" onclick="cancelDrill()">✖️ Batalkan</button>
+      <button type="button" class="danger" onclick="deleteDrill()">🗑️ Hapus</button>
+    </div>
+    <div class="status-line" id="planStatus"></div>
+  </div>
+
+  <!-- ========== ABSEN ========== -->
+  <div class="card hidden" id="attCard">
+    <h2>Absen Peserta</h2>
+    <div id="attControls">
+      <div class="row">
+        <div class="field small" style="flex:0 0 200px;"><label>Peran yang di-scan</label><select id="attPeran"></select></div>
+        <button type="button" id="btnCam" onclick="toggleCam()">📷 Scan QR Badge</button>
+      </div>
+      <div class="cam-box hidden" id="camBox"><video id="camVideo" autoplay muted playsinline></video><div class="qr-frame"></div></div>
+      <canvas id="camCanvas" class="hidden"></canvas>
+      <div class="row">
+        <div class="field"><label>atau ketik QR Code ID</label><input id="attQr" autocomplete="off"></div>
+        <div class="field"><label>atau PIN</label><input id="attPin" type="password" inputmode="numeric"></div>
+        <button type="button" class="secondary" onclick="manualCheckin()">➕ Tambah</button>
+      </div>
+      <div class="scan-feedback hidden" id="scanFeedback"></div>
+    </div>
+    <div class="att-head">
+      <div class="att-count">Hadir: <b id="attCount">0</b> orang</div>
+    </div>
+    <table class="att"><thead><tr><th>#</th><th>Nama</th><th>Peran</th><th>Jam</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
+  </div>
+
+  <!-- ========== LAPORAN ========== -->
+  <div class="card hidden" id="repCard">
+    <h2>Laporan &amp; Evaluasi</h2>
+    <div class="row">
+      <div class="field"><label>Jam alarm / mulai</label><input type="datetime-local" id="rMulai" class="rep"></div>
+      <div class="field"><label>Jam semua berkumpul / terkendali</label><input type="datetime-local" id="rKumpul" class="rep"></div>
+      <div class="field"><label>Jam selesai</label><input type="datetime-local" id="rSelesai" class="rep"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Jumlah orang di area saat drill</label><input type="number" min="0" id="rDiArea" class="rep"></div>
+      <div class="field"><label>Jumlah hadir manual (kalau absen pakai kertas)</label><input type="number" min="0" id="rManual" class="rep"></div>
+    </div>
+    <div class="kpi" id="kpiBox"></div>
+    <div class="row">
+      <div class="field"><label>Kronologi pelaksanaan</label><textarea id="rKronologi" class="rep" style="min-height:90px;" placeholder="cth. 09:00 alarm dibunyikan; 09:03 ERT tiba; 09:08 semua di muster point; ..."></textarea></div>
+    </div>
+
+    <h2 style="margin-top:16px;">Evaluasi</h2>
+    <table class="eval"><thead><tr><th>Aspek</th><th>Hasil</th><th>Catatan</th><th></th></tr></thead><tbody id="evalBody"></tbody></table>
+    <div class="actions rep-only"><button type="button" class="secondary small" onclick="addEval()">➕ Tambah aspek</button>
+      <button type="button" class="secondary small" onclick="resetEval()">↺ Isi ulang aspek sesuai jenis</button></div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="field"><label>Kesimpulan</label><textarea id="rKesimpulan" class="rep"></textarea></div>
+    </div>
+
+    <h2 style="margin-top:16px;" id="temuan">Temuan &amp; Tindak Lanjut</h2>
+    <div id="temuanBox"></div>
+    <div class="actions rep-only"><button type="button" class="secondary small" onclick="addTemuan()">➕ Tambah temuan</button></div>
+
+    <h2 style="margin-top:16px;">Foto Dokumentasi (maks 3)</h2>
+    <div class="photo-row" id="photoRow"></div>
+  </div>
+
+  <!-- ========== APPROVAL ========== -->
+  <div class="card hidden" id="approveCard">
+    <h2>Approval Laporan</h2>
+    <div class="field"><label>Catatan (wajib kalau dikembalikan)</label><textarea id="aCatatan"></textarea></div>
+    <div class="actions">
+      <button type="button" class="ok" onclick="approve(true)">✅ Setujui</button>
+      <button type="button" class="danger" onclick="approve(false)">↩️ Kembalikan</button>
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <div class="actions" style="margin-top:0;">
+      <button type="button" class="hidden" id="btnSubmit" onclick="submitReport()">📤 Simpan Laporan &amp; Ajukan Approval</button>
+      <a class="hidden" id="btnPdf" target="_blank"><button type="button" class="secondary">🖨️ Cetak Laporan</button></a>
+      <a class="hidden" id="btnErp"><button type="button" class="secondary">📘 Catat Review ERP dari drill ini</button></a>
+    </div>
+    <div class="status-line" id="saveStatus"></div>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const D = DrillCommon, esc = D.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;       // hasil get_drill_detail (null = baru)
+let aktor = null;     // { nama, qrCodeId, bisaPic, bisaApprove }
+let fotoLama = [];    // foto yang sudah tersimpan [{url, fileId}]
+let fotoBaru = [];    // File baru
+let camOn = false, camBusy = false;
+let seq = 0;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(D.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-DRL).');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('pJenis').innerHTML = D.JENIS.map(j => `<option>${esc(j)}</option>`).join('');
+  $('attPeran').innerHTML = D.PERAN.map(p => `<option>${esc(p)}</option>`).join('');
+  $('pJenis').addEventListener('change', () => { if (!doc) resetEval(); });
+  ['rMulai', 'rKumpul', 'rDiArea', 'rManual'].forEach(id => $(id).addEventListener('input', renderKpi));
+  await loadProjects();
+  const id = new URLSearchParams(location.search).get('id');
+  if (id) await loadDoc(Number(id)); else render();
+});
+
+async function loadProjects() {
+  const { data, error } = await hsse.rpc('get_active_projects');
+  if (error) return setLine('planStatus', 'Gagal memuat project: ' + error.message);
+  $('pProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}${p.noKontrak ? ' (' + esc(p.noKontrak) + ')' : ''}</option>`).join('');
+}
+
+async function loadDoc(id, keepReport) {
+  const { data, error } = await hsse.rpc('get_drill_detail', { p_id: id });
+  if (error || !data) return setLine('planStatus', 'Drill tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'drill-form.html?id=' + doc.id + location.hash);
+  if (!$('pProject').querySelector(`option[value="${doc.projectId}"]`)) {
+    $('pProject').insertAdjacentHTML('beforeend', `<option value="${doc.projectId}">${esc(doc.namaProject)}</option>`);
+  }
+  $('pProject').value = doc.projectId;
+  $('pJenis').value = doc.jenisDrill;
+  $('pJudul').value = doc.judul || '';
+  $('pLokasi').value = doc.lokasiArea || '';
+  $('pSkenario').value = doc.skenario || '';
+  $('pTanggal').value = D.toLocalInput(doc.tanggalRencana);
+  $('pDiumumkan').value = String(doc.diumumkan !== false);
+  $('pKoordinator').value = doc.koordinator || '';
+  $('pTarget').value = doc.targetPeserta ?? '';
+  if (!keepReport) fillReport();
+  render();
+  if (location.hash === '#temuan') setTimeout(() => $('temuan').scrollIntoView({ behavior: 'smooth' }), 200);
+}
+
+function fillReport() {
+  $('rMulai').value = D.toLocalInput(doc.tanggalMulai);
+  $('rKumpul').value = D.toLocalInput(doc.jamSemuaBerkumpul);
+  $('rSelesai').value = D.toLocalInput(doc.jamSelesai);
+  $('rDiArea').value = doc.jumlahOrangDiArea ?? '';
+  $('rManual').value = doc.jumlahHadirManual ?? '';
+  $('rKronologi').value = doc.kronologi || '';
+  $('rKesimpulan').value = doc.kesimpulan || '';
+  $('evalBody').innerHTML = '';
+  const ev = (doc.evaluasiList || []).length ? doc.evaluasiList : D.aspekDefault(doc.jenisDrill);
+  ev.forEach(addEval);
+  $('temuanBox').innerHTML = '';
+  (doc.temuanList || []).forEach(addTemuan);
+  fotoLama = (doc.fotoList || []).slice();
+  fotoBaru = [];
+  renderPhotos();
+}
+
+// ---------- verifikasi ----------
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await D.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC drill', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+// ---------- tampilan ----------
+function render() {
+  const st = doc ? doc.status : 'Direncanakan';
+  const pic = !aktor || aktor.bisaPic;     // sebelum verifikasi: tampilkan, server tetap cek
+  $('docNo').textContent = doc ? doc.noDrill : 'Drill baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    doc.direncanakanOleh && `Direncanakan: ${doc.direncanakanOleh}`,
+    doc.dimulaiOleh && `Dimulai: ${doc.dimulaiOleh} ${D.tglJam(doc.tanggalMulai)}`,
+    doc.dilaporkanOleh && `Dilaporkan: ${doc.dilaporkanOleh}`,
+    doc.disetujuiOleh && st === 'Disetujui' && `Disetujui: ${doc.disetujuiOleh} ${D.tgl(doc.tanggalDisetujui)}`,
+    st === 'Dibatalkan' && doc.alasanBatal && `Dibatalkan: ${doc.alasanBatal}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docStatus').textContent = st;
+  $('docStatus').className = 'status-chip ' + D.statusCls(st);
+  const note = doc && doc.catatanApproval;
+  $('approvalNote').classList.toggle('hidden', !note);
+  if (note) $('approvalNote').textContent = (st === 'Dikembalikan' ? '↩️ Dikembalikan: ' : '📝 Catatan approval: ') + note;
+
+  const planEd = st === 'Direncanakan' && pic;
+  document.querySelectorAll('.plan').forEach(el => el.disabled = !planEd);
+  document.querySelector('.plan-actions').classList.toggle('hidden', !planEd);
+  $('startBox').classList.toggle('hidden', !(doc && planEd));
+
+  const started = doc && !['Direncanakan', 'Dibatalkan'].includes(st);
+  const repEd = started && ['Berlangsung', 'Menunggu Approval', 'Dikembalikan'].includes(st) && pic;
+  $('attCard').classList.toggle('hidden', !started);
+  $('attControls').classList.toggle('hidden', !(st === 'Berlangsung' && pic));
+  if (st !== 'Berlangsung' && camOn) toggleCam();
+  renderAttendees(repEd);
+
+  $('repCard').classList.toggle('hidden', !started);
+  document.querySelectorAll('#repCard .rep, #evalBody input, #evalBody select, #temuanBox .t-edit').forEach(el => el.disabled = !repEd);
+  document.querySelectorAll('.rep-only').forEach(el => el.classList.toggle('hidden', !repEd));
+  document.querySelectorAll('#temuanBox .temuan').forEach(renderTemuanState);
+  $('btnSubmit').classList.toggle('hidden', !repEd);
+  $('btnSubmit').textContent = st === 'Berlangsung' ? '🏁 Selesai: Simpan Laporan & Ajukan Approval' : '📤 Simpan Laporan & Ajukan Approval';
+  renderPhotos(repEd);
+  renderKpi();
+
+  $('approveCard').classList.toggle('hidden', !(st === 'Menunggu Approval' && aktor && aktor.bisaApprove));
+  const done = doc && ['Menunggu Approval', 'Dikembalikan', 'Disetujui'].includes(st);
+  $('btnPdf').classList.toggle('hidden', !done);
+  if (doc) $('btnPdf').href = 'drill-pdf.html?id=' + doc.id;
+  $('btnErp').classList.toggle('hidden', !(doc && st === 'Disetujui'));
+  if (doc) $('btnErp').href = 'erp-review-form.html?drillId=' + doc.id + '&projectId=' + doc.projectId;
+}
+
+function renderKpi() {
+  if (!doc) return;
+  const scan = (doc.pesertaList || []).length;
+  const hadir = scan || Number($('rManual').value || 0);
+  const area = Number($('rDiArea').value || 0);
+  const m = $('rMulai').value, k = $('rKumpul').value;
+  const respon = m && k ? Math.round((new Date(k) - new Date(m)) / 6000) / 10 : null;
+  $('kpiBox').innerHTML = [
+    `<div>Hadir: <b>${hadir}</b>${scan ? ' (scan)' : hadir ? ' (manual)' : ''}</div>`,
+    area ? `<div>Headcount: <b>${Math.round(hadir / area * 1000) / 10}%</b> dari ${area}</div>` : '',
+    respon !== null ? `<div>Waktu respon: <b>${respon} menit</b></div>` : '',
+    doc.targetPeserta ? `<div>Target peserta: <b>${doc.targetPeserta}</b></div>` : ''
+  ].join('');
+}
+
+// ---------- rencana ----------
+function planData() {
+  return {
+    projectId: $('pProject').value, jenisDrill: $('pJenis').value, judul: $('pJudul').value.trim(),
+    lokasiArea: $('pLokasi').value.trim(), skenario: $('pSkenario').value.trim(),
+    tanggalRencana: D.fromLocalInput($('pTanggal').value), diumumkan: $('pDiumumkan').value === 'true',
+    koordinator: $('pKoordinator').value.trim(), targetPeserta: $('pTarget').value
+  };
+}
+
+async function savePlan() {
+  if (!needPic('planStatus')) return;
+  const d = planData();
+  if (!d.projectId) return setLine('planStatus', 'Pilih project dulu.');
+  if (!d.judul) return setLine('planStatus', 'Judul wajib diisi.');
+  if (!d.tanggalRencana) return setLine('planStatus', 'Tanggal rencana wajib diisi.');
+  setLine('planStatus', 'Menyimpan...', true);
+  const { data, error } = await hsse.rpc('save_drill', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
+  if (error) return setLine('planStatus', '❌ ' + error.message);
+  await loadDoc(data.id);
+  setLine('planStatus', `✅ Rencana tersimpan: ${data.noDrill}.`, true);
+}
+
+async function startDrill() {
+  if (!needPic('planStatus')) return;
+  if (!confirm('Mulai drill sekarang? Setelah mulai, rencana tidak bisa diubah lagi.')) return;
+  const { error } = await hsse.rpc('start_drill', { ...aktorArgs(), p_id: doc.id, p_waktu: D.fromLocalInput($('startTime').value) });
+  if (error) return setLine('planStatus', '❌ ' + error.message);
+  await loadDoc(doc.id);
+  setLine('planStatus', '✅ Drill dimulai. Scan peserta di bagian Absen.', true);
+  $('attCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function cancelDrill() {
+  if (!needPic('planStatus')) return;
+  const alasan = prompt('Alasan pembatalan:');
+  if (alasan === null) return;
+  const { error } = await hsse.rpc('cancel_drill', { ...aktorArgs(), p_id: doc.id, p_alasan: alasan });
+  if (error) return setLine('planStatus', '❌ ' + error.message);
+  await loadDoc(doc.id);
+  setLine('planStatus', 'Drill dibatalkan.', true);
+}
+
+async function deleteDrill() {
+  if (!needPic('planStatus')) return;
+  if (!confirm('Hapus rencana drill ini? Tidak bisa dikembalikan.')) return;
+  const { error } = await hsse.rpc('delete_drill', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('planStatus', '❌ ' + error.message);
+  location.href = 'drill-list.html';
+}
+
+// ---------- absen ----------
+function feedback(text, kind) {
+  const el = $('scanFeedback');
+  el.textContent = text; el.className = 'scan-feedback ' + kind;
+}
+
+async function checkin(nama, qr) {
+  const { data, error } = await hsse.rpc('checkin_drill', { p_id: doc.id, p_nama: nama, p_qrcode: qr, p_peran: $('attPeran').value });
+  if (error) return feedback('❌ ' + error.message, 'error');
+  if (data.duplicate) return feedback(`⚠️ ${data.nama} sudah absen jam ${D.jam(data.jamAbsen)}`, 'warn');
+  if (!data.success) return feedback('❌ ' + (data.message || 'Gagal absen'), 'error');
+  feedback(`✅ ${nama} hadir (${$('attPeran').value})`, 'success');
+  await refreshPeserta();
+}
+
+async function refreshPeserta() {
+  const { data } = await hsse.rpc('get_drill_detail', { p_id: doc.id });
+  if (data) { doc.pesertaList = data.pesertaList; doc.jumlahHadir = data.jumlahHadir; }
+  render();
+}
+
+async function manualCheckin() {
+  if (!needPic('planStatus')) return feedback('Verifikasi PIC dulu di atas.', 'error');
+  const qr = $('attQr').value.trim(), pin = $('attPin').value.trim();
+  if (!qr && !pin) return feedback('Isi QR Code ID atau PIN peserta.', 'error');
+  try {
+    const p = await D.findPerson(fusion4, qr, pin);
+    if (!p) return feedback('❌ Peserta tidak ditemukan di SmartGate.', 'error');
+    $('attQr').value = ''; $('attPin').value = '';
+    await checkin(p.nama, p.qrCodeId);
+  } catch (e) { feedback('❌ ' + e.message, 'error'); }
+}
+
+async function toggleCam() {
+  const video = $('camVideo');
+  if (camOn) {
+    camOn = false;
+    if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+    $('camBox').classList.add('hidden'); $('btnCam').textContent = '📷 Scan QR Badge';
+    return;
+  }
+  if (!needPic('planStatus')) return feedback('Verifikasi PIC dulu di atas.', 'error');
+  try {
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
+    await video.play();
+  } catch (e) { return feedback('❌ Gagal akses kamera: ' + e.message, 'error'); }
+  camOn = true;
+  $('camBox').classList.remove('hidden'); $('btnCam').textContent = '⏹️ Stop Kamera';
+  feedback('Arahkan QR badge peserta ke kamera, satu per satu.', 'warn');
+  scanLoop();
+}
+
+async function scanLoop() {
+  const video = $('camVideo'), canvas = $('camCanvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  while (camOn) {
+    if (!camBusy && video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) {
+        camBusy = true;
+        try {
+          const p = await D.findPerson(fusion4, code.data, null);
+          if (p) await checkin(p.nama, p.qrCodeId); else feedback('❌ QR tidak dikenali, coba lagi.', 'error');
+        } catch (e) { feedback('❌ ' + e.message, 'error'); }
+        await new Promise(r => setTimeout(r, 2000));
+        camBusy = false;
+      }
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+}
+
+function renderAttendees(canRemove) {
+  const list = (doc && doc.pesertaList) || [];
+  $('attCount').textContent = list.length;
+  $('attBody').innerHTML = list.length ? list.map((p, i) => `<tr>
+      <td>${i + 1}</td><td>${esc(p.nama)}<div class="hint">${esc(p.qrCodeId)}</div></td><td>${esc(p.peran || 'Peserta')}</td><td>${D.jam(p.jamAbsen)}</td>
+      <td>${canRemove ? `<button type="button" class="danger small" onclick="removePeserta('${esc(p.qrCodeId)}')">✕</button>` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint" style="text-align:center;padding:16px;">Belum ada peserta absen.</td></tr>';
+}
+
+async function removePeserta(qr) {
+  if (!needPic('saveStatus')) return;
+  if (!confirm('Hapus peserta ini dari daftar hadir?')) return;
+  const { error } = await hsse.rpc('remove_drill_peserta', { ...aktorArgs(), p_id: doc.id, p_qrcode: qr });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  await refreshPeserta();
+}
+
+// ---------- evaluasi ----------
+function addEval(e) {
+  e = e || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input data-k="aspek" value="${esc(e.aspek)}" placeholder="Aspek yang dinilai"></td>
+    <td><select data-k="hasil"><option value="">-</option>${D.HASIL.map(h => `<option ${h === e.hasil ? 'selected' : ''}>${h}</option>`).join('')}</select></td>
+    <td><input data-k="catatan" value="${esc(e.catatan)}"></td>
+    <td class="rep-only"><button type="button" class="secondary small" onclick="this.closest('tr').remove()">✕</button></td>`;
+  $('evalBody').appendChild(tr);
+}
+function resetEval() {
+  if ($('evalBody').children.length && doc && !confirm('Ganti daftar aspek dengan bawaan jenis drill ini? Isian evaluasi sekarang hilang.')) return;
+  $('evalBody').innerHTML = '';
+  D.aspekDefault($('pJenis').value).forEach(addEval);
+  render();
+}
+function readEval() {
+  return [...$('evalBody').children].map(tr => ({
+    aspek: tr.querySelector('[data-k="aspek"]').value.trim(),
+    hasil: tr.querySelector('[data-k="hasil"]').value,
+    catatan: tr.querySelector('[data-k="catatan"]').value.trim()
+  })).filter(e => e.aspek);
+}
+
+// ---------- temuan ----------
+function addTemuan(t) {
+  t = t || {};
+  const n = seq++;
+  const div = document.createElement('div');
+  div.className = 'temuan';
+  div.dataset.n = n;
+  div.dataset.id = t.id || '';
+  div.dataset.status = t.status || 'Open';
+  div.innerHTML = `
+    <div class="temuan-head">
+      <span><span class="temuan-no"></span> <span class="status-chip" data-chip></span></span>
+      <span>
+        <button type="button" class="ok small hidden" data-close onclick="closeTemuan(${n}, false)">✅ Tutup temuan</button>
+        <button type="button" class="secondary small hidden" data-reopen onclick="closeTemuan(${n}, true)">↺ Buka lagi</button>
+        <button type="button" class="danger small rep-only" data-del onclick="this.closest('.temuan').remove(); renumberTemuan();">✕</button>
+      </span>
+    </div>
+    <div class="row">
+      <div class="field"><label>Temuan</label><textarea class="t-edit" data-k="temuan">${esc(t.temuan)}</textarea></div>
+      <div class="field"><label>Rekomendasi / tindakan perbaikan</label><textarea class="t-edit" data-k="rekomendasi">${esc(t.rekomendasi)}</textarea></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>PIC tindak lanjut</label><input class="t-edit" data-k="picTindakLanjut" value="${esc(t.picTindakLanjut)}"></div>
+      <div class="field small"><label>Target selesai</label><input type="date" class="t-edit" data-k="targetSelesai" value="${esc(t.targetSelesai)}"></div>
+    </div>
+    <div class="close-info" data-info>${t.status === 'Closed' ? `Ditutup ${esc(t.ditutupOleh || '')} ${D.tgl(t.tanggalDitutup)}: ${esc(t.catatanPenutupan || '')}` : esc(t.catatanPenutupan || '')}</div>`;
+  $('temuanBox').appendChild(div);
+  renumberTemuan();
+  renderTemuanState(div);
+  return div;
+}
+function renumberTemuan() { [...$('temuanBox').children].forEach((el, i) => el.querySelector('.temuan-no').textContent = `Temuan #${i + 1}`); }
+function renderTemuanState(div) {
+  const st = doc ? doc.status : '';
+  const repEd = ['Berlangsung', 'Menunggu Approval', 'Dikembalikan'].includes(st) && (!aktor || aktor.bisaPic);
+  const saved = !!div.dataset.id, closed = div.dataset.status === 'Closed';
+  const chip = div.querySelector('[data-chip]');
+  chip.textContent = saved ? div.dataset.status : 'Baru';
+  chip.className = 'status-chip ' + (saved ? D.statusCls(div.dataset.status) : 'direncanakan');
+  const pic = !aktor || aktor.bisaPic;
+  div.querySelector('[data-close]').classList.toggle('hidden', !(saved && !closed && pic && st !== 'Berlangsung'));
+  div.querySelector('[data-reopen]').classList.toggle('hidden', !(saved && closed && pic));
+  div.querySelector('[data-del]').classList.toggle('hidden', !(repEd && !closed));
+  div.querySelectorAll('.t-edit').forEach(el => el.disabled = !repEd || closed);
+}
+function readTemuan() {
+  return [...$('temuanBox').children].map(el => {
+    const o = { id: el.dataset.id || null };
+    el.querySelectorAll('[data-k]').forEach(f => o[f.dataset.k] = f.value.trim());
+    return o;
+  });
+}
+
+async function closeTemuan(n, bukaLagi) {
+  if (!needPic('saveStatus')) return;
+  const div = $('temuanBox').querySelector(`.temuan[data-n="${n}"]`);
+  const catatan = prompt(bukaLagi ? 'Alasan dibuka lagi (opsional):' : 'Bukti / catatan penyelesaian tindak lanjut:');
+  if (catatan === null) return;
+  const { data, error } = await hsse.rpc('close_drill_temuan', { ...aktorArgs(), p_temuan_id: Number(div.dataset.id), p_catatan: catatan, p_buka_lagi: bukaLagi });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  // cuma perbarui baris temuan ini supaya isian laporan yang belum disimpan tidak hilang
+  const t = (data.temuanList || []).find(x => String(x.id) === div.dataset.id);
+  if (t) {
+    div.dataset.status = t.status;
+    div.querySelector('[data-info]').textContent = t.status === 'Closed'
+      ? `Ditutup ${t.ditutupOleh || ''} ${D.tgl(t.tanggalDitutup)}: ${t.catatanPenutupan || ''}` : (t.catatanPenutupan || '');
+    renderTemuanState(div);
+  }
+  setLine('saveStatus', bukaLagi ? 'Temuan dibuka lagi.' : '✅ Temuan ditutup.', true);
+}
+
+// ---------- foto ----------
+function renderPhotos(editable) {
+  if (editable === undefined) editable = doc && ['Berlangsung', 'Menunggu Approval', 'Dikembalikan'].includes(doc.status) && (!aktor || aktor.bisaPic);
+  const items = [
+    ...fotoLama.map((f, i) => `<div class="photo"><a href="${esc(f.url)}" target="_blank"><img src="${esc(f.url)}"></a>${editable ? `<button type="button" class="rm" onclick="fotoLama.splice(${i},1); renderPhotos();">✕</button>` : ''}</div>`),
+    ...fotoBaru.map((f, i) => `<div class="photo"><img src="${URL.createObjectURL(f)}"><button type="button" class="rm" onclick="fotoBaru.splice(${i},1); renderPhotos();">✕</button></div>`)
+  ];
+  if (editable && fotoLama.length + fotoBaru.length < 3) {
+    items.push(`<label class="photo">📷<input type="file" accept="image/*" capture="environment" onchange="if(this.files[0]){fotoBaru.push(this.files[0]); renderPhotos();}"></label>`);
+  }
+  $('photoRow').innerHTML = items.join('') || '<span class="hint">Tidak ada foto.</span>';
+}
+
+// ---------- ajukan laporan ----------
+async function submitReport() {
+  if (!needPic('saveStatus')) return;
+  const laporan = {
+    jamMulai: D.fromLocalInput($('rMulai').value), jamSemuaBerkumpul: D.fromLocalInput($('rKumpul').value),
+    jamSelesai: D.fromLocalInput($('rSelesai').value) || (doc.status === 'Berlangsung' ? new Date().toISOString() : null),
+    jumlahOrangDiArea: $('rDiArea').value, jumlahHadirManual: $('rManual').value,
+    kronologi: $('rKronologi').value.trim(), evaluasiList: readEval(), kesimpulan: $('rKesimpulan').value.trim()
+  };
+  if (!laporan.kesimpulan) return setLine('saveStatus', 'Kesimpulan wajib diisi.');
+  if (!(doc.pesertaList || []).length && !Number(laporan.jumlahHadirManual)) {
+    return setLine('saveStatus', 'Belum ada peserta. Scan peserta, atau isi jumlah hadir manual.');
+  }
+  const btn = $('btnSubmit'); btn.disabled = true;
+  try {
+    if (camOn) toggleCam();
+    const fotoList = fotoLama.slice();
+    for (let i = 0; i < fotoBaru.length; i++) {
+      setLine('saveStatus', `Mengupload foto ${i + 1}/${fotoBaru.length}...`, true);
+      const up = await uploadPhotoToDrive(fotoBaru[i], `DRILL_${doc.noDrill.replaceAll('/', '-')}_${Date.now()}_${i + 1}.jpg`);
+      fotoList.push({ url: up.directUrl, fileId: up.fileId });
+    }
+    setLine('saveStatus', 'Menyimpan laporan...', true);
+    const { error } = await hsse.rpc('finish_drill', { ...aktorArgs(), p_id: doc.id, p_laporan: laporan, p_temuan: readTemuan(), p_foto: fotoList });
+    if (error) throw error;
+    await loadDoc(doc.id);
+    setLine('saveStatus', '✅ Laporan tersimpan dan diajukan. Menunggu approval pemegang Author "Approve Drill".', true);
+  } catch (e) {
+    setLine('saveStatus', '❌ ' + e.message);
+  } finally { btn.disabled = false; }
+}
+
+async function approve(setuju) {
+  if (!aktor || !aktor.bisaApprove) return setLine('saveStatus', 'Butuh Author "Approve Drill".');
+  const catatan = $('aCatatan').value.trim();
+  if (!setuju && !catatan) return setLine('saveStatus', 'Tulis alasan kenapa dikembalikan.');
+  const { error } = await hsse.rpc('approve_drill', { ...aktorArgs(), p_id: doc.id, p_setuju: setuju, p_catatan: catatan || null });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  $('aCatatan').value = '';
+  await loadDoc(doc.id);
+  setLine('saveStatus', setuju ? '✅ Laporan drill disetujui.' : '↩️ Laporan dikembalikan ke PIC.', true);
+}
+</script>
+</body>
+</html>

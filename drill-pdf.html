@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Drill — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="drillCommon.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73; --navy-dark: #1B2650; --accent: #E02C2B; --safety-yellow: #F5A623;
+    --success: #178A4C; --success-bg: #E5F6EC; --border: #D5DAE6; --muted: #6B7280; --text: #1E1E1E; --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 11.5px; line-height: 1.45; }
+  .toolbar { position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button { background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .sheet { max-width: 210mm; margin: 16px auto; background: #fff; padding: 12mm; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.08); display: none; }
+  .doc-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 12px; }
+  .doc-header img { width: 100px; height: auto; object-fit: contain; }
+  .doc-title { text-align: right; }
+  .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .doc-title h1 { font-size: 17px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-title .sub { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+  .watermark { color: var(--accent); font-weight: 800; font-size: 11px; text-align: center; border: 1.5px dashed var(--accent); border-radius: 6px; padding: 4px; margin-bottom: 10px; }
+  .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .info-cell { padding: 6px 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .value { font-size: 10.5px; font-weight: 700; white-space: pre-wrap; }
+  h2 { font-size: 11px; font-weight: 800; color: #fff; background: var(--navy-dark); padding: 5px 10px; border-radius: 5px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .text-block { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; min-height: 28px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .kpis div { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; text-align: center; }
+  .kpis b { display: block; font-size: 15px; color: var(--navy-dark); }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; white-space: pre-wrap; }
+  thead th { background: #EEF2FC; color: var(--navy-dark); font-size: 8.5px; text-transform: uppercase; }
+  td.c { text-align: center; }
+  .h-baik { background: #CDEFD9; } .h-cukup { background: #FBE7B5; } .h-kurang { background: #F4B1AC; }
+  .photos { display: flex; gap: 8px; flex-wrap: wrap; }
+  .photos img { width: 58mm; height: 42mm; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 18px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 10px; font-weight: 700; }
+  .signature-box .sub { font-size: 8.5px; color: var(--muted); }
+  .doc-footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 0; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tr, .photos img, .signature-row { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+    @page { size: A4 portrait; margin: 10mm; }
+  }
+  @media screen and (max-width: 800px) {
+    .sheet { padding: 5vw; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .kpis { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar no-print">
+  <a href="drill-list.html">⬅ Daftar Drill</a>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div id="loading" class="loading">Memuat laporan drill...</div>
+
+<div class="sheet" id="sheet">
+  <div class="doc-header">
+    <img src="logo-bima.png" alt="Logo HSSE BiMa">
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1>Laporan Drill / Simulasi Tanggap Darurat</h1>
+      <div class="sub" id="fNo"></div>
+    </div>
+  </div>
+  <div id="fWatermark" class="watermark" style="display:none;"></div>
+  <div class="info-grid" id="fInfo"></div>
+
+  <h2>Hasil Utama</h2>
+  <div class="kpis" id="fKpi"></div>
+
+  <h2>Skenario</h2>
+  <div class="text-block" id="fSkenario"></div>
+
+  <h2>Kronologi Pelaksanaan</h2>
+  <div class="text-block" id="fKronologi"></div>
+
+  <h2>Evaluasi</h2>
+  <table><thead><tr><th style="width:4%">No</th><th style="width:46%">Aspek</th><th style="width:12%">Hasil</th><th>Catatan</th></tr></thead><tbody id="fEval"></tbody></table>
+
+  <h2>Kesimpulan</h2>
+  <div class="text-block" id="fKesimpulan"></div>
+
+  <h2>Temuan &amp; Tindak Lanjut</h2>
+  <table><thead><tr><th style="width:4%">No</th><th style="width:28%">Temuan</th><th style="width:26%">Rekomendasi</th><th style="width:13%">PIC</th><th style="width:11%">Target</th><th>Status</th></tr></thead><tbody id="fTemuan"></tbody></table>
+
+  <h2>Daftar Hadir</h2>
+  <table><thead><tr><th style="width:5%">No</th><th style="width:38%">Nama</th><th style="width:20%">QR Code ID</th><th style="width:22%">Peran</th><th>Jam Absen</th></tr></thead><tbody id="fHadir"></tbody></table>
+
+  <div id="fFotoWrap"><h2>Dokumentasi</h2><div class="photos" id="fFoto"></div></div>
+
+  <div class="signature-row">
+    <div class="signature-box">
+      <div class="role">Dilaporkan Oleh (PIC Drill)</div>
+      <div class="line" id="sLapor">&nbsp;</div>
+      <div class="sub" id="sLaporTgl">Nama &amp; Tanda Tangan</div>
+    </div>
+    <div class="signature-box">
+      <div class="role">Disetujui Oleh</div>
+      <div class="line" id="sSetuju">&nbsp;</div>
+      <div class="sub" id="sSetujuTgl">Nama &amp; Tanda Tangan</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetak"></div>
+  </div>
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const D = DrillCommon, esc = D.esc;
+const $ = id => document.getElementById(id);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const id = Number(new URLSearchParams(location.search).get('id'));
+  if (!id) { $('loading').textContent = 'ID drill tidak ada di URL.'; return; }
+  const { data: d, error } = await db.rpc('get_drill_detail', { p_id: id });
+  if (error || !d) { $('loading').textContent = 'Drill tidak ditemukan' + (error ? ': ' + error.message : '.'); return; }
+
+  document.title = `${d.noDrill} — Laporan Drill`;
+  $('fNo').textContent = `${d.noDrill} · ${d.status}`;
+  if (d.status !== 'Disetujui') {
+    $('fWatermark').style.display = 'block';
+    $('fWatermark').textContent = `BELUM DISETUJUI (${d.status.toUpperCase()}) -- bukan dokumen resmi`;
+  }
+  const info = [
+    ['Project', `${d.kodeOperational ? d.kodeOperational + ' · ' : ''}${d.namaProject || '-'}`],
+    ['No. Kontrak / Client', [d.noKontrak, d.client].filter(Boolean).join(' / ') || '-'],
+    ['Jenis Drill', d.jenisDrill],
+    ['Judul', d.judul],
+    ['Lokasi / Area', d.lokasiArea || '-'],
+    ['Pemberitahuan', d.diumumkan === false ? 'Tanpa pemberitahuan' : 'Diumumkan sebelumnya'],
+    ['Tanggal Pelaksanaan', D.tgl(d.tanggalMulai)],
+    ['Jam Alarm / Mulai – Selesai', `${D.jam(d.tanggalMulai)} – ${D.jam(d.jamSelesai)}`],
+    ['Koordinator', d.koordinator || d.dimulaiOleh || '-']
+  ];
+  $('fInfo').innerHTML = info.map(([k, v]) => `<div class="info-cell"><div class="label">${k}</div><div class="value">${esc(v)}</div></div>`).join('');
+
+  const persen = D.hadirPersen(d);
+  $('fKpi').innerHTML = [
+    ['Peserta hadir', d.jumlahHadir + (d.jumlahPesertaScan ? '' : d.jumlahHadir ? ' (manual)' : '')],
+    ['Orang di area / headcount', d.jumlahOrangDiArea ? `${d.jumlahOrangDiArea} / ${persen}%` : '-'],
+    ['Waktu respon / berkumpul', d.waktuResponMenit !== null && d.waktuResponMenit !== undefined ? `${d.waktuResponMenit} menit` : '-'],
+    ['Temuan (open / total)', `${d.temuanOpen} / ${d.temuanTotal}`]
+  ].map(([k, v]) => `<div><b>${esc(v)}</b><span class="label">${k}</span></div>`).join('');
+
+  $('fSkenario').textContent = d.skenario || '-';
+  $('fKronologi').textContent = d.kronologi || '-';
+  $('fKesimpulan').textContent = d.kesimpulan || '-';
+
+  const ev = d.evaluasiList || [];
+  $('fEval').innerHTML = ev.length ? ev.map((e, i) => `<tr><td class="c">${i + 1}</td><td>${esc(e.aspek)}</td>
+      <td class="c h-${esc(String(e.hasil || '').toLowerCase())}">${esc(e.hasil || '-')}</td><td>${esc(e.catatan || '')}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="c">-</td></tr>';
+
+  const tm = d.temuanList || [];
+  $('fTemuan').innerHTML = tm.length ? tm.map((t, i) => `<tr><td class="c">${i + 1}</td><td>${esc(t.temuan)}</td><td>${esc(t.rekomendasi || '-')}</td>
+      <td>${esc(t.picTindakLanjut || '-')}</td><td class="c">${D.tgl(t.targetSelesai)}</td>
+      <td>${esc(t.status)}${t.status === 'Closed' ? `<br>${D.tgl(t.tanggalDitutup)} ${esc(t.ditutupOleh || '')}: ${esc(t.catatanPenutupan || '')}` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="c">Tidak ada temuan.</td></tr>';
+
+  const ps = d.pesertaList || [];
+  $('fHadir').innerHTML = ps.length ? ps.map((p, i) => `<tr><td class="c">${i + 1}</td><td>${esc(p.nama)}</td><td>${esc(p.qrCodeId)}</td>
+      <td>${esc(p.peran || 'Peserta')}</td><td class="c">${D.jam(p.jamAbsen)}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="c">Absen manual (kertas): ${d.jumlahHadirManual || 0} orang</td></tr>`;
+
+  const foto = d.fotoList || [];
+  $('fFotoWrap').style.display = foto.length ? 'block' : 'none';
+  $('fFoto').innerHTML = foto.map(f => `<img src="${esc(f.url)}" alt="Foto drill">`).join('');
+
+  $('sLapor').textContent = d.dilaporkanOleh || ' ';
+  $('sLaporTgl').textContent = d.tanggalLaporan ? D.tgl(d.tanggalLaporan) : 'Nama & Tanda Tangan';
+  $('sSetuju').textContent = d.status === 'Disetujui' ? (d.disetujuiOleh || ' ') : ' ';
+  $('sSetujuTgl').textContent = d.status === 'Disetujui' && d.tanggalDisetujui ? D.tgl(d.tanggalDisetujui) : 'Nama & Tanda Tangan';
+  $('fCetak').textContent = 'Dicetak ' + new Date().toLocaleString('id-ID');
+
+  $('loading').style.display = 'none';
+  $('sheet').style.display = 'block';
+});
+</script>
+</body>
+</html>
