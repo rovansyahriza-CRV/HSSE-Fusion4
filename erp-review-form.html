@@ -155,8 +155,11 @@ async function loadDrills() {
   $('fDrill').innerHTML = '<option value="">-- tidak terkait drill --</option>';
   if (!$('fProject').value) return;
   const { data } = await hsse.rpc('get_drill_list', { p_project_id: Number($('fProject').value), p_tahun: null, p_status: null, p_jenis: null });
-  $('fDrill').innerHTML += (data || []).filter(d => d.tanggalMulai)
-    .map(d => `<option value="${d.id}">${esc(d.noDrill)} · ${esc(d.jenisDrill)} · ${D.tgl(d.tanggalMulai)} (${esc(d.status)})</option>`).join('');
+  // semua drill project ini kecuali yang dibatalkan; yang belum dilaksanakan ditandai "rencana"
+  const list = (data || []).filter(d => d.status !== 'Dibatalkan');
+  $('fDrill').innerHTML += list.length
+    ? list.map(d => `<option value="${d.id}">${esc(d.noDrill)} · ${esc(d.jenisDrill)} · ${d.tanggalMulai ? D.tgl(d.tanggalMulai) : 'rencana ' + D.tgl(d.tanggalRencana)} (${esc(d.status)})</option>`).join('')
+    : '<option value="" disabled>(belum ada drill di project ini)</option>';
   if (keep) $('fDrill').value = keep;
 }
 
