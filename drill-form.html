@@ -151,8 +151,8 @@
       <div class="cam-box hidden" id="camBox"><video id="camVideo" autoplay muted playsinline></video><div class="qr-frame"></div></div>
       <canvas id="camCanvas" class="hidden"></canvas>
       <div class="row">
-        <div class="field"><label>atau ketik QR Code ID</label><input id="attQr" autocomplete="off"></div>
-        <div class="field"><label>atau PIN</label><input id="attPin" type="password" inputmode="numeric"></div>
+        <div class="field"><label>atau ketik QR Code ID</label><input id="attQr" autocomplete="off" placeholder="scan / ketik lalu Enter"></div>
+        <div class="field"><label>atau PIN</label><input id="attPin" type="password" inputmode="numeric" enterkeyhint="go" placeholder="PIN lalu Enter"></div>
         <button type="button" class="secondary" onclick="manualCheckin()">➕ Tambah</button>
       </div>
       <div class="scan-feedback hidden" id="scanFeedback"></div>
@@ -243,6 +243,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('attPeran').innerHTML = D.PERAN.map(p => `<option>${esc(p)}</option>`).join('');
   $('pJenis').addEventListener('change', () => { if (!doc) resetEval(); });
   ['rMulai', 'rKumpul', 'rDiArea', 'rManual'].forEach(id => $(id).addEventListener('input', renderKpi));
+  // scanner QR genggam / USB biasanya mengetik kode lalu Enter: langsung absen tanpa klik Tambah
+  ['attQr', 'attPin'].forEach(id => $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); manualCheckin(); }
+  }));
+  $('attQr').addEventListener('paste', () => setTimeout(manualCheckin, 50));
   await loadProjects();
   const id = new URLSearchParams(location.search).get('id');
   if (id) await loadDoc(Number(id)); else render();
@@ -441,16 +446,20 @@ async function refreshPeserta() {
   render();
 }
 
+let manualBusy = false;
 async function manualCheckin() {
+  if (manualBusy) return;
   if (!needPic('planStatus')) return feedback('Verifikasi PIC dulu di atas.', 'error');
   const qr = $('attQr').value.trim(), pin = $('attPin').value.trim();
   if (!qr && !pin) return feedback('Isi QR Code ID atau PIN peserta.', 'error');
+  manualBusy = true;
   try {
     const p = await D.findPerson(fusion4, qr, pin);
-    if (!p) return feedback('❌ Peserta tidak ditemukan di SmartGate.', 'error');
     $('attQr').value = ''; $('attPin').value = '';
+    if (!p) return feedback('❌ Peserta tidak ditemukan di SmartGate.', 'error');
     await checkin(p.nama, p.qrCodeId);
   } catch (e) { feedback('❌ ' + e.message, 'error'); }
+  finally { manualBusy = false; if (qr) $('attQr').focus(); }
 }
 
 async function toggleCam() {
