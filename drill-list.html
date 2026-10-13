@@ -29,9 +29,12 @@
   .tab .n { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--accent, #D13438); color: #fff; font-size: 11px; }
   .filter-card {
     background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 16px;
-    display: grid; grid-template-columns: 1.6fr 1fr 1fr 0.8fr auto; gap: 10px; align-items: flex-end;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
   }
-  .filter-card .field { display: flex; flex-direction: column; gap: 4px; }
+  .filter-card .field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 140px; min-width: 0; }
+  .filter-card .field.wide { flex: 2 1 220px; }
+  .filter-card select, .filter-card input { width: 100%; min-width: 0; text-overflow: ellipsis; }
+  .filter-card #btnRefresh { flex: 0 0 auto; white-space: nowrap; }
   .filter-card label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .filter-card select, .filter-card input {
     padding: 9px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text);
@@ -64,7 +67,6 @@
   .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 13.5px; }
   .hidden { display: none !important; }
   @media (max-width: 760px) {
-    .filter-card { grid-template-columns: 1fr 1fr; }
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .doc-top { flex-direction: column; }
   }
@@ -99,7 +101,7 @@
   </div>
 
   <div class="filter-card">
-    <div class="field"><label>Project</label><select id="fProject"><option value="">Semua Project</option></select></div>
+    <div class="field wide"><label>Project</label><select id="fProject"><option value="">Semua Project</option></select></div>
     <div class="field" data-for="drill"><label>Jenis</label><select id="fJenis"><option value="">Semua jenis</option></select></div>
     <div class="field" data-for="drill"><label>Status</label>
       <select id="fStatus">
