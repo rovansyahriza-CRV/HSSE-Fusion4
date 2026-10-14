@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspeksi Alat — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="driveBridge.js"></script>
+<script src="alatCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.layak, .status-chip.disetujui, .status-chip.berlaku { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.layak-dengan-catatan, .status-chip.menunggu-approval, .status-chip.segera-habis { background: #FDF3E3; color: #8A6100; }
+  .status-chip.tidak-layak, .status-chip.dikembalikan, .status-chip.kedaluwarsa, .status-chip.belum-ada { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.belum-diinspeksi, .status-chip.baru, .status-chip.tanpa-masa-berlaku { background: #EEF0F4; color: var(--muted); }
+  .note-box { background: #FFF8E6; border: 1px solid #F3D48A; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 10px; white-space: pre-wrap; }
+  .alat-box { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 10px; background: #FCFDFF; font-size: 12.5px; line-height: 1.6; }
+  .alat-box b { color: var(--navy-dark); }
+  .alat-box .warn { color: var(--accent, #D13438); font-weight: 800; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table.ck { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.ck th, table.ck td { border-bottom: 1px solid var(--border); padding: 6px; vertical-align: top; }
+  table.ck th { font-size: 11px; color: var(--muted); text-transform: uppercase; text-align: left; }
+  table.ck td.h { width: 210px; white-space: nowrap; }
+  table.ck td.it { width: 46%; }
+  table.ck td.it textarea { min-height: 40px; }
+  table.ck td:last-child { width: 36px; }
+  .seg { display: inline-flex; border: 1.5px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .seg label { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 700; color: var(--text); padding: 6px 9px; cursor: pointer; border-right: 1px solid var(--border); }
+  .seg label:last-child { border-right: 0; }
+  .seg input { display: none; }
+  .seg label.on.baik { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .seg label.on.tidak-baik { background: #FCEAE8; color: var(--accent, #D13438); }
+  .seg label.on.na { background: #EEF0F4; color: var(--muted); }
+  .seg.disabled label { cursor: default; opacity: .8; }
+  .summary { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin-top: 10px; }
+  .summary b { font-size: 16px; color: var(--navy-dark); }
+  .photo-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .photo { position: relative; width: 110px; height: 110px; border-radius: 10px; overflow: hidden; border: 1.5px dashed var(--border); background: #F8FAFC; display: flex; align-items: center; justify-content: center; font-size: 26px; cursor: pointer; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; }
+  .photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo .rm { position: absolute; top: 4px; right: 4px; padding: 2px 7px; font-size: 11px; background: rgba(0,0,0,.6); }
+  .sticky-actions { position: sticky; bottom: 0; background: var(--bg, #F4F6FB); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
+    table.ck thead { display: none; }
+    table.ck td { display: block; border: 0; padding: 3px 0; width: auto !important; }
+    table.ck tr { display: block; border-bottom: 1px solid var(--border); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="alat-list.html?tab=inspeksi" class="back-to-menu">⬅ Daftar Inspeksi Alat</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Inspeksi Alat</h1></div></div>
+    <p>Pilih alat → isi checklist → hasil (Layak / Layak dengan Catatan / Tidak Layak) → ajukan approval. Hasil Tidak Layak langsung menandai alat jangan dipakai (tag out).</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Isi inspeksi butuh PIC <b>HSSE-ALT</b>; setujui/kembalikan butuh Author <b>Approve Inspeksi Alat</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Inspeksi baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <span class="status-chip baru" id="docStatus">Baru</span>
+    </div>
+    <div id="approvalNote" class="note-box hidden"></div>
+
+    <div class="row" style="margin-top:12px;" id="pickRow">
+      <div class="field wide"><label>Project</label><select id="iProject"></select></div>
+      <div class="field wide"><label>Alat</label><select id="iAlat"><option value="">-- pilih project dulu --</option></select></div>
+    </div>
+    <div class="alat-box hidden" id="alatBox"></div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="field"><label>Tanggal &amp; jam inspeksi</label><input type="datetime-local" id="iTanggal" class="ed"></div>
+      <div class="field"><label>Jenis inspeksi</label><select id="iJenis" class="ed"></select></div>
+      <div class="field small"><label>Warna tag</label><select id="iWarna" class="ed"></select></div>
+      <div class="field"><label>Lokasi / Area</label><input id="iLokasi" class="ed"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Checklist</h2>
+    <table class="ck"><thead><tr><th>Item</th><th>Hasil</th><th>Catatan</th><th></th></tr></thead><tbody id="ckBody"></tbody></table>
+    <div class="actions ed-only">
+      <button type="button" class="secondary small" onclick="addItem()">➕ Tambah item</button>
+      <button type="button" class="secondary small" onclick="semuaBaik()">✔️ Tandai sisanya Baik</button>
+      <button type="button" class="secondary small" onclick="loadTemplate(true)">↺ Isi ulang dari template kategori</button>
+    </div>
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <div class="card">
+    <h2>Hasil</h2>
+    <div class="row">
+      <div class="field small" style="flex:0 0 240px;"><label>Kesimpulan</label><select id="iHasil" class="ed"><option value="">-- pilih --</option></select></div>
+      <div class="field wide"><label>Temuan &amp; tindakan perbaikan (wajib kalau tidak Layak)</label><textarea id="iTemuan" class="ed"></textarea></div>
+    </div>
+    <h2 style="margin-top:14px;">Foto (maks 3)</h2>
+    <div class="photo-row" id="photoRow"></div>
+  </div>
+
+  <div class="card hidden" id="approveCard">
+    <h2>Approval</h2>
+    <div class="field"><label>Catatan (wajib kalau dikembalikan)</label><textarea id="aCatatan"></textarea></div>
+    <div class="actions">
+      <button type="button" class="ok" onclick="approve(true)">✅ Setujui</button>
+      <button type="button" class="danger" onclick="approve(false)">↩️ Kembalikan</button>
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <div class="actions" style="margin-top:0;">
+      <button type="button" id="btnSubmit" onclick="submit()">📤 Simpan &amp; Ajukan Approval</button>
+      <button type="button" class="danger hidden" id="btnDelete" onclick="hapus()">🗑️ Hapus</button>
+      <a class="hidden" id="btnPdf" target="_blank"><button type="button" class="secondary">🖨️ Cetak</button></a>
+      <a class="hidden" id="btnAlat"><button type="button" class="secondary">🧰 Data alat</button></a>
+    </div>
+    <div class="status-line" id="saveStatus"></div>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const A = AlatCommon, esc = A.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;       // hasil get_alat_inspeksi_detail (null = baru)
+let alat = null;      // hasil get_alat_detail untuk alat terpilih
+let aktor = null;
+let fotoLama = [], fotoBaru = [];
+let seq = 0;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(A.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-ALT).');
+  return false;
+}
+function editable() { return (!doc || doc.status !== 'Disetujui') && (!aktor || aktor.bisaPic); }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('iJenis').innerHTML = A.JENIS_INSPEKSI.map(j => `<option>${esc(j)}</option>`).join('');
+  $('iWarna').innerHTML = '<option value="">-</option>' + A.WARNA_TAG.map(w => `<option>${esc(w)}</option>`).join('');
+  $('iHasil').innerHTML += A.HASIL.map(h => `<option>${esc(h)}</option>`).join('');
+  $('iTanggal').value = A.toLocalInput(new Date().toISOString());
+  $('iProject').addEventListener('change', loadAlatOptions);
+  $('iAlat').addEventListener('change', () => pickAlat(Number($('iAlat').value) || null, true));
+  await loadProjects();
+  const q = new URLSearchParams(location.search);
+  if (q.get('id')) return loadDoc(Number(q.get('id')));
+  if (q.get('alatId')) await pickAlat(Number(q.get('alatId')), true);
+  render();
+});
+
+async function loadProjects() {
+  const { data } = await hsse.rpc('get_active_projects');
+  $('iProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+}
+
+async function loadAlatOptions(keepId) {
+  const pid = $('iProject').value;
+  if (!pid) { $('iAlat').innerHTML = '<option value="">-- pilih project dulu --</option>'; return; }
+  const { data } = await hsse.rpc('get_alat_list', { p_project_id: Number(pid), p_kategori: null, p_status_alat: 'Aktif', p_cari: null });
+  $('iAlat').innerHTML = '<option value="">-- pilih alat --</option>' + (data || []).map(a =>
+    `<option value="${a.id}">${esc(a.noAlat)} · ${esc(a.namaAlat)}${a.noSeri ? ' (S/N ' + esc(a.noSeri) + ')' : ''}${a.kondisi === 'Tidak Layak' ? ' ⛔' : ''}</option>`).join('');
+  if (typeof keepId === 'number') $('iAlat').value = keepId;
+}
+
+async function pickAlat(id, isiTemplate) {
+  if (!id) { alat = null; $('alatBox').classList.add('hidden'); return; }
+  const { data, error } = await hsse.rpc('get_alat_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'Alat tidak ditemukan.');
+  alat = data;
+  if ($('iProject').value !== String(alat.projectId)) {
+    if (!$('iProject').querySelector(`option[value="${alat.projectId}"]`)) {
+      $('iProject').insertAdjacentHTML('beforeend', `<option value="${alat.projectId}">${esc(alat.namaProject)}</option>`);
+    }
+    $('iProject').value = alat.projectId;
+    await loadAlatOptions(alat.id);
+  }
+  if (!doc && !$('iLokasi').value) $('iLokasi').value = alat.lokasiArea || '';
+  renderAlatBox();
+  if (isiTemplate && !doc) await loadTemplate(false);
+}
+
+function renderAlatBox() {
+  const a = alat;
+  if (!a) return;
+  const sert = (a.sertifikatList || []).filter(s => s.terkini);
+  $('alatBox').classList.remove('hidden');
+  $('alatBox').innerHTML = `
+    <b>${esc(a.noAlat)}</b> · ${esc(a.kategori)} · <b>${esc(a.namaAlat)}</b>
+    ${[a.merkTipe, a.noSeri && 'S/N ' + a.noSeri, a.kapasitas].filter(Boolean).map(esc).join(' · ')}<br>
+    Pemilik: ${esc(a.pemilik)}${a.namaPemilik ? ' (' + esc(a.namaPemilik) + ')' : ''} · Kondisi sekarang:
+    <span class="status-chip ${A.statusCls(a.kondisi)}">${esc(a.kondisi)}</span>
+    ${a.lewatTempo ? ' · <span class="warn">lewat jadwal inspeksi</span>' : ''}<br>
+    Sertifikat: ${sert.length ? sert.map(s => `${esc(s.jenisSertifikat)} s/d ${A.tgl(s.berlakuSampai)}
+      <span class="status-chip ${A.statusCls(s.statusBerlaku)}">${esc(s.statusBerlaku)}</span>`).join(' · ')
+      : (a.wajibSertifikat ? '<span class="warn">belum ada (wajib)</span>' : 'tidak wajib')}
+    · <a href="alat-form.html?id=${a.id}">data alat</a>`;
+}
+
+async function loadTemplate(tanya) {
+  if (!alat) return setLine('saveStatus', 'Pilih alat dulu.');
+  if (tanya && $('ckBody').children.length && !confirm('Ganti checklist dengan template kategori? Isian sekarang hilang.')) return;
+  const { data, error } = await hsse.rpc('get_alat_checklist_template', { p_kategori: alat.kategori });
+  if (error) return setLine('saveStatus', 'Gagal memuat template: ' + error.message);
+  $('ckBody').innerHTML = '';
+  (data || []).forEach(t => addItem({ item: t.item }));
+  render();
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_alat_inspeksi_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'Inspeksi tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'alat-inspeksi-form.html?id=' + doc.id);
+  await pickAlat(doc.alatId, false);
+  $('iTanggal').value = A.toLocalInput(doc.tanggalInspeksi);
+  $('iJenis').value = doc.jenisInspeksi;
+  $('iWarna').value = doc.warnaTag || '';
+  $('iLokasi').value = doc.lokasiArea || '';
+  $('iHasil').value = doc.hasil;
+  $('iTemuan').value = doc.temuanTindakan || '';
+  $('ckBody').innerHTML = '';
+  (doc.checklistList || []).forEach(addItem);
+  fotoLama = (doc.fotoList || []).slice();
+  fotoBaru = [];
+  render();
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await A.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC alat', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const st = doc ? doc.status : 'Baru';
+  const ed = editable();
+  $('docNo').textContent = doc ? doc.noInspeksi : 'Inspeksi baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    `Inspektor: ${doc.inspektor || '-'}`,
+    doc.diubahOleh && doc.diubahOleh !== doc.inspektor && `Diubah: ${doc.diubahOleh}`,
+    st === 'Disetujui' && doc.disetujuiOleh && `Disetujui: ${doc.disetujuiOleh} ${A.tgl(doc.tanggalDisetujui)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docStatus').textContent = st;
+  $('docStatus').className = 'status-chip ' + A.statusCls(st);
+  const note = doc && doc.catatanApproval;
+  $('approvalNote').classList.toggle('hidden', !note);
+  if (note) $('approvalNote').textContent = (st === 'Dikembalikan' ? '↩️ Dikembalikan: ' : '📝 Catatan approval: ') + note;
+
+  $('iProject').disabled = !!doc || !ed;
+  $('iAlat').disabled = !!doc || !ed;
+  document.querySelectorAll('.ed, #ckBody [data-k]').forEach(el => el.disabled = !ed);
+  document.querySelectorAll('#ckBody .seg').forEach(s => {
+    s.classList.toggle('disabled', !ed);
+    s.querySelectorAll('input').forEach(i => i.disabled = !ed);
+  });
+  document.querySelectorAll('.ed-only, #ckBody .rm-item').forEach(el => el.classList.toggle('hidden', !ed));
+  $('btnSubmit').classList.toggle('hidden', !ed);
+  $('btnSubmit').textContent = doc ? '📤 Simpan Perbaikan & Ajukan Lagi' : '📤 Simpan & Ajukan Approval';
+  $('btnDelete').classList.toggle('hidden', !(doc && ed));
+  $('approveCard').classList.toggle('hidden', !(st === 'Menunggu Approval' && aktor && aktor.bisaApprove));
+  $('btnPdf').classList.toggle('hidden', !doc);
+  if (doc) $('btnPdf').href = 'alat-pdf.html?inspeksiId=' + doc.id;
+  $('btnAlat').classList.toggle('hidden', !alat);
+  if (alat) $('btnAlat').href = 'alat-form.html?id=' + alat.id;
+  renderPhotos(ed);
+  renderSummary();
+}
+
+// ---------- checklist ----------
+function addItem(e) {
+  e = e || {};
+  const n = seq++;
+  const tr = document.createElement('tr');
+  const segCls = { 'Baik': 'baik', 'Tidak Baik': 'tidak-baik', 'N/A': 'na' };
+  tr.innerHTML = `<td class="it"><textarea data-k="item" rows="2" placeholder="Item yang diperiksa">${esc(e.item)}</textarea></td>
+    <td class="h"><span class="seg">${A.HASIL_ITEM.map(h => `<label class="${segCls[h]} ${h === e.hasil ? 'on' : ''}">
+      <input type="radio" name="h${n}" value="${h}" ${h === e.hasil ? 'checked' : ''}>${h}</label>`).join('')}</span></td>
+    <td><input type="text" data-k="catatan" value="${esc(e.catatan)}"></td>
+    <td><button type="button" class="secondary small rm-item" onclick="this.closest('tr').remove(); renderSummary();">✕</button></td>`;
+  tr.querySelectorAll('.seg input').forEach(i => i.addEventListener('change', () => {
+    tr.querySelectorAll('.seg label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+    renderSummary();
+  }));
+  $('ckBody').appendChild(tr);
+  if (!e.item) render();
+}
+
+function readChecklist() {
+  return [...$('ckBody').children].map(tr => ({
+    item: tr.querySelector('[data-k="item"]').value.trim(),
+    hasil: (tr.querySelector('.seg input:checked') || {}).value || '',
+    catatan: tr.querySelector('[data-k="catatan"]').value.trim()
+  })).filter(x => x.item);
+}
+
+function semuaBaik() {
+  [...$('ckBody').children].forEach(tr => {
+    if (tr.querySelector('.seg input:checked')) return;
+    const b = tr.querySelector('.seg input[value="Baik"]');
+    b.checked = true;
+    b.dispatchEvent(new Event('change'));
+  });
+}
+
+function renderSummary() {
+  const list = readChecklist();
+  const c = h => list.filter(x => x.hasil === h).length;
+  const kosong = list.filter(x => !x.hasil).length;
+  $('summary').innerHTML = `<div>Baik: <b>${c('Baik')}</b></div><div>Tidak baik: <b style="color:var(--accent)">${c('Tidak Baik')}</b></div>
+    <div>N/A: <b>${c('N/A')}</b></div>${kosong ? `<div>Belum dinilai: <b style="color:#8A6100">${kosong}</b></div>` : ''}`;
+  // hasil Layak tidak boleh dipilih kalau ada item Tidak Baik
+  const opt = [...$('iHasil').options].find(o => o.value === 'Layak');
+  if (opt) opt.disabled = c('Tidak Baik') > 0;
+  if (c('Tidak Baik') > 0 && $('iHasil').value === 'Layak') $('iHasil').value = '';
+}
+
+// ---------- foto ----------
+function renderPhotos(ed) {
+  const items = [
+    ...fotoLama.map((f, i) => `<div class="photo"><a href="${esc(f.url)}" target="_blank"><img src="${esc(f.url)}"></a>${ed ? `<button type="button" class="rm" onclick="fotoLama.splice(${i},1); render();">✕</button>` : ''}</div>`),
+    ...fotoBaru.map((f, i) => `<div class="photo"><img src="${URL.createObjectURL(f)}"><button type="button" class="rm" onclick="fotoBaru.splice(${i},1); render();">✕</button></div>`)
+  ];
+  if (ed && fotoLama.length + fotoBaru.length < 3) {
+    items.push(`<label class="photo">📷<input type="file" accept="image/*" capture="environment" onchange="if(this.files[0]){fotoBaru.push(this.files[0]); render();}"></label>`);
+  }
+  $('photoRow').innerHTML = items.join('') || '<span class="hint">Tidak ada foto.</span>';
+}
+
+// ---------- simpan ----------
+async function submit() {
+  if (!needPic('saveStatus')) return;
+  if (!alat) return setLine('saveStatus', 'Pilih alat dulu.');
+  const data = {
+    alatId: alat.id, tanggalInspeksi: A.fromLocalInput($('iTanggal').value), jenisInspeksi: $('iJenis').value,
+    warnaTag: $('iWarna').value, lokasiArea: $('iLokasi').value.trim(), checklistList: readChecklist(),
+    hasil: $('iHasil').value, temuanTindakan: $('iTemuan').value.trim()
+  };
+  if (!data.checklistList.length) return setLine('saveStatus', 'Checklist masih kosong.');
+  const kosong = data.checklistList.filter(x => !x.hasil).length;
+  if (kosong) return setLine('saveStatus', `Masih ada ${kosong} item checklist yang belum dinilai.`);
+  if (!data.hasil) return setLine('saveStatus', 'Pilih kesimpulan hasil inspeksi.');
+  if (data.hasil !== 'Layak' && !data.temuanTindakan) return setLine('saveStatus', 'Tulis temuan dan tindakan perbaikannya.');
+  if (data.hasil === 'Tidak Layak' && !confirm('Hasil TIDAK LAYAK: alat langsung ditandai jangan dipakai sampai ada inspeksi Layak yang disetujui. Lanjut?')) return;
+  const btn = $('btnSubmit'); btn.disabled = true;
+  try {
+    const fotoList = fotoLama.slice();
+    for (let i = 0; i < fotoBaru.length; i++) {
+      setLine('saveStatus', `Mengupload foto ${i + 1}/${fotoBaru.length}...`, true);
+      const up = await uploadPhotoToDrive(fotoBaru[i], `ALAT_${alat.noAlat.replaceAll('/', '-')}_${Date.now()}_${i + 1}.jpg`);
+      fotoList.push({ url: up.directUrl, fileId: up.fileId });
+    }
+    setLine('saveStatus', 'Menyimpan...', true);
+    const { data: res, error } = await hsse.rpc('save_alat_inspeksi', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: data, p_foto: fotoList });
+    if (error) throw error;
+    await loadDoc(res.id);
+    setLine('saveStatus', `✅ Inspeksi ${res.noInspeksi} tersimpan dan diajukan. Menunggu approval pemegang Author "Approve Inspeksi Alat".`, true);
+  } catch (e) {
+    setLine('saveStatus', '❌ ' + e.message);
+  } finally { btn.disabled = false; }
+}
+
+async function hapus() {
+  if (!needPic('saveStatus')) return;
+  if (!confirm('Hapus inspeksi ini?')) return;
+  const { error } = await hsse.rpc('delete_alat_inspeksi', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  location.href = 'alat-form.html?id=' + doc.alatId;
+}
+
+async function approve(setuju) {
+  if (!aktor || !aktor.bisaApprove) return setLine('saveStatus', 'Butuh Author "Approve Inspeksi Alat".');
+  const catatan = $('aCatatan').value.trim();
+  if (!setuju && !catatan) return setLine('saveStatus', 'Tulis alasan kenapa dikembalikan.');
+  const { error } = await hsse.rpc('approve_alat_inspeksi', { ...aktorArgs(), p_id: doc.id, p_setuju: setuju, p_catatan: catatan || null });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  $('aCatatan').value = '';
+  await loadDoc(doc.id);
+  setLine('saveStatus', setuju ? '✅ Inspeksi disetujui.' : '↩️ Inspeksi dikembalikan ke PIC.', true);
+}
+</script>
+</body>
+</html>

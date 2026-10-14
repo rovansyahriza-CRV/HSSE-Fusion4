@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Alat — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="driveBridge.js"></script>
+<script src="alatCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.layak, .status-chip.disetujui, .status-chip.berlaku { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.layak-dengan-catatan, .status-chip.menunggu-approval, .status-chip.segera-habis { background: #FDF3E3; color: #8A6100; }
+  .status-chip.tidak-layak, .status-chip.dikembalikan, .status-chip.kedaluwarsa, .status-chip.belum-ada { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.belum-diinspeksi, .status-chip.tidak-wajib, .status-chip.tidak-dipakai, .status-chip.tanpa-masa-berlaku { background: #EEF0F4; color: var(--muted); }
+  .banner { border-radius: 12px; padding: 12px 14px; font-weight: 800; font-size: 14px; margin-top: 12px; }
+  .banner.layak { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .banner.layak-dengan-catatan { background: #FDF3E3; color: #8A6100; }
+  .banner.tidak-layak { background: #FCEAE8; color: var(--accent, #D13438); }
+  .banner.belum-diinspeksi { background: #EEF0F4; color: var(--muted); }
+  .banner .sub { font-size: 12px; font-weight: 600; margin-top: 3px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.list th, table.list td { border-bottom: 1px solid var(--border); padding: 7px 8px; text-align: left; vertical-align: top; }
+  table.list th { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  tr.old td { color: var(--muted); }
+  .sert-form { border: 1.5px dashed var(--border); border-radius: 12px; padding: 12px; margin-top: 12px; background: #FCFDFF; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
+    table.list thead { display: none; }
+    table.list td { display: block; border: 0; padding: 2px 0; }
+    table.list tr { display: block; border-bottom: 1px solid var(--border); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="alat-list.html" class="back-to-menu">⬅ Daftar Alat</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Data Alat</h1></div></div>
+    <p>Data alat, sertifikat &amp; masa berlakunya, dan riwayat inspeksi. Scan QR di kartu alat untuk membuka halaman ini di lapangan.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Tambah/ubah alat, sertifikat &amp; inspeksi butuh PIC <b>HSSE-ALT</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <!-- ========== DATA ALAT ========== -->
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Alat baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <div class="chips" id="docChips"></div>
+    </div>
+    <div id="kondisiBanner" class="banner hidden"></div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Project / Kontrak</label><select id="aProject" class="ed"></select></div>
+      <div class="field"><label>Kategori</label><select id="aKategori" class="ed"></select></div>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Nama Alat</label><input id="aNama" class="ed" placeholder="cth. Mobile Crane 25 Ton, APAR CO2 9 kg, Gerinda tangan 4&quot;"></div>
+      <div class="field"><label>No. Aset / Lambung (opsional)</label><input id="aNoAset" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Merk / Tipe</label><input id="aMerk" class="ed"></div>
+      <div class="field"><label>No. Seri</label><input id="aNoSeri" class="ed"></div>
+      <div class="field"><label>Kapasitas / SWL</label><input id="aKapasitas" class="ed" placeholder="cth. SWL 5 ton, 9 kg, 10 bar"></div>
+    </div>
+    <div class="row">
+      <div class="field small"><label>Pemilik</label><select id="aPemilik" class="ed"></select></div>
+      <div class="field"><label>Nama subkon / vendor / client</label><input id="aNamaPemilik" class="ed"></div>
+      <div class="field"><label>Lokasi / Area</label><input id="aLokasi" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field small"><label>Interval inspeksi (hari)</label><input type="number" min="1" max="730" id="aInterval" class="ed"></div>
+      <div class="field"><label>Wajib sertifikat?</label>
+        <select id="aWajib" class="ed"><option value="true">Ya (SILO / riksa uji / kalibrasi, dll)</option><option value="false">Tidak</option></select>
+      </div>
+      <div class="field small"><label>Status alat</label>
+        <select id="aStatus" class="ed"><option>Aktif</option><option>Tidak Dipakai</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Keterangan</label><textarea id="aKet" class="ed"></textarea></div>
+    </div>
+    <div class="actions" id="editActions">
+      <button type="button" onclick="saveAlat()">💾 Simpan Data Alat</button>
+      <button type="button" class="danger hidden" id="btnDelete" onclick="deleteAlat()">🗑️ Hapus</button>
+    </div>
+    <div class="status-line" id="alatStatus"></div>
+  </div>
+
+  <!-- ========== SERTIFIKAT ========== -->
+  <div class="card hidden" id="sertCard">
+    <h2 id="sertifikat">Sertifikat</h2>
+    <div class="hint">Perpanjangan = catat sertifikat baru. Yang lama tetap tersimpan sebagai riwayat; yang dipakai untuk pengingat adalah sertifikat terbaru per jenis.</div>
+    <table class="list" style="margin-top:8px;"><thead><tr><th>Jenis</th><th>No. / Penerbit</th><th>Terbit</th><th>Berlaku s/d</th><th>Status</th><th></th></tr></thead><tbody id="sertBody"></tbody></table>
+    <div class="actions pic-only"><button type="button" class="secondary small" onclick="openSert()">➕ Tambah sertifikat</button></div>
+
+    <div class="sert-form hidden" id="sertForm">
+      <div class="row">
+        <div class="field"><label>Jenis sertifikat</label><select id="sJenis"></select></div>
+        <div class="field"><label>No. sertifikat</label><input id="sNo"></div>
+        <div class="field"><label>Penerbit (Disnaker / PJK3 / lab)</label><input id="sPenerbit"></div>
+      </div>
+      <div class="row">
+        <div class="field small"><label>Tanggal terbit</label><input type="date" id="sTerbit"></div>
+        <div class="field small"><label>Berlaku sampai</label><input type="date" id="sSampai"></div>
+        <div class="field wide"><label>Link dokumen (Drive)</label><input id="sLink" placeholder="https://..."></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>atau upload scan sertifikat (PDF / foto)</label><input type="file" id="sFile" accept="application/pdf,image/*"></div>
+        <div class="field wide"><label>Catatan</label><input id="sCatatan"></div>
+      </div>
+      <div class="actions">
+        <button type="button" onclick="saveSert()">💾 Simpan Sertifikat</button>
+        <button type="button" class="secondary" onclick="closeSert()">Batal</button>
+      </div>
+    </div>
+    <div class="status-line" id="sertStatus"></div>
+  </div>
+
+  <!-- ========== RIWAYAT INSPEKSI ========== -->
+  <div class="card hidden" id="inspCard">
+    <div class="doc-head">
+      <h2>Riwayat Inspeksi</h2>
+      <div class="actions" style="margin-top:0;">
+        <a id="btnInspeksi"><button type="button">🔍 Inspeksi alat ini</button></a>
+        <a id="btnKartu" target="_blank"><button type="button" class="secondary">🏷️ Kartu Alat / QR</button></a>
+      </div>
+    </div>
+    <table class="list"><thead><tr><th>No. / Tanggal</th><th>Jenis</th><th>Hasil</th><th>Inspektor</th><th>Status</th></tr></thead><tbody id="inspBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const A = AlatCommon, esc = A.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;     // hasil get_alat_detail (null = alat baru)
+let aktor = null;   // { nama, qrCodeId, bisaPic, bisaApprove }
+let sertEditId = null;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(A.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-ALT).');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('aKategori').innerHTML = Object.keys(A.KATEGORI).map(k => `<option>${esc(k)}</option>`).join('');
+  $('aPemilik').innerHTML = A.PEMILIK.map(p => `<option>${esc(p)}</option>`).join('');
+  $('sJenis').innerHTML = A.JENIS_SERTIFIKAT.map(j => `<option>${esc(j)}</option>`).join('');
+  $('aKategori').addEventListener('change', () => {
+    if (doc) return;
+    $('aInterval').value = A.KATEGORI[$('aKategori').value] || 30;
+    $('aWajib').value = String(!A.TANPA_SERTIFIKAT.includes($('aKategori').value));
+  });
+  await loadProjects();
+  const q = new URLSearchParams(location.search);
+  if (q.get('id')) await loadDoc(Number(q.get('id')));
+  else {
+    if (q.get('projectId')) $('aProject').value = q.get('projectId');
+    $('aKategori').dispatchEvent(new Event('change'));
+    render();
+  }
+});
+
+async function loadProjects() {
+  const { data, error } = await hsse.rpc('get_active_projects');
+  if (error) return setLine('alatStatus', 'Gagal memuat project: ' + error.message);
+  $('aProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}${p.noKontrak ? ' (' + esc(p.noKontrak) + ')' : ''}</option>`).join('');
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_alat_detail', { p_id: id });
+  if (error || !data) return setLine('alatStatus', 'Alat tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'alat-form.html?id=' + doc.id + location.hash);
+  if (!$('aProject').querySelector(`option[value="${doc.projectId}"]`)) {
+    $('aProject').insertAdjacentHTML('beforeend', `<option value="${doc.projectId}">${esc(doc.namaProject)}</option>`);
+  }
+  $('aProject').value = doc.projectId;
+  $('aKategori').value = doc.kategori;
+  $('aNama').value = doc.namaAlat || '';
+  $('aNoAset').value = doc.noAset || '';
+  $('aMerk').value = doc.merkTipe || '';
+  $('aNoSeri').value = doc.noSeri || '';
+  $('aKapasitas').value = doc.kapasitas || '';
+  $('aPemilik').value = doc.pemilik;
+  $('aNamaPemilik').value = doc.namaPemilik || '';
+  $('aLokasi').value = doc.lokasiArea || '';
+  $('aInterval').value = doc.intervalInspeksiHari;
+  $('aWajib').value = String(doc.wajibSertifikat !== false);
+  $('aStatus').value = doc.statusAlat;
+  $('aKet').value = doc.keterangan || '';
+  render();
+  if (location.hash === '#sertifikat') setTimeout(() => $('sertCard').scrollIntoView({ behavior: 'smooth' }), 200);
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await A.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC alat', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const pic = !aktor || aktor.bisaPic;   // sebelum verifikasi: tampilkan, server tetap cek
+  $('docNo').textContent = doc ? doc.noAlat + (doc.noAset ? ' · ' + doc.noAset : '') : 'Alat baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    doc.dibuatOleh && `Didaftarkan: ${doc.dibuatOleh} ${A.tgl(doc.createdAt)}`,
+    doc.diubahOleh && `Terakhir diubah: ${doc.diubahOleh} ${A.tgl(doc.updatedAt)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docChips').innerHTML = doc ? [
+    doc.statusAlat !== 'Aktif' ? '<span class="status-chip tidak-dipakai">Tidak Dipakai</span>' : '',
+    `<span class="status-chip ${A.statusCls(doc.kondisi)}">${esc(doc.kondisi)}</span>`,
+    `<span class="status-chip ${A.statusCls(doc.sertifikatStatus)}">Sertifikat: ${esc(doc.sertifikatStatus)}</span>`
+  ].join('') : '';
+
+  $('kondisiBanner').classList.toggle('hidden', !doc);
+  if (doc) {
+    const ikon = { 'Layak': '✅', 'Layak dengan Catatan': '⚠️', 'Tidak Layak': '⛔', 'Belum Diinspeksi': '❔' }[doc.kondisi] || '';
+    const tempo = doc.statusAlat !== 'Aktif' ? 'Alat tidak dipakai.'
+      : !doc.inspeksiTerakhir ? 'Belum pernah diinspeksi.'
+      : `Inspeksi terakhir ${A.tgl(doc.inspeksiTerakhir)}, berikutnya ${A.tgl(doc.jatuhTempo)}${doc.lewatTempo ? ' (LEWAT JADWAL)' : ''}.`;
+    $('kondisiBanner').className = 'banner ' + A.statusCls(doc.kondisi);
+    $('kondisiBanner').innerHTML = `${ikon} Kondisi: ${esc(doc.kondisi)}${doc.kondisi === 'Tidak Layak' ? ' -- JANGAN DIPAKAI' : ''}
+      <div class="sub">${doc.kondisiTanggal ? 'Berdasarkan inspeksi ' + A.tglJam(doc.kondisiTanggal) + (doc.warnaTag ? ', tag ' + esc(doc.warnaTag) : '') + '. ' : ''}${esc(tempo)}
+      ${doc.sertifikatBerlakuSampai ? ' Sertifikat berlaku s/d ' + A.tgl(doc.sertifikatBerlakuSampai) + '.' : ''}</div>`;
+  }
+
+  document.querySelectorAll('.ed').forEach(el => el.disabled = !pic);
+  $('editActions').classList.toggle('hidden', !pic);
+  $('btnDelete').classList.toggle('hidden', !(doc && pic && !(doc.inspeksiList || []).length));
+  document.querySelectorAll('.pic-only').forEach(el => el.classList.toggle('hidden', !pic));
+
+  $('sertCard').classList.toggle('hidden', !doc);
+  $('inspCard').classList.toggle('hidden', !doc);
+  if (!doc) return;
+  renderSert(pic);
+  renderInsp();
+  $('btnInspeksi').href = 'alat-inspeksi-form.html?alatId=' + doc.id;
+  $('btnInspeksi').classList.toggle('hidden', doc.statusAlat !== 'Aktif');
+  $('btnKartu').href = 'alat-pdf.html?id=' + doc.id;
+}
+
+function renderSert(pic) {
+  const list = doc.sertifikatList || [];
+  $('sertBody').innerHTML = list.length ? list.map(s => `<tr class="${s.terkini ? '' : 'old'}">
+      <td>${esc(s.jenisSertifikat)}${s.terkini ? '' : '<div class="hint">riwayat</div>'}</td>
+      <td>${esc(s.noSertifikat)}${s.penerbit ? '<div class="hint">' + esc(s.penerbit) + '</div>' : ''}
+        ${s.linkDokumen ? `<div><a href="${esc(s.linkDokumen)}" target="_blank" rel="noopener">📄 dokumen</a></div>` : ''}</td>
+      <td>${A.tgl(s.tanggalTerbit)}</td>
+      <td>${A.tgl(s.berlakuSampai)}${s.terkini && s.berlakuSampai ? '<div class="hint">' + esc(A.sisaLabel(s)) + '</div>' : ''}</td>
+      <td>${s.terkini ? `<span class="status-chip ${A.statusCls(s.statusBerlaku)}">${esc(s.statusBerlaku)}</span>` : ''}</td>
+      <td>${pic ? `<button type="button" class="secondary small" onclick="openSert(${s.id})">✏️</button>
+        <button type="button" class="danger small" onclick="deleteSert(${s.id})">✕</button>` : ''}</td></tr>`).join('')
+    : `<tr><td colspan="6" class="hint" style="text-align:center;padding:16px;">${doc.wajibSertifikat ? 'Belum ada sertifikat. Alat ini ditandai wajib sertifikat.' : 'Belum ada sertifikat (alat tidak wajib sertifikat).'}</td></tr>`;
+}
+
+function renderInsp() {
+  const list = doc.inspeksiList || [];
+  $('inspBody').innerHTML = list.length ? list.map(i => `<tr>
+      <td><a href="alat-inspeksi-form.html?id=${i.id}">${esc(i.noInspeksi)}</a><div class="hint">${A.tglJam(i.tanggalInspeksi)}</div></td>
+      <td>${esc(i.jenisInspeksi)}${i.warnaTag ? '<div class="hint">tag ' + esc(i.warnaTag) + '</div>' : ''}</td>
+      <td><span class="status-chip ${A.statusCls(i.hasil)}">${esc(i.hasil)}</span>${i.jumlahTidakBaik ? `<div class="hint">${i.jumlahTidakBaik} item tidak baik</div>` : ''}</td>
+      <td>${esc(i.inspektor || '-')}</td>
+      <td><span class="status-chip ${A.statusCls(i.status)}">${esc(i.status)}</span></td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint" style="text-align:center;padding:16px;">Belum ada inspeksi.</td></tr>';
+}
+
+// ---------- data alat ----------
+async function saveAlat() {
+  if (!needPic('alatStatus')) return;
+  const d = {
+    projectId: $('aProject').value, kategori: $('aKategori').value, namaAlat: $('aNama').value.trim(),
+    noAset: $('aNoAset').value.trim(), merkTipe: $('aMerk').value.trim(), noSeri: $('aNoSeri').value.trim(),
+    kapasitas: $('aKapasitas').value.trim(), pemilik: $('aPemilik').value, namaPemilik: $('aNamaPemilik').value.trim(),
+    lokasiArea: $('aLokasi').value.trim(), intervalInspeksiHari: $('aInterval').value,
+    wajibSertifikat: $('aWajib').value === 'true', statusAlat: $('aStatus').value, keterangan: $('aKet').value.trim()
+  };
+  if (!d.projectId) return setLine('alatStatus', 'Pilih project dulu.');
+  if (!d.namaAlat) return setLine('alatStatus', 'Nama alat wajib diisi.');
+  setLine('alatStatus', 'Menyimpan...', true);
+  const { data, error } = await hsse.rpc('save_alat', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
+  if (error) return setLine('alatStatus', '❌ ' + error.message);
+  const baru = !doc;
+  await loadDoc(data.id);
+  setLine('alatStatus', baru ? `✅ Alat terdaftar: ${data.noAlat}. Lanjut catat sertifikat di bawah (kalau ada).` : '✅ Data alat tersimpan.', true);
+}
+
+async function deleteAlat() {
+  if (!needPic('alatStatus')) return;
+  if (!confirm('Hapus alat ini? Cuma bisa kalau belum pernah diinspeksi.')) return;
+  const { error } = await hsse.rpc('delete_alat', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('alatStatus', '❌ ' + error.message);
+  location.href = 'alat-list.html';
+}
+
+// ---------- sertifikat ----------
+function openSert(id) {
+  if (!needPic('sertStatus')) return;
+  const s = id ? (doc.sertifikatList || []).find(x => x.id === id) : {};
+  sertEditId = id || null;
+  $('sJenis').value = s.jenisSertifikat || A.JENIS_SERTIFIKAT[0];
+  $('sNo').value = s.noSertifikat || '';
+  $('sPenerbit').value = s.penerbit || '';
+  $('sTerbit').value = s.tanggalTerbit || '';
+  $('sSampai').value = s.berlakuSampai || '';
+  $('sLink').value = s.linkDokumen || '';
+  $('sCatatan').value = s.catatan || '';
+  $('sFile').value = '';
+  $('sertForm').classList.remove('hidden');
+  $('sertForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function closeSert() { $('sertForm').classList.add('hidden'); sertEditId = null; }
+
+async function saveSert() {
+  if (!needPic('sertStatus')) return;
+  const d = {
+    jenisSertifikat: $('sJenis').value, noSertifikat: $('sNo').value.trim(), penerbit: $('sPenerbit').value.trim(),
+    tanggalTerbit: $('sTerbit').value || null, berlakuSampai: $('sSampai').value || null,
+    linkDokumen: $('sLink').value.trim(), catatan: $('sCatatan').value.trim()
+  };
+  if (!d.noSertifikat) return setLine('sertStatus', 'No. sertifikat wajib diisi.');
+  try {
+    const file = $('sFile').files[0];
+    if (file) {
+      setLine('sertStatus', 'Mengupload dokumen ke Drive...', true);
+      const up = await uploadLampiranToDrive(file);
+      d.linkDokumen = up.viewUrl || up.directUrl;
+    }
+    setLine('sertStatus', 'Menyimpan...', true);
+    const { data, error } = await hsse.rpc('save_alat_sertifikat', { ...aktorArgs(), p_alat_id: doc.id, p_id: sertEditId, p_data: d });
+    if (error) throw error;
+    doc = data;
+    closeSert();
+    render();
+    setLine('sertStatus', '✅ Sertifikat tersimpan.', true);
+  } catch (e) { setLine('sertStatus', '❌ ' + e.message); }
+}
+
+async function deleteSert(id) {
+  if (!needPic('sertStatus')) return;
+  if (!confirm('Hapus sertifikat ini? Kalau ini perpanjangan, lebih baik tambahkan sertifikat baru saja.')) return;
+  const { data, error } = await hsse.rpc('delete_alat_sertifikat', { ...aktorArgs(), p_id: id });
+  if (error) return setLine('sertStatus', '❌ ' + error.message);
+  doc = data;
+  render();
+  setLine('sertStatus', 'Sertifikat dihapus.', true);
+}
+</script>
+</body>
+</html>

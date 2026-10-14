@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Alat — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="alatCommon.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73; --navy-dark: #1B2650; --accent: #E02C2B; --safety-yellow: #F5A623;
+    --success: #178A4C; --success-bg: #E5F6EC; --border: #D5DAE6; --muted: #6B7280; --text: #1E1E1E; --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 11.5px; line-height: 1.45; }
+  .toolbar { position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button { background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .sheet { max-width: 210mm; margin: 16px auto; background: #fff; padding: 12mm; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.08); display: none; }
+  .sheet.landscape { max-width: 297mm; }
+  .doc-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 12px; }
+  .doc-header img { width: 100px; height: auto; object-fit: contain; }
+  .doc-title { text-align: right; }
+  .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .doc-title h1 { font-size: 17px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-title .sub { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+  .watermark { color: var(--accent); font-weight: 800; font-size: 11px; text-align: center; border: 1.5px dashed var(--accent); border-radius: 6px; padding: 4px; margin-bottom: 10px; }
+  .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .info-cell { padding: 6px 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .value { font-size: 10.5px; font-weight: 700; white-space: pre-wrap; }
+  h2 { font-size: 11px; font-weight: 800; color: #fff; background: var(--navy-dark); padding: 5px 10px; border-radius: 5px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .text-block { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; min-height: 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
+  thead th { background: #EEF2FC; color: var(--navy-dark); font-size: 8.5px; text-transform: uppercase; }
+  td.c { text-align: center; }
+  .k-layak, .h-baik, .s-berlaku { background: #CDEFD9; }
+  .k-layak-dengan-catatan, .s-segera-habis { background: #FBE7B5; }
+  .k-tidak-layak, .h-tidak-baik, .s-kedaluwarsa, .s-belum-ada { background: #F4B1AC; }
+  .result { display: flex; gap: 10px; align-items: stretch; }
+  .result .box { flex: 0 0 52mm; border-radius: 8px; padding: 10px; text-align: center; font-size: 15px; font-weight: 800; display: flex; flex-direction: column; justify-content: center; }
+  .result .box .label { margin-bottom: 4px; }
+  .result .text-block { flex: 1; }
+  .kartu { display: flex; gap: 14px; align-items: flex-start; }
+  .kartu .info-grid { flex: 1; margin-bottom: 0; }
+  .qr-wrap { text-align: center; }
+  .qr-wrap canvas { width: 34mm !important; height: 34mm !important; }
+  .sticker { margin-top: 18px; width: 90mm; border: 2px dashed var(--navy); border-radius: 8px; padding: 6px 8px; display: flex; gap: 8px; align-items: center; page-break-inside: avoid; }
+  .sticker canvas { width: 26mm !important; height: 26mm !important; flex-shrink: 0; }
+  .sticker .no { font-family: monospace; font-size: 12px; font-weight: 800; color: var(--navy-dark); }
+  .sticker .nm { font-size: 10.5px; font-weight: 800; }
+  .sticker .sm { font-size: 8.5px; color: var(--muted); }
+  .photos { display: flex; gap: 8px; flex-wrap: wrap; }
+  .photos img { width: 58mm; height: 42mm; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 18px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 10px; font-weight: 700; }
+  .signature-box .sub { font-size: 8.5px; color: var(--muted); }
+  .doc-footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 0; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tr, .photos img, .signature-row { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+  }
+  @media screen and (max-width: 800px) {
+    .sheet { padding: 5vw; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .kartu, .result { flex-direction: column; }
+    .sheet table { display: block; overflow-x: auto; }
+  }
+</style>
+<style id="pageSize">@page { size: A4 portrait; margin: 10mm; }</style>
+</head>
+<body>
+<div class="toolbar no-print">
+  <a href="alat-list.html" id="backLink">⬅ Daftar Alat</a>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div id="loading" class="loading">Memuat...</div>
+
+<div class="sheet" id="sheet">
+  <div class="doc-header">
+    <img src="logo-bima.png" alt="Logo HSSE BiMa">
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1 id="fJudul"></h1>
+      <div class="sub" id="fNo"></div>
+    </div>
+  </div>
+  <div id="fWatermark" class="watermark" style="display:none;"></div>
+  <div id="fBody"></div>
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetak"></div>
+  </div>
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const A = AlatCommon, esc = A.esc;
+const $ = id => document.getElementById(id);
+
+function info(rows) {
+  return `<div class="info-grid">${rows.map(([k, v]) => `<div class="info-cell"><div class="label">${k}</div><div class="value">${esc(v ?? '-')}</div></div>`).join('')}</div>`;
+}
+function alatUrl(id) { return new URL('alat-form.html?id=' + id, location.href).href; }
+function fail(t) { $('loading').textContent = t; }
+function show(judul, no) {
+  $('fJudul').textContent = judul;
+  $('fNo').textContent = no;
+  $('fCetak').textContent = 'Dicetak ' + new Date().toLocaleString('id-ID');
+  $('loading').style.display = 'none';
+  $('sheet').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const q = new URLSearchParams(location.search);
+  try {
+    if (q.get('inspeksiId')) return await laporanInspeksi(Number(q.get('inspeksiId')));
+    if (q.get('id')) return await kartuAlat(Number(q.get('id')));
+    if (q.get('register')) return await register(q.get('projectId') ? Number(q.get('projectId')) : null);
+    fail('Parameter tidak lengkap (id, inspeksiId, atau register).');
+  } catch (e) { fail('Gagal memuat: ' + e.message); }
+});
+
+// ---------- Kartu alat (data, sertifikat, riwayat inspeksi, QR) ----------
+async function kartuAlat(id) {
+  const { data: a, error } = await db.rpc('get_alat_detail', { p_id: id });
+  if (error || !a) return fail('Alat tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  document.title = `${a.noAlat} — Kartu Alat`;
+  $('backLink').href = 'alat-form.html?id=' + a.id; $('backLink').textContent = '⬅ Data Alat';
+  const sert = a.sertifikatList || [];
+  const insp = (a.inspeksiList || []).slice(0, 20);
+  $('fBody').innerHTML = `
+    <div class="kartu">
+      ${info([
+        ['Nama Alat', a.namaAlat], ['Kategori', a.kategori], ['No. Aset', a.noAset || '-'],
+        ['Merk / Tipe', a.merkTipe || '-'], ['No. Seri', a.noSeri || '-'], ['Kapasitas / SWL', a.kapasitas || '-'],
+        ['Project', `${a.kodeOperational ? a.kodeOperational + ' · ' : ''}${a.namaProject || '-'}`],
+        ['Pemilik', a.pemilik + (a.namaPemilik ? ' (' + a.namaPemilik + ')' : '')], ['Lokasi / Area', a.lokasiArea || '-'],
+        ['Kondisi', a.kondisi + (a.kondisiTanggal ? ' per ' + A.tgl(a.kondisiTanggal) : '')],
+        ['Interval Inspeksi', a.intervalInspeksiHari + ' hari'],
+        ['Inspeksi Berikutnya', a.jatuhTempo ? A.tgl(a.jatuhTempo) + (a.lewatTempo ? ' (LEWAT)' : '') : 'belum pernah diinspeksi']
+      ])}
+      <div class="qr-wrap"><canvas id="qrBig"></canvas><div class="label">Scan: status alat</div></div>
+    </div>
+
+    <h2>Sertifikat</h2>
+    <table><thead><tr><th style="width:24%">Jenis</th><th style="width:20%">No. Sertifikat</th><th style="width:18%">Penerbit</th><th style="width:11%">Terbit</th><th style="width:11%">Berlaku s/d</th><th>Status</th></tr></thead>
+      <tbody>${sert.length ? sert.map(s => `<tr><td>${esc(s.jenisSertifikat)}</td><td>${esc(s.noSertifikat)}</td><td>${esc(s.penerbit || '-')}</td>
+        <td class="c">${A.tgl(s.tanggalTerbit)}</td><td class="c">${A.tgl(s.berlakuSampai)}</td>
+        <td class="${s.terkini ? 's-' + A.statusCls(s.statusBerlaku) : ''}">${s.terkini ? esc(s.statusBerlaku) : 'riwayat'}</td></tr>`).join('')
+        : `<tr><td colspan="6" class="c">${a.wajibSertifikat ? 'Belum ada sertifikat (wajib).' : 'Tidak wajib sertifikat.'}</td></tr>`}</tbody></table>
+
+    <h2>Riwayat Inspeksi${(a.inspeksiList || []).length > 20 ? ' (20 terakhir)' : ''}</h2>
+    <table><thead><tr><th style="width:17%">No. Inspeksi</th><th style="width:15%">Tanggal</th><th style="width:15%">Jenis</th><th style="width:8%">Tag</th><th style="width:15%">Hasil</th><th style="width:15%">Inspektor</th><th>Status</th></tr></thead>
+      <tbody>${insp.length ? insp.map(i => `<tr><td>${esc(i.noInspeksi)}</td><td class="c">${A.tglJam(i.tanggalInspeksi)}</td><td>${esc(i.jenisInspeksi)}</td>
+        <td class="c">${esc(i.warnaTag || '-')}</td><td class="k-${A.statusCls(i.hasil)}">${esc(i.hasil)}</td><td>${esc(i.inspektor || '-')}</td><td>${esc(i.status)}</td></tr>`).join('')
+        : '<tr><td colspan="7" class="c">Belum ada inspeksi.</td></tr>'}</tbody></table>
+
+    <div class="sticker">
+      <canvas id="qrSmall"></canvas>
+      <div>
+        <div class="no">${esc(a.noAlat)}</div>
+        <div class="nm">${esc(a.namaAlat)}</div>
+        <div class="sm">${esc([a.noSeri && 'S/N ' + a.noSeri, a.kapasitas].filter(Boolean).join(' · '))}</div>
+        <div class="sm">Scan QR untuk cek kondisi, sertifikat &amp; inspeksi. Potong dan tempel di alat.</div>
+      </div>
+    </div>`;
+  const url = alatUrl(a.id);
+  QRCode.toCanvas($('qrBig'), url, { width: 260, margin: 1 });
+  QRCode.toCanvas($('qrSmall'), url, { width: 200, margin: 1 });
+  show('Kartu Alat & Sertifikasi', `${a.noAlat} · ${a.statusAlat}`);
+}
+
+// ---------- Laporan inspeksi ----------
+async function laporanInspeksi(id) {
+  const { data: d, error } = await db.rpc('get_alat_inspeksi_detail', { p_id: id });
+  if (error || !d) return fail('Inspeksi tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  document.title = `${d.noInspeksi} — Inspeksi Alat`;
+  $('backLink').href = 'alat-inspeksi-form.html?id=' + d.id; $('backLink').textContent = '⬅ Inspeksi';
+  if (d.status !== 'Disetujui') {
+    $('fWatermark').style.display = 'block';
+    $('fWatermark').textContent = `BELUM DISETUJUI (${d.status.toUpperCase()}) -- bukan dokumen resmi`;
+  }
+  const ck = d.checklistList || [];
+  const foto = d.fotoList || [];
+  const sert = d.sertifikatList || [];
+  $('fBody').innerHTML = `
+    ${info([
+      ['Alat', `${d.noAlat} · ${d.namaAlat}`], ['Kategori', d.kategori], ['Merk / No. Seri', [d.merkTipe, d.noSeri].filter(Boolean).join(' / ') || '-'],
+      ['Kapasitas / SWL', d.kapasitas || '-'], ['Project', `${d.kodeOperational ? d.kodeOperational + ' · ' : ''}${d.namaProject || '-'}`],
+      ['Lokasi / Area', d.lokasiArea || '-'],
+      ['Tanggal Inspeksi', A.tglJam(d.tanggalInspeksi)], ['Jenis Inspeksi', d.jenisInspeksi], ['Warna Tag', d.warnaTag || '-']
+    ])}
+
+    <h2>Sertifikat Alat (saat dicetak)</h2>
+    <table><thead><tr><th style="width:32%">Jenis</th><th style="width:26%">No. Sertifikat</th><th style="width:18%">Berlaku s/d</th><th>Status</th></tr></thead>
+      <tbody>${sert.length ? sert.map(s => `<tr><td>${esc(s.jenisSertifikat)}</td><td>${esc(s.noSertifikat)}</td><td class="c">${A.tgl(s.berlakuSampai)}</td>
+        <td class="s-${A.statusCls(s.statusBerlaku)}">${esc(s.statusBerlaku)}</td></tr>`).join('') : '<tr><td colspan="4" class="c">Tidak ada sertifikat tercatat.</td></tr>'}</tbody></table>
+
+    <h2>Checklist</h2>
+    <table><thead><tr><th style="width:5%">No</th><th style="width:55%">Item</th><th style="width:12%">Hasil</th><th>Catatan</th></tr></thead>
+      <tbody>${ck.map((c, i) => `<tr><td class="c">${i + 1}</td><td>${esc(c.item)}</td><td class="c h-${A.statusCls(c.hasil)}">${esc(c.hasil)}</td><td>${esc(c.catatan || '')}</td></tr>`).join('')}</tbody></table>
+    <div style="margin-top:4px;font-size:9.5px;color:var(--muted);">Baik ${d.jumlahBaik} · Tidak baik ${d.jumlahTidakBaik} · N/A ${ck.length - d.jumlahBaik - d.jumlahTidakBaik}</div>
+
+    <h2>Hasil</h2>
+    <div class="result">
+      <div class="box k-${A.statusCls(d.hasil)}"><span class="label">Kesimpulan</span>${esc(d.hasil)}</div>
+      <div class="text-block"><div class="label">Temuan &amp; tindakan perbaikan</div>${esc(d.temuanTindakan || '-')}</div>
+    </div>
+    ${d.catatanApproval ? `<div class="text-block" style="margin-top:6px;"><div class="label">Catatan approval</div>${esc(d.catatanApproval)}</div>` : ''}
+
+    ${foto.length ? `<h2>Dokumentasi</h2><div class="photos">${foto.map(f => `<img src="${esc(f.url)}" alt="Foto inspeksi">`).join('')}</div>` : ''}
+
+    <div class="signature-row">
+      <div class="signature-box"><div class="role">Diinspeksi Oleh</div><div class="line">${esc(d.inspektor || ' ')}</div><div class="sub">${A.tgl(d.tanggalInspeksi)}</div></div>
+      <div class="signature-box"><div class="role">Disetujui Oleh</div><div class="line">${d.status === 'Disetujui' ? esc(d.disetujuiOleh || ' ') : '&nbsp;'}</div>
+        <div class="sub">${d.status === 'Disetujui' && d.tanggalDisetujui ? A.tgl(d.tanggalDisetujui) : 'Nama &amp; Tanda Tangan'}</div></div>
+    </div>`;
+  show('Laporan Inspeksi Alat', `${d.noInspeksi} · ${d.status}`);
+}
+
+// ---------- Register alat per project (A4 landscape) ----------
+async function register(projectId) {
+  const { data, error } = await db.rpc('get_alat_list', { p_project_id: projectId, p_kategori: null, p_status_alat: 'Aktif', p_cari: null });
+  if (error) return fail('Gagal memuat: ' + error.message);
+  const rows = data || [];
+  document.title = 'Register Alat & Sertifikasi';
+  $('pageSize').textContent = '@page { size: A4 landscape; margin: 10mm; }';
+  $('sheet').classList.add('landscape');
+  const proj = projectId && rows[0] ? `${rows[0].kodeOperational ? rows[0].kodeOperational + ' · ' : ''}${rows[0].namaProject}` : (projectId ? '-' : 'Semua project');
+  const n = f => rows.filter(f).length;
+  $('fBody').innerHTML = `
+    ${info([
+      ['Project', proj], ['Jumlah alat aktif', rows.length], ['Per tanggal', A.tgl(new Date().toISOString())],
+      ['Tidak layak (tag out)', n(r => r.kondisi === 'Tidak Layak')], ['Lewat jadwal inspeksi', n(r => r.lewatTempo)],
+      ['Sertifikat habis / ≤30 hari / belum ada', n(r => ['Kedaluwarsa', 'Segera Habis', 'Belum Ada'].includes(r.sertifikatStatus))]
+    ])}
+    <table><thead><tr><th style="width:3%">No</th><th style="width:10%">No. Alat</th><th style="width:16%">Nama Alat</th><th style="width:12%">Kategori</th>
+      <th style="width:12%">Merk / S/N</th><th style="width:8%">Kapasitas</th><th style="width:10%">Pemilik</th><th style="width:8%">Lokasi</th>
+      <th style="width:9%">Sertifikat s/d</th><th style="width:8%">Inspeksi berikut</th><th>Kondisi</th></tr></thead>
+      <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="c">${i + 1}</td><td>${esc(r.noAlat)}${r.noAset ? '<br>' + esc(r.noAset) : ''}</td><td>${esc(r.namaAlat)}</td>
+        <td>${esc(r.kategori)}</td><td>${esc([r.merkTipe, r.noSeri].filter(Boolean).join(' / ') || '-')}</td><td>${esc(r.kapasitas || '-')}</td>
+        <td>${esc(r.pemilik)}${r.namaPemilik ? '<br>' + esc(r.namaPemilik) : ''}</td><td>${esc(r.lokasiArea || '-')}</td>
+        <td class="c s-${A.statusCls(r.sertifikatStatus)}">${r.sertifikatBerlakuSampai ? A.tgl(r.sertifikatBerlakuSampai) : esc(r.sertifikatStatus)}</td>
+        <td class="c ${r.lewatTempo ? 's-kedaluwarsa' : ''}">${r.jatuhTempo ? A.tgl(r.jatuhTempo) : 'belum'}</td>
+        <td class="k-${A.statusCls(r.kondisi)}">${esc(r.kondisi)}${r.warnaTag ? '<br>tag ' + esc(r.warnaTag) : ''}</td></tr>`).join('')
+        : '<tr><td colspan="11" class="c">Belum ada alat.</td></tr>'}</tbody></table>`;
+  show('Register Alat & Sertifikasi', proj);
+}
+</script>
+</body>
+</html>
