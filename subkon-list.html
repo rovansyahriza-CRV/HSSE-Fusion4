@@ -84,7 +84,7 @@
   </div>
 
   <div class="top-actions">
-    <a href="subkon-form.html" class="btn-main">➕ Tambah Subkon</a>
+    <a href="subkon-form.html" class="btn-main">➕ Tambah Subkon (dari SMMS)</a>
     <a href="subkon-pekerjaan-form.html" class="btn-main">📋 Tambah Pekerjaan Subkon</a>
     <a href="#" id="btnRegister" class="btn-main alt" target="_blank">🖨️ Cetak Daftar Subkon</a>
   </div>
@@ -266,7 +266,7 @@ async function loadSubkon() {
     <div class="doc-card ${r.status === 'Daftar Hitam' || r.dokumenKedaluwarsa ? 'late' : ''}">
       <div class="doc-top">
         <div>
-          <div class="doc-no">${esc(r.kodeSubkon)}${r.noNIB ? ' · NIB ' + esc(r.noNIB) : ''}</div>
+          <div class="doc-no">${esc(r.kodeSubkon)}${r.npwp ? ' · NPWP ' + esc(r.npwp) : ''}${r.noNIB ? ' · NIB ' + esc(r.noNIB) : ''}</div>
           <div class="doc-title">${r.bidangUsaha ? `<span class="jenis-chip">${esc(r.bidangUsaha)}</span>` : ''}${esc(r.namaPerusahaan)}</div>
           <div class="doc-meta">
             ${[r.namaKontak, r.telepon, r.email].filter(Boolean).map(esc).join(' · ') || 'Kontak belum diisi'}<br>
@@ -276,7 +276,7 @@ async function loadSubkon() {
             ${r.finalTerakhir ? `<br>Final evaluation terakhir: ${esc(r.finalTerakhir.hasil)} (${S.nilai(r.finalTerakhir.nilai)}) ${S.tgl(r.finalTerakhir.tanggal)}` : ''}
           </div>
         </div>
-        <div class="chips"><span class="status-chip ${S.statusCls(r.status)}">${esc(r.status)}</span></div>
+        <div class="chips"><span class="status-chip ${S.statusCls(r.status)}">${esc(r.status)}</span>${S.smmsChip(r)}</div>
       </div>
       <div class="card-buttons">
         <a class="btn-secondary" href="subkon-form.html?id=${r.id}">👁️ Buka</a>

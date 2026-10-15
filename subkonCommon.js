@@ -1,5 +1,5 @@
 // =====================================================================================
-// HSSE-Fusion4 -- helper bersama modul Subkontraktor / CSMS (SQL 071).
+// HSSE-Fusion4 -- helper bersama modul Subkontraktor / CSMS (SQL 071, data perusahaan dari SMMS BIMA: SQL 072).
 //   PIC "HSSE-SUB" (atau HSSE-ALL)    = register subkon, pekerjaan, dokumen, evaluasi
 //   Author "Approve Subkon"           = setujui / kembalikan evaluasi CSMS
 // Server tetap cek ulang lewat hsse_wajib_akses, jadi ini cuma buat tampilan.
@@ -72,6 +72,13 @@
     }).join('');
   }
 
+  // Chip asal data SMMS BIMA (SQL 072): terhubung, tidak ada lagi di SMMS, atau masih input manual lama
+  function smmsChip(r) {
+    if (!r.vendorIdSmms) return '<span class="status-chip tidak-aktif" title="Dibuat manual sebelum terhubung ke SMMS">Belum terhubung SMMS</span>';
+    if (r.statusSmms && r.statusSmms !== 'Approved') return `<span class="status-chip daftar-hitam" title="Vendor tidak Approved lagi di SMMS BIMA">${esc(r.statusSmms)}</span>`;
+    return '';
+  }
+
   function personNama(p, fallback) {
     return (p && (p.nama || p.NamaPersonnel || p.Nama || p.name)) || fallback || 'Tanpa nama';
   }
@@ -119,7 +126,7 @@
   global.SubkonCommon = {
     PIC_TAG, APPROVER_TAG, STATUS_SUBKON, STATUS_PEKERJAAN, RISIKO, NILAI_MINIMUM, TAHAP, TAHAP_SINGKAT,
     JENIS_DOKUMEN, DOKUMEN_PERSONIL, NILAI, HASIL,
-    esc, tgl, toLocalInput, fromLocalInput, statusCls, nilai, hitungNilai, sisaLabel, csmsChips,
+    esc, tgl, toLocalInput, fromLocalInput, statusCls, nilai, hitungNilai, sisaLabel, csmsChips, smmsChip,
     findPerson, extractQrId, verifyAktor
   };
 })(window);

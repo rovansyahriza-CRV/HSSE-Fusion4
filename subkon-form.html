@@ -51,6 +51,10 @@
   table.list th { font-size: 11px; color: var(--muted); text-transform: uppercase; }
   tr.old td { color: var(--muted); }
   .dok-form { border: 1.5px dashed var(--border); border-radius: 12px; padding: 12px; margin-top: 12px; background: #FCFDFF; }
+  .smms-box { border: 1.5px solid #C9D6F2; background: #F4F7FD; border-radius: 12px; padding: 12px; margin-top: 12px; }
+  .smms-info { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+  .smms-info.warn { color: var(--accent, #D13438); font-weight: 700; }
+  .lock { font-size: 9.5px; font-weight: 800; color: #3B5BA9; background: #E8ECF8; border-radius: 5px; padding: 1px 5px; margin-left: 4px; letter-spacing: 0; }
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
@@ -67,7 +71,7 @@
   <div class="header">
     <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
     <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Data Subkon</h1></div></div>
-    <p>Data perusahaan subkon, dokumen legalitas &amp; kompetensi (dengan masa berlaku), dan daftar pekerjaannya di tiap project.</p>
+    <p>Data perusahaan diambil dari vendor Approved di SMMS BIMA. Di sini dicatat status HSSE, dokumen legalitas &amp; kompetensi (dengan masa berlaku), dan daftar pekerjaannya di tiap project.</p>
   </div>
 
   <div class="card" id="gateCard">
@@ -90,19 +94,30 @@
       </div>
       <div class="chips" id="docChips"></div>
     </div>
+    <div class="smms-box" id="vendorPick">
+      <div class="row">
+        <div class="field wide"><label>Pilih perusahaan dari SMMS BIMA</label><select id="sVendor" class="ed" onchange="pilihVendor()"><option value="">Memuat daftar vendor SMMS...</option></select></div>
+        <button type="button" class="secondary small" onclick="loadVendors()">🔄 Muat ulang</button>
+      </div>
+      <div class="hint" id="vendorHint" style="margin-top:6px;">Hanya vendor berstatus Approved di SMMS BIMA. Perusahaan belum ada? Daftarkan dulu lewat SMMS.</div>
+    </div>
+    <div class="smms-info hidden" id="smmsInfo"></div>
     <div class="row" style="margin-top:12px;">
-      <div class="field wide"><label>Nama Perusahaan</label><input id="sNama" class="ed" placeholder="cth. PT Maju Jaya Konstruksi"></div>
-      <div class="field"><label>Bidang Usaha</label><input id="sBidang" class="ed" list="bidangList" placeholder="cth. Sipil, Mekanikal, Transportasi"></div>
+      <div class="field wide"><label>Nama Perusahaan <span class="lock">SMMS</span></label><input id="sNama" class="smms" disabled></div>
+      <div class="field"><label>Bidang <span class="lock">SMMS</span></label><input id="sBidang" class="smms" disabled></div>
     </div>
     <div class="row">
-      <div class="field wide"><label>Alamat</label><input id="sAlamat" class="ed"></div>
+      <div class="field wide"><label>Alamat <span class="lock">SMMS</span></label><input id="sAlamat" class="smms" disabled></div>
+      <div class="field"><label>NPWP <span class="lock">SMMS</span></label><input id="sNPWP" class="smms" disabled></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Nama Kontak <span class="lock">SMMS</span></label><input id="sKontak" class="smms" disabled></div>
+      <div class="field"><label>Telepon <span class="lock">SMMS</span></label><input id="sTelp" class="smms" disabled></div>
+      <div class="field"><label>Email <span class="lock">SMMS</span></label><input id="sEmail" class="smms" disabled></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Jabatan Kontak</label><input id="sJabatan" class="ed"></div>
       <div class="field"><label>No. NIB</label><input id="sNIB" class="ed"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>Nama Kontak</label><input id="sKontak" class="ed"></div>
-      <div class="field"><label>Jabatan</label><input id="sJabatan" class="ed"></div>
-      <div class="field"><label>Telepon</label><input id="sTelp" class="ed" inputmode="tel"></div>
-      <div class="field"><label>Email</label><input id="sEmail" class="ed" type="email"></div>
     </div>
     <div class="row">
       <div class="field small"><label>Status</label><select id="sStatus" class="ed"></select></div>
@@ -110,15 +125,12 @@
     </div>
     <div class="actions" id="editActions">
       <button type="button" onclick="saveSubkon()">💾 Simpan Data Subkon</button>
+      <button type="button" class="secondary hidden" id="btnSync" onclick="saveSubkon(true)">🔄 Perbarui dari SMMS</button>
+      <button type="button" class="secondary hidden" id="btnSyncAll" onclick="syncAll()">🔄 Sinkron semua subkon dari SMMS</button>
       <button type="button" class="danger hidden" id="btnDelete" onclick="deleteSubkon()">🗑️ Hapus</button>
     </div>
     <div class="status-line" id="subkonStatus"></div>
   </div>
-  <datalist id="bidangList">
-    <option>Sipil</option><option>Mekanikal</option><option>Elektrikal &amp; Instrumen</option><option>Pipeline</option>
-    <option>Transportasi &amp; Alat Berat</option><option>Scaffolding</option><option>NDT / Inspeksi</option>
-    <option>Catering &amp; Housekeeping</option><option>Security</option><option>Manpower Supply</option>
-  </datalist>
 
   <!-- ========== PEKERJAAN ========== -->
   <div class="card hidden" id="pekCard">
@@ -179,6 +191,7 @@ const $ = id => document.getElementById(id);
 let doc = null;     // hasil get_subkon_detail (null = subkon baru)
 let aktor = null;   // { nama, qrCodeId, bisaPic, bisaApprove }
 let dokEditId = null;
+let vendors = [];   // hasil get_smms_vendor_list
 
 function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
 function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
@@ -197,21 +210,49 @@ document.addEventListener('DOMContentLoaded', async () => {
   const q = new URLSearchParams(location.search);
   if (q.get('id')) await loadDoc(Number(q.get('id')));
   else render();
+  if (!doc || !doc.vendorIdSmms) loadVendors();
 });
+
+// ---------- vendor SMMS BIMA ----------
+async function loadVendors() {
+  $('sVendor').innerHTML = '<option value="">Memuat daftar vendor SMMS...</option>';
+  const { data, error } = await hsse.rpc('get_smms_vendor_list');
+  if (error) {
+    $('sVendor').innerHTML = '<option value="">Gagal memuat vendor SMMS</option>';
+    return setLine('subkonStatus', '❌ ' + error.message);
+  }
+  vendors = data || [];
+  const bebas = vendors.filter(v => !v.subkonId || (doc && v.subkonId === doc.id));
+  $('sVendor').innerHTML = `<option value="">${bebas.length ? '-- pilih vendor (' + bebas.length + ' belum terdaftar) --' : 'Semua vendor SMMS sudah terdaftar'}</option>` +
+    vendors.map(v => {
+      const dipakai = v.subkonId && !(doc && v.subkonId === doc.id);
+      return `<option value="${v.vendorId}" ${dipakai ? 'disabled' : ''}>${esc(v.nama)}${v.bidang || v.kategori ? ' · ' + esc(v.bidang || v.kategori) : ''}${dipakai ? ' (sudah ' + esc(v.kodeSubkon) + ')' : ''}</option>`;
+    }).join('');
+}
+
+function isiSmms(v) {
+  $('sNama').value = v.nama || v.namaPerusahaan || '';
+  $('sBidang').value = v.bidang || v.bidangUsaha || v.kategori || '';
+  $('sAlamat').value = v.alamat || '';
+  $('sNPWP').value = v.npwp || '';
+  $('sKontak').value = v.kontak || v.namaKontak || '';
+  $('sTelp').value = v.telepon || '';
+  $('sEmail').value = v.email || '';
+}
+
+function pilihVendor() {
+  const v = vendors.find(x => String(x.vendorId) === $('sVendor').value);
+  isiSmms(v || (doc ? doc : {}));
+}
 
 async function loadDoc(id) {
   const { data, error } = await hsse.rpc('get_subkon_detail', { p_id: id });
   if (error || !data) return setLine('subkonStatus', 'Subkon tidak ditemukan' + (error ? ': ' + error.message : '.'));
   doc = data;
   history.replaceState(null, '', 'subkon-form.html?id=' + doc.id + location.hash);
-  $('sNama').value = doc.namaPerusahaan || '';
-  $('sBidang').value = doc.bidangUsaha || '';
-  $('sAlamat').value = doc.alamat || '';
+  isiSmms(doc);
   $('sNIB').value = doc.noNIB || '';
-  $('sKontak').value = doc.namaKontak || '';
   $('sJabatan').value = doc.jabatanKontak || '';
-  $('sTelp').value = doc.telepon || '';
-  $('sEmail').value = doc.email || '';
   $('sStatus').value = doc.status;
   $('sKet').value = doc.keterangan || '';
   render();
@@ -237,13 +278,26 @@ function render() {
     doc.diubahOleh && `Terakhir diubah: ${doc.diubahOleh} ${S.tgl(doc.updatedAt)}`
   ].filter(Boolean).join(' · ') : '';
   $('docChips').innerHTML = doc ? [
-    `<span class="status-chip ${S.statusCls(doc.status)}">${esc(doc.status)}</span>`,
+    `<span class="status-chip ${S.statusCls(doc.status)}">${esc(doc.status)}</span>`, S.smmsChip(doc),
     doc.dokumenKedaluwarsa ? `<span class="status-chip kedaluwarsa">${doc.dokumenKedaluwarsa} dokumen kedaluwarsa</span>` : '',
     doc.dokumenSegeraHabis ? `<span class="status-chip segera-habis">${doc.dokumenSegeraHabis} dokumen segera habis</span>` : ''
   ].join('') : '';
 
   document.querySelectorAll('.ed').forEach(el => el.disabled = !pic);
   $('editActions').classList.toggle('hidden', !pic);
+  const terhubung = !!(doc && doc.vendorIdSmms);
+  $('vendorPick').classList.toggle('hidden', terhubung);
+  if (doc && !terhubung) $('vendorHint').textContent = 'Subkon ini dulu diinput manual. Pilih vendor SMMS-nya supaya data perusahaan ikut SMMS BIMA.';
+  $('btnSync').classList.toggle('hidden', !terhubung);
+  $('btnSyncAll').classList.toggle('hidden', !(aktor && aktor.bisaPic));
+  $('smmsInfo').classList.toggle('hidden', !terhubung);
+  if (terhubung) {
+    const hilang = doc.statusSmms && doc.statusSmms !== 'Approved';
+    $('smmsInfo').className = 'smms-info' + (hilang ? ' warn' : '');
+    $('smmsInfo').textContent = hilang
+      ? `⚠️ Vendor ini tidak Approved lagi di SMMS BIMA (dicek ${S.tgl(doc.sinkronSmmsAt)}). Data di bawah adalah salinan terakhir. Cek di SMMS, lalu ubah status HSSE kalau perlu.`
+      : `Data perusahaan ikut SMMS BIMA (vendor #${doc.vendorIdSmms}${doc.kategoriSmms ? ', ' + doc.kategoriSmms : ''}), terakhir diperbarui ${S.tgl(doc.sinkronSmmsAt)}. Kalau ada yang salah, perbaiki di SMMS lalu klik "Perbarui dari SMMS".`;
+  }
   $('btnDelete').classList.toggle('hidden', !(doc && pic && !(doc.pekerjaanList || []).length));
   document.querySelectorAll('.pic-only').forEach(el => el.classList.toggle('hidden', !pic));
 
@@ -291,21 +345,35 @@ function renderDok(pic) {
 }
 
 // ---------- data subkon ----------
-async function saveSubkon() {
+// Server menarik data perusahaan langsung dari SMMS; browser cuma kirim vendorId + kolom milik HSSE.
+async function saveSubkon(sinkron) {
   if (!needPic('subkonStatus')) return;
   const d = {
-    namaPerusahaan: $('sNama').value.trim(), bidangUsaha: $('sBidang').value.trim(), alamat: $('sAlamat').value.trim(),
-    noNIB: $('sNIB').value.trim(), namaKontak: $('sKontak').value.trim(), jabatanKontak: $('sJabatan').value.trim(),
-    telepon: $('sTelp').value.trim(), email: $('sEmail').value.trim(), status: $('sStatus').value, keterangan: $('sKet').value.trim()
+    vendorIdSmms: doc && doc.vendorIdSmms ? doc.vendorIdSmms : ($('sVendor').value ? Number($('sVendor').value) : null),
+    noNIB: $('sNIB').value.trim(), jabatanKontak: $('sJabatan').value.trim(),
+    status: $('sStatus').value, keterangan: $('sKet').value.trim()
   };
-  if (!d.namaPerusahaan) return setLine('subkonStatus', 'Nama perusahaan wajib diisi.');
+  if (!doc && !d.vendorIdSmms) return setLine('subkonStatus', 'Pilih perusahaan dari daftar vendor SMMS BIMA dulu.');
   if (d.status === 'Daftar Hitam' && !d.keterangan) return setLine('subkonStatus', 'Tulis alasan Daftar Hitam di keterangan.');
-  setLine('subkonStatus', 'Menyimpan...', true);
+  setLine('subkonStatus', sinkron ? 'Menarik data terbaru dari SMMS...' : 'Menyimpan...', true);
   const { data, error } = await hsse.rpc('save_subkon', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
   if (error) return setLine('subkonStatus', '❌ ' + error.message);
   const baru = !doc;
   await loadDoc(data.id);
-  setLine('subkonStatus', baru ? `✅ Subkon terdaftar: ${data.kodeSubkon}. Lanjut catat dokumen & tambah pekerjaan di bawah.` : '✅ Data subkon tersimpan.', true);
+  setLine('subkonStatus', baru ? `✅ Subkon terdaftar: ${data.kodeSubkon}. Lanjut catat dokumen & tambah pekerjaan di bawah.`
+    : sinkron ? '✅ Data perusahaan sudah diperbarui dari SMMS.' : '✅ Data subkon tersimpan.', true);
+}
+
+async function syncAll() {
+  if (!needPic('subkonStatus')) return;
+  setLine('subkonStatus', 'Menyinkronkan semua subkon dari SMMS...', true);
+  const { data, error } = await hsse.rpc('sinkron_subkon_smms', aktorArgs());
+  if (error) return setLine('subkonStatus', '❌ ' + error.message);
+  if (doc) await loadDoc(doc.id);
+  const hilang = data.tidakAdaDiSmms || [];
+  setLine('subkonStatus', `✅ ${data.diperbarui} subkon diperbarui dari SMMS.`
+    + (hilang.length ? ` ⚠️ Tidak Approved lagi di SMMS: ${hilang.join(', ')}.` : '')
+    + (data.belumTerhubung ? ` ${data.belumTerhubung} subkon lama belum terhubung ke SMMS.` : ''), !hilang.length);
 }
 
 async function deleteSubkon() {
