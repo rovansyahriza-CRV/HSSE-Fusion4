@@ -6,12 +6,23 @@
 <title>HSSE-Fusion4 — Status Proyek</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+/* Khusus index.html: banner + judul HSSE-Fusion4 diam di atas, isi di bawahnya yang scroll. */
+.header-sticky {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg);
+  margin: -24px -16px 20px; padding: 24px 16px 14px;
+  border-bottom: 1px solid var(--border);
+}
+/* Layar pendek (HP landscape dll): header ikut scroll biar isi gak kejepit. */
+@media (max-height: 560px) { .header-sticky { position: static; border-bottom: 0; } }
+</style>
 </head>
 <body>
 
 <div class="page">
 
-  <div class="header">
+  <div class="header header-sticky">
     <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
     <div class="header-top">
       <div>
@@ -20,11 +31,6 @@
       </div>
     </div>
     <p>Pelaporan Health, Safety, Security &amp; Environment untuk pekerjaan konstruksi PT BIMA di proyek oil &amp; gas.</p>
-  </div>
-
-  <div class="card">
-    <h2>✅ Status: CERMAT &amp; Incident/Accident sudah jalan</h2>
-    <p>Supabase &amp; Drive Bridge sudah tersambung. Modul CERMAT (istilah lokal buat PEKA -- Positif/Negatif) dan Incident/Accident Report sudah bisa dipakai lapor &amp; audit. Modul lain masih menyusul.</p>
   </div>
 
   <div class="card">
