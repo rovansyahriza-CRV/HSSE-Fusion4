@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pekerjaan Subkon — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="subkonCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.aktif, .status-chip.berjalan, .status-chip.memenuhi, .status-chip.disetujui, .status-chip.berlaku { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.memenuhi-dengan-catatan, .status-chip.menunggu-approval, .status-chip.segera-habis, .status-chip.rencana { background: #FDF3E3; color: #8A6100; }
+  .status-chip.daftar-hitam, .status-chip.tidak-memenuhi, .status-chip.dikembalikan, .status-chip.kedaluwarsa { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.tidak-aktif, .status-chip.selesai, .status-chip.dibatalkan, .status-chip.tanpa-masa-berlaku { background: #EEF0F4; color: var(--muted); }
+  .banner { border-radius: 12px; padding: 12px 14px; font-weight: 800; font-size: 14px; margin-top: 12px; }
+  .banner.ok { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .banner.warn { background: #FCEAE8; color: var(--accent, #D13438); }
+  .banner .sub { font-size: 12px; font-weight: 600; margin-top: 3px; }
+  .tahap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tahap { border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .tahap.memenuhi { border-color: var(--success, #107C41); background: #F4FBF7; }
+  .tahap.memenuhi-dengan-catatan { border-color: #E3B341; background: #FFFBF0; }
+  .tahap.tidak-memenuhi { border-color: var(--accent, #D13438); background: #FFF6F5; }
+  .tahap .t { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+  .tahap .v { font-size: 20px; font-weight: 800; color: var(--navy-dark); margin: 2px 0; }
+  .tahap .s { font-size: 11.5px; color: var(--muted); }
+  .tahap a { font-size: 12px; font-weight: 800; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.list th, table.list td { border-bottom: 1px solid var(--border); padding: 7px 8px; text-align: left; vertical-align: top; }
+  table.list th { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
+    .tahap-grid { grid-template-columns: 1fr 1fr; }
+    table.list thead { display: none; }
+    table.list td { display: block; border: 0; padding: 2px 0; }
+    table.list tr { display: block; border-bottom: 1px solid var(--border); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="subkon-list.html" class="back-to-menu">⬅ Daftar Pekerjaan Subkon</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Pekerjaan Subkon</h1></div></div>
+    <p>Penugasan subkon di satu project, tingkat risikonya (menentukan nilai minimum lulus), dan status CSMS dari Prakualifikasi sampai Final Evaluation.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Tambah/ubah pekerjaan butuh PIC <b>HSSE-SUB</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Pekerjaan baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <div class="chips" id="docChips"></div>
+    </div>
+    <div id="csmsBanner" class="banner hidden"></div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Subkon</label><select id="pSubkon" class="ed"></select></div>
+      <div class="field wide"><label>Project / Kontrak</label><select id="pProject" class="ed"></select></div>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Lingkup pekerjaan</label><input id="pLingkup" class="ed" placeholder="cth. Galian &amp; backfill jalur pipa KP 0-5"></div>
+      <div class="field"><label>No. SPK / PO / Kontrak subkon</label><input id="pPO" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field small"><label>Tanggal mulai</label><input type="date" id="pMulai" class="ed"></div>
+      <div class="field small"><label>Tanggal selesai</label><input type="date" id="pSelesai" class="ed"></div>
+      <div class="field small"><label>Tingkat risiko</label><select id="pRisiko" class="ed"></select></div>
+      <div class="field small"><label>Jumlah pekerja</label><input type="number" min="0" id="pPekerja" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Pengawas / HSE dari subkon</label><input id="pPengawas" class="ed"></div>
+      <div class="field small"><label>Evaluasi berkala tiap (hari)</label><input type="number" min="7" max="365" id="pInterval" class="ed"></div>
+      <div class="field small"><label>Status</label><select id="pStatus" class="ed"></select></div>
+    </div>
+    <div class="row"><div class="field"><label>Keterangan</label><textarea id="pKet" class="ed"></textarea></div></div>
+    <div class="hint" id="risikoHint" style="margin-top:6px;"></div>
+    <div class="actions" id="editActions">
+      <button type="button" onclick="savePekerjaan()">💾 Simpan Pekerjaan</button>
+      <button type="button" class="danger hidden" id="btnDelete" onclick="deletePekerjaan()">🗑️ Hapus</button>
+    </div>
+    <div class="status-line" id="pekStatus"></div>
+  </div>
+
+  <div class="card hidden" id="csmsCard">
+    <div class="doc-head">
+      <h2>Status CSMS</h2>
+      <div class="actions" style="margin-top:0;">
+        <a id="btnRingkasan" target="_blank"><button type="button" class="secondary small">🖨️ Ringkasan CSMS</button></a>
+        <a id="btnSubkon"><button type="button" class="secondary small">🏢 Data subkon</button></a>
+      </div>
+    </div>
+    <div class="tahap-grid" id="tahapGrid"></div>
+  </div>
+
+  <div class="card hidden" id="evCard">
+    <h2>Riwayat Evaluasi</h2>
+    <table class="list"><thead><tr><th>No. / Tanggal</th><th>Tahap</th><th>Nilai</th><th>Hasil</th><th>Status</th></tr></thead><tbody id="evBody"></tbody></table>
+  </div>
+
+  <div class="card hidden" id="dokCard">
+    <div class="doc-head">
+      <h2>Dokumen terkini (perusahaan + pekerjaan ini)</h2>
+      <a id="btnDok"><button type="button" class="secondary small">📜 Kelola dokumen</button></a>
+    </div>
+    <table class="list"><thead><tr><th>Jenis</th><th>No. / Personil</th><th>Untuk</th><th>Berlaku s/d</th><th>Status</th></tr></thead><tbody id="dokBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const S = SubkonCommon, esc = S.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;     // hasil get_subkon_pekerjaan_detail (null = baru)
+let aktor = null;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(S.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-SUB).');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('pRisiko').innerHTML = S.RISIKO.map(r => `<option ${r === 'Menengah' ? 'selected' : ''}>${esc(r)}</option>`).join('');
+  $('pStatus').innerHTML = S.STATUS_PEKERJAAN.map(s => `<option>${esc(s)}</option>`).join('');
+  $('pInterval').value = 30;
+  $('pRisiko').addEventListener('change', risikoHint);
+  await Promise.all([loadProjects(), loadSubkon()]);
+  const q = new URLSearchParams(location.search);
+  if (q.get('id')) await loadDoc(Number(q.get('id')));
+  else {
+    if (q.get('subkonId')) $('pSubkon').value = q.get('subkonId');
+    if (q.get('projectId')) $('pProject').value = q.get('projectId');
+    render();
+  }
+  risikoHint();
+});
+
+function risikoHint() {
+  $('risikoHint').textContent = `Nilai minimum lulus evaluasi untuk risiko ${$('pRisiko').value}: ${S.NILAI_MINIMUM[$('pRisiko').value]}. ` +
+    'Pekerjaan sebaiknya baru Berjalan setelah Prakualifikasi dan Pre-Job Activity disetujui.';
+}
+
+async function loadProjects() {
+  const { data, error } = await hsse.rpc('get_active_projects');
+  if (error) return setLine('pekStatus', 'Gagal memuat project: ' + error.message);
+  $('pProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}${p.noKontrak ? ' (' + esc(p.noKontrak) + ')' : ''}</option>`).join('');
+}
+
+async function loadSubkon() {
+  const { data, error } = await hsse.rpc('get_subkon_list', { p_project_id: null, p_status: 'Aktif', p_cari: null });
+  if (error) return setLine('pekStatus', 'Gagal memuat subkon: ' + error.message);
+  $('pSubkon').innerHTML = '<option value="">-- pilih subkon --</option>' +
+    (data || []).map(s => `<option value="${s.id}">${esc(s.namaPerusahaan)} (${esc(s.kodeSubkon)})</option>`).join('');
+}
+
+function ensureOption(sel, value, text) {
+  if (!$(sel).querySelector(`option[value="${value}"]`)) $(sel).insertAdjacentHTML('beforeend', `<option value="${value}">${esc(text)}</option>`);
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_subkon_pekerjaan_detail', { p_id: id });
+  if (error || !data) return setLine('pekStatus', 'Pekerjaan tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'subkon-pekerjaan-form.html?id=' + doc.id);
+  ensureOption('pSubkon', doc.subkonId, `${doc.namaPerusahaan} (${doc.kodeSubkon}) -- ${doc.statusSubkon}`);
+  ensureOption('pProject', doc.projectId, doc.namaProject);
+  $('pSubkon').value = doc.subkonId;
+  $('pProject').value = doc.projectId;
+  $('pLingkup').value = doc.lingkupPekerjaan || '';
+  $('pPO').value = doc.noKontrakPO || '';
+  $('pMulai').value = doc.tanggalMulai || '';
+  $('pSelesai').value = doc.tanggalSelesai || '';
+  $('pRisiko').value = doc.tingkatRisiko;
+  $('pPekerja').value = doc.jumlahPekerja ?? '';
+  $('pPengawas').value = doc.pengawasHSE || '';
+  $('pInterval').value = doc.intervalEvaluasiHari;
+  $('pStatus').value = doc.status;
+  $('pKet').value = doc.keterangan || '';
+  risikoHint();
+  render();
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await S.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC subkon', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const pic = !aktor || aktor.bisaPic;
+  $('docNo').textContent = doc ? doc.noPekerjaan : 'Pekerjaan baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    `${doc.namaPerusahaan} · ${doc.kodeOperational ? doc.kodeOperational + ' · ' : ''}${doc.namaProject}`,
+    doc.diubahOleh && `Terakhir diubah: ${doc.diubahOleh} ${S.tgl(doc.updatedAt)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docChips').innerHTML = doc ? [
+    `<span class="status-chip ${S.statusCls(doc.status)}">${esc(doc.status)}</span>`,
+    doc.statusSubkon !== 'Aktif' ? `<span class="status-chip ${S.statusCls(doc.statusSubkon)}">Subkon ${esc(doc.statusSubkon)}</span>` : ''
+  ].join('') : '';
+
+  $('csmsBanner').classList.toggle('hidden', !doc || doc.status === 'Dibatalkan');
+  if (doc) {
+    const w = [];
+    if (!doc.lolosPrakualifikasi) w.push('Prakualifikasi belum lolos / belum disetujui');
+    else if (!doc.lolosPreJob) w.push('Pre-Job Activity belum lolos / belum disetujui');
+    if (doc.wipLewat) w.push(`evaluasi berkala (WIP) lewat jadwal, seharusnya ${S.tgl(doc.wipJatuhTempo)}`);
+    if (doc.perluFinal) w.push('pekerjaan selesai tapi belum ada Final Evaluation disetujui');
+    const ok = !w.length;
+    $('csmsBanner').className = 'banner ' + (ok ? 'ok' : 'warn');
+    $('csmsBanner').innerHTML = ok
+      ? `✅ ${doc.status === 'Selesai' ? 'CSMS lengkap sampai Final Evaluation.' : 'Lolos Prakualifikasi & Pre-Job Activity, subkon boleh bekerja.'}
+         <div class="sub">${doc.status === 'Berjalan' && doc.wipJatuhTempo ? 'Evaluasi berkala berikutnya ' + S.tgl(doc.wipJatuhTempo) + '.' : ''}</div>`
+      : `⚠️ ${esc(w[0])}${doc.status === 'Berjalan' && !doc.bolehMulai ? ' -- pekerjaan sudah Berjalan' : ''}
+         ${w.length > 1 ? `<div class="sub">${w.slice(1).map(esc).join(' · ')}</div>` : ''}`;
+  }
+
+  document.querySelectorAll('.ed').forEach(el => el.disabled = !pic);
+  if (doc && doc.jumlahEvaluasi) { $('pSubkon').disabled = true; $('pProject').disabled = true; }
+  $('editActions').classList.toggle('hidden', !pic);
+  $('btnDelete').classList.toggle('hidden', !(doc && pic && !doc.jumlahEvaluasi));
+
+  ['csmsCard', 'evCard', 'dokCard'].forEach(id => $(id).classList.toggle('hidden', !doc));
+  if (!doc) return;
+  $('btnRingkasan').href = 'subkon-pdf.html?pekerjaanId=' + doc.id;
+  $('btnSubkon').href = 'subkon-form.html?id=' + doc.subkonId;
+  $('btnDok').href = 'subkon-form.html?id=' + doc.subkonId + '#dokumen';
+  renderTahap(pic);
+  renderEvaluasi();
+  renderDok();
+}
+
+function renderTahap(pic) {
+  const bisaBaru = pic && doc.status !== 'Dibatalkan';
+  $('tahapGrid').innerHTML = S.TAHAP.map(t => {
+    const e = (doc.csms || {})[t];
+    const n = (doc.evaluasiList || []).filter(x => x.tahap === t);
+    const tunggu = n.filter(x => x.status !== 'Disetujui').length;
+    return `<div class="tahap ${e ? S.statusCls(e.hasil) : ''}">
+      <div class="t">${esc(t)}</div>
+      <div class="v">${e ? S.nilai(e.nilai) : '-'}</div>
+      <div class="s">${e ? `${esc(e.hasil)} · ${S.tgl(e.tanggal)}` : 'Belum ada yang disetujui'}${tunggu ? `<br>${tunggu} menunggu / dikembalikan` : ''}${n.length > 1 ? `<br>${n.length} evaluasi` : ''}</div>
+      ${bisaBaru ? `<a href="subkon-evaluasi-form.html?pekerjaanId=${doc.id}&tahap=${encodeURIComponent(t)}">➕ ${t === 'Work in Progress' ? 'Evaluasi berkala' : 'Evaluasi'}</a>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderEvaluasi() {
+  const list = doc.evaluasiList || [];
+  $('evBody').innerHTML = list.length ? list.map(e => `<tr>
+      <td><a href="subkon-evaluasi-form.html?id=${e.id}">${esc(e.noEvaluasi)}</a><div class="hint">${S.tgl(e.tanggalEvaluasi)} · ${esc(e.evaluator || '-')}</div></td>
+      <td>${esc(e.tahap)}</td>
+      <td><b>${S.nilai(e.nilaiPersen)}</b><div class="hint">min ${e.nilaiMinimum}</div></td>
+      <td><span class="status-chip ${S.statusCls(e.hasil)}">${esc(e.hasil)}</span></td>
+      <td><span class="status-chip ${S.statusCls(e.status)}">${esc(e.status)}</span></td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint" style="text-align:center;padding:16px;">Belum ada evaluasi. Mulai dari Prakualifikasi.</td></tr>';
+}
+
+function renderDok() {
+  const list = doc.dokumenList || [];
+  $('dokBody').innerHTML = list.length ? list.map(d => `<tr>
+      <td>${esc(d.jenisDokumen)}</td>
+      <td>${esc(d.noDokumen)}${d.namaPersonil ? '<div class="hint">' + esc(d.namaPersonil) + '</div>' : ''}
+        ${d.linkDokumen ? `<div><a href="${esc(d.linkDokumen)}" target="_blank" rel="noopener">📄 dokumen</a></div>` : ''}</td>
+      <td>${d.pekerjaanId ? 'Pekerjaan ini' : 'Perusahaan'}</td>
+      <td>${S.tgl(d.berlakuSampai)}${d.berlakuSampai ? '<div class="hint">' + esc(S.sisaLabel(d)) + '</div>' : ''}</td>
+      <td><span class="status-chip ${S.statusCls(d.statusBerlaku)}">${esc(d.statusBerlaku)}</span></td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint" style="text-align:center;padding:16px;">Belum ada dokumen tercatat.</td></tr>';
+}
+
+async function savePekerjaan() {
+  if (!needPic('pekStatus')) return;
+  const d = {
+    subkonId: $('pSubkon').value, projectId: $('pProject').value, lingkupPekerjaan: $('pLingkup').value.trim(),
+    noKontrakPO: $('pPO').value.trim(), tanggalMulai: $('pMulai').value || null, tanggalSelesai: $('pSelesai').value || null,
+    tingkatRisiko: $('pRisiko').value, jumlahPekerja: $('pPekerja').value || null, pengawasHSE: $('pPengawas').value.trim(),
+    intervalEvaluasiHari: $('pInterval').value, status: $('pStatus').value, keterangan: $('pKet').value.trim()
+  };
+  if (!d.subkonId) return setLine('pekStatus', 'Pilih subkon dulu.');
+  if (!d.projectId) return setLine('pekStatus', 'Pilih project dulu.');
+  if (!d.lingkupPekerjaan) return setLine('pekStatus', 'Lingkup pekerjaan wajib diisi.');
+  if (d.status === 'Berjalan' && !(doc && doc.bolehMulai) &&
+      !confirm('Prakualifikasi / Pre-Job Activity belum lolos. Tetap set status Berjalan?')) return;
+  setLine('pekStatus', 'Menyimpan...', true);
+  const { data, error } = await hsse.rpc('save_subkon_pekerjaan', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
+  if (error) return setLine('pekStatus', '❌ ' + error.message);
+  const baru = !doc;
+  await loadDoc(data.id);
+  setLine('pekStatus', baru ? `✅ Pekerjaan tercatat: ${data.noPekerjaan}. Lanjut evaluasi Prakualifikasi.` : '✅ Pekerjaan tersimpan.', true);
+}
+
+async function deletePekerjaan() {
+  if (!needPic('pekStatus')) return;
+  if (!confirm('Hapus pekerjaan ini? Cuma bisa kalau belum ada evaluasi.')) return;
+  const { error } = await hsse.rpc('delete_subkon_pekerjaan', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('pekStatus', '❌ ' + error.message);
+  location.href = 'subkon-form.html?id=' + doc.subkonId;
+}
+</script>
+</body>
+</html>

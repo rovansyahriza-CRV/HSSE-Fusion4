@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Subkon — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="driveBridge.js"></script>
+<script src="subkonCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.aktif, .status-chip.berjalan, .status-chip.memenuhi, .status-chip.disetujui, .status-chip.berlaku, .status-chip.layak { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.memenuhi-dengan-catatan, .status-chip.segera-habis, .status-chip.rencana, .status-chip.layak-dengan-catatan { background: #FDF3E3; color: #8A6100; }
+  .status-chip.daftar-hitam, .status-chip.tidak-memenuhi, .status-chip.kedaluwarsa, .status-chip.tidak-layak { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.tidak-aktif, .status-chip.selesai, .status-chip.dibatalkan, .status-chip.tanpa-masa-berlaku, .status-chip.belum-diinspeksi { background: #EEF0F4; color: var(--muted); }
+  .csms { display: flex; gap: 4px; flex-wrap: wrap; }
+  .csms-chip { font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #EEF0F4; color: var(--muted); }
+  .csms-chip.memenuhi { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .csms-chip.memenuhi-dengan-catatan { background: #FDF3E3; color: #8A6100; }
+  .csms-chip.tidak-memenuhi { background: #FCEAE8; color: var(--accent, #D13438); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.list th, table.list td { border-bottom: 1px solid var(--border); padding: 7px 8px; text-align: left; vertical-align: top; }
+  table.list th { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  tr.old td { color: var(--muted); }
+  .dok-form { border: 1.5px dashed var(--border); border-radius: 12px; padding: 12px; margin-top: 12px; background: #FCFDFF; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
+    table.list thead { display: none; }
+    table.list td { display: block; border: 0; padding: 2px 0; }
+    table.list tr { display: block; border-bottom: 1px solid var(--border); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="subkon-list.html?tab=subkon" class="back-to-menu">⬅ Daftar Subkon</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Data Subkon</h1></div></div>
+    <p>Data perusahaan subkon, dokumen legalitas &amp; kompetensi (dengan masa berlaku), dan daftar pekerjaannya di tiap project.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Tambah/ubah subkon, dokumen &amp; pekerjaan butuh PIC <b>HSSE-SUB</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <!-- ========== DATA PERUSAHAAN ========== -->
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Subkon baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <div class="chips" id="docChips"></div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Nama Perusahaan</label><input id="sNama" class="ed" placeholder="cth. PT Maju Jaya Konstruksi"></div>
+      <div class="field"><label>Bidang Usaha</label><input id="sBidang" class="ed" list="bidangList" placeholder="cth. Sipil, Mekanikal, Transportasi"></div>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Alamat</label><input id="sAlamat" class="ed"></div>
+      <div class="field"><label>No. NIB</label><input id="sNIB" class="ed"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Nama Kontak</label><input id="sKontak" class="ed"></div>
+      <div class="field"><label>Jabatan</label><input id="sJabatan" class="ed"></div>
+      <div class="field"><label>Telepon</label><input id="sTelp" class="ed" inputmode="tel"></div>
+      <div class="field"><label>Email</label><input id="sEmail" class="ed" type="email"></div>
+    </div>
+    <div class="row">
+      <div class="field small"><label>Status</label><select id="sStatus" class="ed"></select></div>
+      <div class="field wide"><label>Keterangan</label><input id="sKet" class="ed" placeholder="cth. alasan Daftar Hitam / Tidak Aktif"></div>
+    </div>
+    <div class="actions" id="editActions">
+      <button type="button" onclick="saveSubkon()">💾 Simpan Data Subkon</button>
+      <button type="button" class="danger hidden" id="btnDelete" onclick="deleteSubkon()">🗑️ Hapus</button>
+    </div>
+    <div class="status-line" id="subkonStatus"></div>
+  </div>
+  <datalist id="bidangList">
+    <option>Sipil</option><option>Mekanikal</option><option>Elektrikal &amp; Instrumen</option><option>Pipeline</option>
+    <option>Transportasi &amp; Alat Berat</option><option>Scaffolding</option><option>NDT / Inspeksi</option>
+    <option>Catering &amp; Housekeeping</option><option>Security</option><option>Manpower Supply</option>
+  </datalist>
+
+  <!-- ========== PEKERJAAN ========== -->
+  <div class="card hidden" id="pekCard">
+    <div class="doc-head">
+      <h2>Pekerjaan &amp; status CSMS</h2>
+      <a id="btnPekerjaan" class="pic-only"><button type="button" class="small">📋 Tambah pekerjaan</button></a>
+    </div>
+    <div class="hint">PQ = Prakualifikasi, PJA = Pre-Job Activity, WIP = Work in Progress, FE = Final Evaluation (angka = nilai evaluasi disetujui terakhir).</div>
+    <table class="list" style="margin-top:8px;"><thead><tr><th>No. / Project</th><th>Lingkup</th><th>Periode</th><th>CSMS</th><th>Status</th></tr></thead><tbody id="pekBody"></tbody></table>
+  </div>
+
+  <!-- ========== DOKUMEN ========== -->
+  <div class="card hidden" id="dokCard">
+    <h2 id="dokumen">Dokumen Legalitas &amp; Kompetensi</h2>
+    <div class="hint">Perpanjangan = catat dokumen baru. Yang lama tetap tersimpan sebagai riwayat; pengingat pakai dokumen terbaru per jenis (dan per nama personil untuk sertifikat kompetensi / MCU).</div>
+    <table class="list" style="margin-top:8px;"><thead><tr><th>Jenis</th><th>No. / Personil</th><th>Untuk</th><th>Berlaku s/d</th><th>Status</th><th></th></tr></thead><tbody id="dokBody"></tbody></table>
+    <div class="actions pic-only"><button type="button" class="secondary small" onclick="openDok()">➕ Tambah dokumen</button></div>
+
+    <div class="dok-form hidden" id="dokForm">
+      <div class="row">
+        <div class="field"><label>Jenis dokumen</label><select id="dJenis"></select></div>
+        <div class="field"><label>No. dokumen</label><input id="dNo"></div>
+        <div class="field"><label>Untuk</label><select id="dPekerjaan"></select></div>
+      </div>
+      <div class="row">
+        <div class="field" id="dPersonilWrap"><label>Nama personil</label><input id="dPersonil" placeholder="wajib untuk sertifikat kompetensi / MCU"></div>
+        <div class="field"><label>Penerbit</label><input id="dPenerbit"></div>
+        <div class="field small"><label>Tanggal terbit</label><input type="date" id="dTerbit"></div>
+        <div class="field small"><label>Berlaku sampai</label><input type="date" id="dSampai"></div>
+      </div>
+      <div class="row">
+        <div class="field wide"><label>Link dokumen (Drive)</label><input id="dLink" placeholder="https://..."></div>
+        <div class="field"><label>atau upload scan (PDF / foto)</label><input type="file" id="dFile" accept="application/pdf,image/*"></div>
+      </div>
+      <div class="row"><div class="field"><label>Catatan</label><input id="dCatatan"></div></div>
+      <div class="actions">
+        <button type="button" onclick="saveDok()">💾 Simpan Dokumen</button>
+        <button type="button" class="secondary" onclick="closeDok()">Batal</button>
+      </div>
+    </div>
+    <div class="status-line" id="dokStatus"></div>
+  </div>
+
+  <!-- ========== ALAT ========== -->
+  <div class="card hidden" id="alatCard">
+    <h2>Alat milik subkon ini (modul Inspeksi Alat)</h2>
+    <div class="hint">Alat dengan pemilik "Subkon" dan nama pemilik sama persis dengan nama perusahaan ini.</div>
+    <table class="list" style="margin-top:8px;"><thead><tr><th>No. Alat</th><th>Nama</th><th>Kategori</th><th>Kondisi</th></tr></thead><tbody id="alatBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const S = SubkonCommon, esc = S.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;     // hasil get_subkon_detail (null = subkon baru)
+let aktor = null;   // { nama, qrCodeId, bisaPic, bisaApprove }
+let dokEditId = null;
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(S.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-SUB).');
+  return false;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('sStatus').innerHTML = S.STATUS_SUBKON.map(s => `<option>${esc(s)}</option>`).join('');
+  $('dJenis').innerHTML = S.JENIS_DOKUMEN.map(j => `<option>${esc(j)}</option>`).join('');
+  $('dJenis').addEventListener('change', () => {
+    $('dPersonil').placeholder = S.DOKUMEN_PERSONIL.includes($('dJenis').value) ? 'wajib diisi' : 'opsional';
+  });
+  const q = new URLSearchParams(location.search);
+  if (q.get('id')) await loadDoc(Number(q.get('id')));
+  else render();
+});
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_subkon_detail', { p_id: id });
+  if (error || !data) return setLine('subkonStatus', 'Subkon tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'subkon-form.html?id=' + doc.id + location.hash);
+  $('sNama').value = doc.namaPerusahaan || '';
+  $('sBidang').value = doc.bidangUsaha || '';
+  $('sAlamat').value = doc.alamat || '';
+  $('sNIB').value = doc.noNIB || '';
+  $('sKontak').value = doc.namaKontak || '';
+  $('sJabatan').value = doc.jabatanKontak || '';
+  $('sTelp').value = doc.telepon || '';
+  $('sEmail').value = doc.email || '';
+  $('sStatus').value = doc.status;
+  $('sKet').value = doc.keterangan || '';
+  render();
+  if (location.hash === '#dokumen') setTimeout(() => $('dokCard').scrollIntoView({ behavior: 'smooth' }), 200);
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await S.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC subkon', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const pic = !aktor || aktor.bisaPic;   // sebelum verifikasi: tampilkan, server tetap cek
+  $('docNo').textContent = doc ? doc.kodeSubkon : 'Subkon baru (kode dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    doc.dibuatOleh && `Didaftarkan: ${doc.dibuatOleh} ${S.tgl(doc.createdAt)}`,
+    doc.diubahOleh && `Terakhir diubah: ${doc.diubahOleh} ${S.tgl(doc.updatedAt)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docChips').innerHTML = doc ? [
+    `<span class="status-chip ${S.statusCls(doc.status)}">${esc(doc.status)}</span>`,
+    doc.dokumenKedaluwarsa ? `<span class="status-chip kedaluwarsa">${doc.dokumenKedaluwarsa} dokumen kedaluwarsa</span>` : '',
+    doc.dokumenSegeraHabis ? `<span class="status-chip segera-habis">${doc.dokumenSegeraHabis} dokumen segera habis</span>` : ''
+  ].join('') : '';
+
+  document.querySelectorAll('.ed').forEach(el => el.disabled = !pic);
+  $('editActions').classList.toggle('hidden', !pic);
+  $('btnDelete').classList.toggle('hidden', !(doc && pic && !(doc.pekerjaanList || []).length));
+  document.querySelectorAll('.pic-only').forEach(el => el.classList.toggle('hidden', !pic));
+
+  ['pekCard', 'dokCard'].forEach(id => $(id).classList.toggle('hidden', !doc));
+  $('alatCard').classList.toggle('hidden', !(doc && (doc.alatList || []).length));
+  if (!doc) return;
+  $('btnPekerjaan').href = 'subkon-pekerjaan-form.html?subkonId=' + doc.id;
+  $('btnPekerjaan').classList.toggle('hidden', !pic || doc.status !== 'Aktif');
+  renderPekerjaan();
+  renderDok(pic);
+  $('alatBody').innerHTML = (doc.alatList || []).map(a => `<tr>
+      <td><a href="alat-form.html?id=${a.id}">${esc(a.noAlat)}</a></td><td>${esc(a.namaAlat)}</td><td>${esc(a.kategori)}</td>
+      <td><span class="status-chip ${S.statusCls(a.kondisi)}">${esc(a.kondisi)}</span>${a.statusAlat !== 'Aktif' ? '<div class="hint">tidak dipakai</div>' : ''}</td></tr>`).join('');
+}
+
+function renderPekerjaan() {
+  const list = doc.pekerjaanList || [];
+  $('pekBody').innerHTML = list.length ? list.map(p => `<tr>
+      <td><a href="subkon-pekerjaan-form.html?id=${p.id}">${esc(p.noPekerjaan)}</a><div class="hint">${esc(p.kodeOperational ? p.kodeOperational + ' · ' : '')}${esc(p.namaProject)}</div></td>
+      <td>${esc(p.lingkupPekerjaan)}<div class="hint">Risiko ${esc(p.tingkatRisiko)}</div></td>
+      <td>${S.tgl(p.tanggalMulai)}<div class="hint">s/d ${S.tgl(p.tanggalSelesai)}</div></td>
+      <td><div class="csms">${S.csmsChips(p)}</div></td>
+      <td><span class="status-chip ${S.statusCls(p.status)}">${esc(p.status)}</span></td></tr>`).join('')
+    : '<tr><td colspan="5" class="hint" style="text-align:center;padding:16px;">Belum ada pekerjaan.</td></tr>';
+}
+
+function pekerjaanLabel(id) {
+  if (!id) return 'Perusahaan';
+  const p = (doc.pekerjaanList || []).find(x => x.id === id);
+  return p ? p.noPekerjaan : 'Pekerjaan #' + id;
+}
+
+function renderDok(pic) {
+  const list = doc.dokumenList || [];
+  $('dokBody').innerHTML = list.length ? list.map(d => `<tr class="${d.terkini ? '' : 'old'}">
+      <td>${esc(d.jenisDokumen)}${d.terkini ? '' : '<div class="hint">riwayat</div>'}</td>
+      <td>${esc(d.noDokumen)}${d.namaPersonil ? '<div class="hint">' + esc(d.namaPersonil) + '</div>' : ''}${d.penerbit ? '<div class="hint">' + esc(d.penerbit) + '</div>' : ''}
+        ${d.linkDokumen ? `<div><a href="${esc(d.linkDokumen)}" target="_blank" rel="noopener">📄 dokumen</a></div>` : ''}</td>
+      <td>${esc(pekerjaanLabel(d.pekerjaanId))}</td>
+      <td>${S.tgl(d.berlakuSampai)}${d.terkini && d.berlakuSampai ? '<div class="hint">' + esc(S.sisaLabel(d)) + '</div>' : ''}</td>
+      <td>${d.terkini ? `<span class="status-chip ${S.statusCls(d.statusBerlaku)}">${esc(d.statusBerlaku)}</span>` : ''}</td>
+      <td>${pic ? `<button type="button" class="secondary small" onclick="openDok(${d.id})">✏️</button>
+        <button type="button" class="danger small" onclick="deleteDok(${d.id})">✕</button>` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="hint" style="text-align:center;padding:16px;">Belum ada dokumen.</td></tr>';
+}
+
+// ---------- data subkon ----------
+async function saveSubkon() {
+  if (!needPic('subkonStatus')) return;
+  const d = {
+    namaPerusahaan: $('sNama').value.trim(), bidangUsaha: $('sBidang').value.trim(), alamat: $('sAlamat').value.trim(),
+    noNIB: $('sNIB').value.trim(), namaKontak: $('sKontak').value.trim(), jabatanKontak: $('sJabatan').value.trim(),
+    telepon: $('sTelp').value.trim(), email: $('sEmail').value.trim(), status: $('sStatus').value, keterangan: $('sKet').value.trim()
+  };
+  if (!d.namaPerusahaan) return setLine('subkonStatus', 'Nama perusahaan wajib diisi.');
+  if (d.status === 'Daftar Hitam' && !d.keterangan) return setLine('subkonStatus', 'Tulis alasan Daftar Hitam di keterangan.');
+  setLine('subkonStatus', 'Menyimpan...', true);
+  const { data, error } = await hsse.rpc('save_subkon', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
+  if (error) return setLine('subkonStatus', '❌ ' + error.message);
+  const baru = !doc;
+  await loadDoc(data.id);
+  setLine('subkonStatus', baru ? `✅ Subkon terdaftar: ${data.kodeSubkon}. Lanjut catat dokumen & tambah pekerjaan di bawah.` : '✅ Data subkon tersimpan.', true);
+}
+
+async function deleteSubkon() {
+  if (!needPic('subkonStatus')) return;
+  if (!confirm('Hapus subkon ini? Cuma bisa kalau belum punya pekerjaan.')) return;
+  const { error } = await hsse.rpc('delete_subkon', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('subkonStatus', '❌ ' + error.message);
+  location.href = 'subkon-list.html?tab=subkon';
+}
+
+// ---------- dokumen ----------
+function openDok(id) {
+  if (!needPic('dokStatus')) return;
+  const d = id ? (doc.dokumenList || []).find(x => x.id === id) : {};
+  dokEditId = id || null;
+  $('dPekerjaan').innerHTML = '<option value="">Perusahaan (umum)</option>' +
+    (doc.pekerjaanList || []).filter(p => p.status !== 'Dibatalkan' || p.id === d.pekerjaanId)
+      .map(p => `<option value="${p.id}">${esc(p.noPekerjaan)} · ${esc(p.lingkupPekerjaan)}</option>`).join('');
+  $('dJenis').value = d.jenisDokumen || S.JENIS_DOKUMEN[0];
+  $('dNo').value = d.noDokumen || '';
+  $('dPekerjaan').value = d.pekerjaanId || '';
+  $('dPersonil').value = d.namaPersonil || '';
+  $('dPenerbit').value = d.penerbit || '';
+  $('dTerbit').value = d.tanggalTerbit || '';
+  $('dSampai').value = d.berlakuSampai || '';
+  $('dLink').value = d.linkDokumen || '';
+  $('dCatatan').value = d.catatan || '';
+  $('dFile').value = '';
+  $('dJenis').dispatchEvent(new Event('change'));
+  $('dokForm').classList.remove('hidden');
+  $('dokForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function closeDok() { $('dokForm').classList.add('hidden'); dokEditId = null; }
+
+async function saveDok() {
+  if (!needPic('dokStatus')) return;
+  const d = {
+    jenisDokumen: $('dJenis').value, noDokumen: $('dNo').value.trim(), pekerjaanId: $('dPekerjaan').value || null,
+    namaPersonil: $('dPersonil').value.trim(), penerbit: $('dPenerbit').value.trim(),
+    tanggalTerbit: $('dTerbit').value || null, berlakuSampai: $('dSampai').value || null,
+    linkDokumen: $('dLink').value.trim(), catatan: $('dCatatan').value.trim()
+  };
+  if (!d.noDokumen) return setLine('dokStatus', 'No. dokumen wajib diisi.');
+  if (S.DOKUMEN_PERSONIL.includes(d.jenisDokumen) && !d.namaPersonil) return setLine('dokStatus', 'Isi nama personilnya.');
+  try {
+    const file = $('dFile').files[0];
+    if (file) {
+      setLine('dokStatus', 'Mengupload dokumen ke Drive...', true);
+      const up = await uploadLampiranToDrive(file);
+      d.linkDokumen = up.viewUrl || up.directUrl;
+    }
+    setLine('dokStatus', 'Menyimpan...', true);
+    const { data, error } = await hsse.rpc('save_subkon_dokumen', { ...aktorArgs(), p_subkon_id: doc.id, p_id: dokEditId, p_data: d });
+    if (error) throw error;
+    doc = data;
+    closeDok();
+    render();
+    setLine('dokStatus', '✅ Dokumen tersimpan.', true);
+  } catch (e) { setLine('dokStatus', '❌ ' + e.message); }
+}
+
+async function deleteDok(id) {
+  if (!needPic('dokStatus')) return;
+  if (!confirm('Hapus dokumen ini? Kalau ini perpanjangan, lebih baik tambahkan dokumen baru saja.')) return;
+  const { data, error } = await hsse.rpc('delete_subkon_dokumen', { ...aktorArgs(), p_id: id });
+  if (error) return setLine('dokStatus', '❌ ' + error.message);
+  doc = data;
+  render();
+  setLine('dokStatus', 'Dokumen dihapus.', true);
+}
+</script>
+</body>
+</html>

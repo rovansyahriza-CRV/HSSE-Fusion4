@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluasi CSMS Subkon — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="hsseAccess.js"></script>
+<script src="driveBridge.js"></script>
+<script src="subkonCommon.js"></script>
+<style>
+  .page { max-width: 980px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; font-weight: 800; color: var(--navy-dark); margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row + .row { margin-top: 8px; }
+  .field { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+  .field.wide { flex: 2; min-width: 260px; }
+  .field.small { flex: 0 0 150px; min-width: 130px; }
+  label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; background: #fff; color: var(--text); }
+  textarea { min-height: 58px; resize: vertical; }
+  input:disabled, select:disabled, textarea:disabled { background: #F8FAFC; color: var(--text); }
+  button { border: 0; border-radius: 9px; padding: 10px 14px; background: var(--navy); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #E8ECF8; color: var(--navy-dark); }
+  button.ok { background: var(--success, #107C41); }
+  button.danger { background: var(--accent, #D13438); }
+  button.small { padding: 6px 10px; font-size: 11.5px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .status-line { margin-top: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.ok { color: var(--success, #107C41); } .status-line.err { color: var(--accent, #D13438); }
+  .doc-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+  .doc-no { font-family: monospace; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .status-chip { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+  .status-chip.memenuhi, .status-chip.disetujui, .status-chip.berlaku, .status-chip.berjalan { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .status-chip.memenuhi-dengan-catatan, .status-chip.menunggu-approval, .status-chip.segera-habis, .status-chip.rencana { background: #FDF3E3; color: #8A6100; }
+  .status-chip.tidak-memenuhi, .status-chip.dikembalikan, .status-chip.kedaluwarsa { background: #FCEAE8; color: var(--accent, #D13438); }
+  .status-chip.baru, .status-chip.selesai, .status-chip.dibatalkan, .status-chip.tanpa-masa-berlaku { background: #EEF0F4; color: var(--muted); }
+  .note-box { background: #FFF8E6; border: 1px solid #F3D48A; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 10px; white-space: pre-wrap; }
+  .pek-box { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 10px; background: #FCFDFF; font-size: 12.5px; line-height: 1.6; }
+  .pek-box b { color: var(--navy-dark); }
+  .pek-box .warn { color: var(--accent, #D13438); font-weight: 800; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table.ck { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.ck th, table.ck td { border-bottom: 1px solid var(--border); padding: 6px; vertical-align: top; }
+  table.ck th { font-size: 11px; color: var(--muted); text-transform: uppercase; text-align: left; }
+  table.ck td.el { width: 160px; }
+  table.ck td.it { width: 38%; }
+  table.ck td.it textarea, table.ck td.el textarea { min-height: 40px; }
+  table.ck td.h { white-space: nowrap; }
+  table.ck td:last-child { width: 36px; }
+  .seg { display: inline-flex; border: 1.5px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .seg label { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 800; color: var(--text); padding: 6px 9px; cursor: pointer; border-right: 1px solid var(--border); }
+  .seg label:last-child { border-right: 0; }
+  .seg input { display: none; }
+  .seg label.on.n3 { background: var(--success-bg, #E6F7ED); color: var(--success, #107C41); }
+  .seg label.on.n2 { background: #EAF3FB; color: #1F5E99; }
+  .seg label.on.n1 { background: #FDF3E3; color: #8A6100; }
+  .seg label.on.n0 { background: #FCEAE8; color: var(--accent, #D13438); }
+  .seg label.on.na { background: #EEF0F4; color: var(--muted); }
+  .seg.disabled label { cursor: default; opacity: .8; }
+  .score { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #F5F7FC; }
+  .score .big { font-size: 30px; font-weight: 800; color: var(--navy-dark); }
+  .score.lulus .big { color: var(--success, #107C41); }
+  .score.gagal .big { color: var(--accent, #D13438); }
+  .score .t { font-size: 12.5px; line-height: 1.5; }
+  .sticky-actions { position: sticky; bottom: 0; background: var(--bg, #F4F6FB); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
+    table.ck thead { display: none; }
+    table.ck td { display: block; border: 0; padding: 3px 0; width: auto !important; }
+    table.ck tr { display: block; border-bottom: 1px solid var(--border); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a href="subkon-list.html?tab=evaluasi" class="back-to-menu">⬅ Daftar Evaluasi Subkon</a>
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top"><div><div class="eyebrow">HSSE-Fusion4</div><h1>Evaluasi CSMS Subkon</h1></div></div>
+    <p>Pilih pekerjaan &amp; tahap → nilai tiap item 0-3 (N/A tidak dihitung) → hasil → ajukan approval. Nilai = jumlah nilai / (3 × item dinilai) × 100; minimum lulus ikut tingkat risiko pekerjaan.</p>
+  </div>
+
+  <div class="card" id="gateCard">
+    <h2>Verifikasi</h2>
+    <div class="row">
+      <div class="field"><label>QR Code ID</label><input id="gateQr" autocomplete="off" placeholder="Scan/ketik QR Code ID"></div>
+      <div class="field"><label>atau PIN</label><input id="gatePin" type="password" inputmode="numeric" placeholder="PIN Fusion4"></div>
+      <button type="button" onclick="verify()">Verifikasi</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Siapa aja boleh lihat. Isi evaluasi butuh PIC <b>HSSE-SUB</b>; setujui/kembalikan butuh Author <b>Approve Subkon</b>.</div>
+    <div class="status-line" id="gateStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="doc-head">
+      <div>
+        <div class="doc-no" id="docNo">Evaluasi baru</div>
+        <div class="hint" id="docMeta"></div>
+      </div>
+      <span class="status-chip baru" id="docStatus">Baru</span>
+    </div>
+    <div id="approvalNote" class="note-box hidden"></div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="field wide"><label>Project</label><select id="eProject"></select></div>
+      <div class="field wide"><label>Pekerjaan subkon</label><select id="ePekerjaan"><option value="">-- pilih project dulu --</option></select></div>
+    </div>
+    <div class="pek-box hidden" id="pekBox"></div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="field"><label>Tahap</label><select id="eTahap"></select></div>
+      <div class="field"><label>Tanggal &amp; jam evaluasi</label><input type="datetime-local" id="eTanggal" class="ed"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Checklist</h2>
+    <div class="hint">3 = Baik / lengkap, 2 = Cukup, 1 = Kurang, 0 = Tidak ada, N/A = tidak berlaku (tidak dihitung).</div>
+    <table class="ck" style="margin-top:8px;"><thead><tr><th>Elemen</th><th>Item</th><th>Nilai</th><th>Catatan / bukti</th><th></th></tr></thead><tbody id="ckBody"></tbody></table>
+    <div class="actions ed-only">
+      <button type="button" class="secondary small" onclick="addItem()">➕ Tambah item</button>
+      <button type="button" class="secondary small" onclick="loadTemplate(true)">↺ Isi ulang dari template tahap</button>
+    </div>
+    <div class="score" id="score"></div>
+  </div>
+
+  <div class="card">
+    <h2>Hasil</h2>
+    <div class="row">
+      <div class="field small" style="flex:0 0 260px;"><label>Kesimpulan</label><select id="eHasil" class="ed"><option value="">-- pilih --</option></select></div>
+      <div class="field wide"><label>Temuan &amp; tindak lanjut (wajib kalau tidak "Memenuhi")</label><textarea id="eTemuan" class="ed"></textarea></div>
+    </div>
+    <div class="row">
+      <div class="field wide"><label>Link berkas evaluasi / bukti (Drive)</label><input id="eLink" class="ed" placeholder="https://..."></div>
+      <div class="field ed-only"><label>atau upload (PDF / foto)</label><input type="file" id="eFile" class="ed" accept="application/pdf,image/*"></div>
+    </div>
+    <div class="hint" id="linkView" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="card hidden" id="approveCard">
+    <h2>Approval</h2>
+    <div class="field"><label>Catatan (wajib kalau dikembalikan)</label><textarea id="aCatatan"></textarea></div>
+    <div class="actions">
+      <button type="button" class="ok" onclick="approve(true)">✅ Setujui</button>
+      <button type="button" class="danger" onclick="approve(false)">↩️ Kembalikan</button>
+    </div>
+  </div>
+
+  <div class="sticky-actions">
+    <div class="actions" style="margin-top:0;">
+      <button type="button" id="btnSubmit" onclick="submit()">📤 Simpan &amp; Ajukan Approval</button>
+      <button type="button" class="danger hidden" id="btnDelete" onclick="hapus()">🗑️ Hapus</button>
+      <a class="hidden" id="btnPdf" target="_blank"><button type="button" class="secondary">🖨️ Cetak</button></a>
+      <a class="hidden" id="btnPek"><button type="button" class="secondary">📋 Pekerjaan</button></a>
+    </div>
+    <div class="status-line" id="saveStatus"></div>
+  </div>
+</div>
+
+<script>
+const hsse = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fusion4 = supabase.createClient(FUSION4_SUPABASE_URL, FUSION4_SUPABASE_KEY);
+const S = SubkonCommon, esc = S.esc;
+const $ = id => document.getElementById(id);
+
+let doc = null;   // hasil get_subkon_evaluasi_detail (null = baru)
+let pek = null;   // hasil get_subkon_pekerjaan_detail untuk pekerjaan terpilih
+let aktor = null;
+let seq = 0;
+const SEG_CLS = { '3': 'n3', '2': 'n2', '1': 'n1', '0': 'n0', 'N/A': 'na' };
+
+function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
+function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
+function needPic(lineId) {
+  if (aktor && aktor.bisaPic) return true;
+  setLine(lineId, aktor ? `${aktor.nama} tidak punya ${HSSEAccess.label(S.PIC_TAG)}.` : 'Verifikasi dulu di atas (PIC HSSE-SUB).');
+  return false;
+}
+function editable() { return (!doc || doc.status !== 'Disetujui') && (!aktor || aktor.bisaPic); }
+function minimum() { return doc ? doc.nilaiMinimum : pek ? pek.nilaiMinimum : null; }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('eTahap').innerHTML = S.TAHAP.map(t => `<option>${esc(t)}</option>`).join('');
+  $('eHasil').innerHTML += S.HASIL.map(h => `<option>${esc(h)}</option>`).join('');
+  $('eTanggal').value = S.toLocalInput(new Date().toISOString());
+  $('eProject').addEventListener('change', loadPekerjaanOptions);
+  $('ePekerjaan').addEventListener('change', () => pickPekerjaan(Number($('ePekerjaan').value) || null, true));
+  $('eTahap').addEventListener('change', () => { if (!doc) loadTemplate(true); renderPekBox(); });
+  $('eHasil').addEventListener('change', renderScore);
+  await loadProjects();
+  const q = new URLSearchParams(location.search);
+  if (q.get('id')) return loadDoc(Number(q.get('id')));
+  if (q.get('tahap') && S.TAHAP.includes(q.get('tahap'))) $('eTahap').value = q.get('tahap');
+  if (q.get('pekerjaanId')) await pickPekerjaan(Number(q.get('pekerjaanId')), true, !q.get('tahap'));
+  render();
+});
+
+async function loadProjects() {
+  const { data } = await hsse.rpc('get_active_projects');
+  $('eProject').innerHTML = '<option value="">-- pilih project --</option>' +
+    (data || []).map(p => `<option value="${p.id}">${esc(p.label || p.namaProject)}</option>`).join('');
+}
+
+async function loadPekerjaanOptions(keepId) {
+  const pid = $('eProject').value;
+  if (!pid) { $('ePekerjaan').innerHTML = '<option value="">-- pilih project dulu --</option>'; return; }
+  const { data } = await hsse.rpc('get_subkon_pekerjaan_list', { p_project_id: Number(pid), p_status: null, p_cari: null });
+  $('ePekerjaan').innerHTML = '<option value="">-- pilih pekerjaan --</option>' + (data || [])
+    .filter(p => p.status !== 'Dibatalkan' || p.id === keepId)
+    .map(p => `<option value="${p.id}">${esc(p.noPekerjaan)} · ${esc(p.namaPerusahaan)} · ${esc(p.lingkupPekerjaan)}</option>`).join('');
+  if (typeof keepId === 'number') $('ePekerjaan').value = keepId;
+}
+
+// Tahap yang disarankan: tahap pertama yang belum punya evaluasi disetujui (WIP kalau sudah berjalan).
+function tahapSaran(p) {
+  const c = p.csms || {};
+  if (!c['Prakualifikasi']) return 'Prakualifikasi';
+  if (!c['Pre-Job Activity']) return 'Pre-Job Activity';
+  if (p.status === 'Selesai') return 'Final Evaluation';
+  return 'Work in Progress';
+}
+
+async function pickPekerjaan(id, isiTemplate, pilihTahap) {
+  if (!id) { pek = null; $('pekBox').classList.add('hidden'); renderScore(); return; }
+  const { data, error } = await hsse.rpc('get_subkon_pekerjaan_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'Pekerjaan tidak ditemukan.');
+  pek = data;
+  if ($('eProject').value !== String(pek.projectId)) {
+    if (!$('eProject').querySelector(`option[value="${pek.projectId}"]`)) {
+      $('eProject').insertAdjacentHTML('beforeend', `<option value="${pek.projectId}">${esc(pek.namaProject)}</option>`);
+    }
+    $('eProject').value = pek.projectId;
+    await loadPekerjaanOptions(pek.id);
+  }
+  if (!doc && pilihTahap !== false) $('eTahap').value = tahapSaran(pek);
+  renderPekBox();
+  if (isiTemplate && !doc) await loadTemplate(false);
+  renderScore();
+}
+
+function renderPekBox() {
+  const p = pek;
+  if (!p) return;
+  const t = $('eTahap').value;
+  const w = [];
+  if (!doc && t !== 'Prakualifikasi' && !p.lolosPrakualifikasi) w.push('Prakualifikasi belum lolos');
+  if (!doc && ['Work in Progress', 'Final Evaluation'].includes(t) && !p.lolosPreJob) w.push('Pre-Job Activity belum lolos');
+  const dok = (p.dokumenList || []).filter(d => d.statusBerlaku === 'Kedaluwarsa');
+  $('pekBox').classList.remove('hidden');
+  $('pekBox').innerHTML = `
+    <b>${esc(p.noPekerjaan)}</b> · <b>${esc(p.namaPerusahaan)}</b> (${esc(p.kodeSubkon)})${p.statusSubkon !== 'Aktif' ? ` <span class="warn">${esc(p.statusSubkon)}</span>` : ''}<br>
+    ${esc(p.lingkupPekerjaan)} · ${S.tgl(p.tanggalMulai)} s/d ${S.tgl(p.tanggalSelesai)} ·
+    <span class="status-chip ${S.statusCls(p.status)}">${esc(p.status)}</span><br>
+    Risiko <b>${esc(p.tingkatRisiko)}</b> → nilai minimum <b>${doc ? doc.nilaiMinimum : p.nilaiMinimum}</b>${doc && doc.tingkatRisiko !== p.tingkatRisiko ? ` (dikunci saat evaluasi dibuat, risiko waktu itu ${esc(doc.tingkatRisiko)})` : ''}
+    ${dok.length ? `<br><span class="warn">${dok.length} dokumen kedaluwarsa: ${dok.map(d => esc(d.jenisDokumen + (d.namaPersonil ? ' ' + d.namaPersonil : ''))).join(', ')}</span>` : ''}
+    ${w.length ? `<br><span class="warn">⚠️ ${w.join(' · ')}</span>` : ''}
+    · <a href="subkon-pekerjaan-form.html?id=${p.id}">data pekerjaan</a>`;
+}
+
+async function loadTemplate(tanya) {
+  if (tanya && readChecklist().length && !confirm('Ganti checklist dengan template tahap ini? Isian sekarang hilang.')) return;
+  const { data, error } = await hsse.rpc('get_subkon_checklist_template', { p_tahap: $('eTahap').value });
+  if (error) return setLine('saveStatus', 'Gagal memuat template: ' + error.message);
+  $('ckBody').innerHTML = '';
+  (data || []).forEach(t => addItem({ elemen: t.elemen, item: t.item }, true));
+  render();
+}
+
+async function loadDoc(id) {
+  const { data, error } = await hsse.rpc('get_subkon_evaluasi_detail', { p_id: id });
+  if (error || !data) return setLine('saveStatus', 'Evaluasi tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  doc = data;
+  history.replaceState(null, '', 'subkon-evaluasi-form.html?id=' + doc.id);
+  $('eTahap').value = doc.tahap;
+  await pickPekerjaan(doc.pekerjaanId, false);
+  $('eTanggal').value = S.toLocalInput(doc.tanggalEvaluasi);
+  $('eHasil').value = doc.hasil;
+  $('eTemuan').value = doc.temuanTindakan || '';
+  $('eLink').value = doc.linkDokumen || '';
+  $('ckBody').innerHTML = '';
+  (doc.checklistList || []).forEach(e => addItem(e, true));
+  render();
+}
+
+async function verify() {
+  const qr = $('gateQr').value.trim(), pin = $('gatePin').value.trim();
+  if (!qr && !pin) return setLine('gateStatus', 'Isi QR Code ID atau PIN dulu.');
+  try {
+    aktor = await S.verifyAktor(fusion4, qr, pin);
+    const peran = [aktor.bisaPic && 'PIC subkon', aktor.bisaApprove && 'approver'].filter(Boolean).join(' + ');
+    setLine('gateStatus', `✅ Terverifikasi: ${aktor.nama} (${peran}).`, true);
+  } catch (e) { aktor = null; setLine('gateStatus', e.message); }
+  render();
+}
+
+function render() {
+  const st = doc ? doc.status : 'Baru';
+  const ed = editable();
+  $('docNo').textContent = doc ? doc.noEvaluasi : 'Evaluasi baru (nomor dibuat saat disimpan)';
+  $('docMeta').textContent = doc ? [
+    `Evaluator: ${doc.evaluator || '-'}`,
+    doc.diubahOleh && doc.diubahOleh !== doc.evaluator && `Diubah: ${doc.diubahOleh}`,
+    st === 'Disetujui' && doc.disetujuiOleh && `Disetujui: ${doc.disetujuiOleh} ${S.tgl(doc.tanggalDisetujui)}`
+  ].filter(Boolean).join(' · ') : '';
+  $('docStatus').textContent = st;
+  $('docStatus').className = 'status-chip ' + S.statusCls(st);
+  const note = doc && doc.catatanApproval;
+  $('approvalNote').classList.toggle('hidden', !note);
+  if (note) $('approvalNote').textContent = (st === 'Dikembalikan' ? '↩️ Dikembalikan: ' : '📝 Catatan approval: ') + note;
+
+  $('eProject').disabled = !!doc || !ed;
+  $('ePekerjaan').disabled = !!doc || !ed;
+  $('eTahap').disabled = !!doc || !ed;
+  document.querySelectorAll('.ed, #ckBody [data-k]').forEach(el => el.disabled = !ed);
+  document.querySelectorAll('#ckBody .seg').forEach(s => {
+    s.classList.toggle('disabled', !ed);
+    s.querySelectorAll('input').forEach(i => i.disabled = !ed);
+  });
+  document.querySelectorAll('.ed-only, #ckBody .rm-item').forEach(el => el.classList.toggle('hidden', !ed));
+  $('linkView').innerHTML = $('eLink').value ? `<a href="${esc($('eLink').value)}" target="_blank" rel="noopener">📄 Buka berkas</a>` : '';
+  $('btnSubmit').classList.toggle('hidden', !ed);
+  $('btnSubmit').textContent = doc ? '📤 Simpan Perbaikan & Ajukan Lagi' : '📤 Simpan & Ajukan Approval';
+  $('btnDelete').classList.toggle('hidden', !(doc && ed));
+  $('approveCard').classList.toggle('hidden', !(st === 'Menunggu Approval' && aktor && aktor.bisaApprove));
+  $('btnPdf').classList.toggle('hidden', !doc);
+  if (doc) $('btnPdf').href = 'subkon-pdf.html?evaluasiId=' + doc.id;
+  $('btnPek').classList.toggle('hidden', !pek);
+  if (pek) $('btnPek').href = 'subkon-pekerjaan-form.html?id=' + pek.id;
+  renderScore();
+}
+
+// ---------- checklist ----------
+function addItem(e, diam) {
+  e = e || {};
+  const n = seq++;
+  const v = e.nilai === undefined || e.nilai === null ? '' : String(e.nilai);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="el"><textarea data-k="elemen" rows="2" placeholder="Elemen">${esc(e.elemen)}</textarea></td>
+    <td class="it"><textarea data-k="item" rows="2" placeholder="Item yang dinilai">${esc(e.item)}</textarea></td>
+    <td class="h"><span class="seg">${S.NILAI.map(o => `<label class="${SEG_CLS[o.v]} ${o.v === v ? 'on' : ''}" title="${esc(o.t)}">
+      <input type="radio" name="n${n}" value="${o.v}" ${o.v === v ? 'checked' : ''}>${o.v}</label>`).join('')}</span></td>
+    <td><input type="text" data-k="catatan" value="${esc(e.catatan)}"></td>
+    <td><button type="button" class="secondary small rm-item" onclick="this.closest('tr').remove(); renderScore();">✕</button></td>`;
+  tr.querySelectorAll('.seg input').forEach(i => i.addEventListener('change', () => {
+    tr.querySelectorAll('.seg label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+    renderScore();
+  }));
+  $('ckBody').appendChild(tr);
+  if (!diam) render();
+}
+
+function readChecklist() {
+  return [...$('ckBody').children].map(tr => ({
+    elemen: tr.querySelector('[data-k="elemen"]').value.trim(),
+    item: tr.querySelector('[data-k="item"]').value.trim(),
+    nilai: (tr.querySelector('.seg input:checked') || {}).value || '',
+    catatan: tr.querySelector('[data-k="catatan"]').value.trim()
+  })).filter(x => x.item);
+}
+
+function renderScore() {
+  const h = S.hitungNilai(readChecklist());
+  const min = minimum();
+  const lulus = h.persen !== null && min !== null && h.persen >= min;
+  $('score').className = 'score ' + (h.persen === null || min === null ? '' : lulus ? 'lulus' : 'gagal');
+  $('score').innerHTML = `<div class="big">${h.persen === null ? '-' : S.nilai(h.persen)}</div>
+    <div class="t">Nilai dari ${h.dinilai} item dinilai${min !== null ? ` · minimum <b>${min}</b>` : ''}
+      ${h.nol ? ` · <b style="color:var(--accent)">${h.nol} item nilai 0</b>` : ''}
+      ${h.kosong ? ` · <b style="color:#8A6100">${h.kosong} belum dinilai</b>` : ''}
+      <br>${h.persen === null || min === null ? 'Pilih pekerjaan &amp; isi nilai.' : lulus ? 'Lolos nilai minimum.' : 'Di bawah minimum: hasil harus "Tidak Memenuhi".'}</div>`;
+  // batasi pilihan hasil sesuai aturan server
+  const opt = v => [...$('eHasil').options].find(o => o.value === v);
+  const bawah = h.persen !== null && min !== null && h.persen < min;
+  opt('Memenuhi').disabled = bawah || h.nol > 0;
+  opt('Memenuhi dengan Catatan').disabled = bawah;
+  if ($('eHasil').selectedOptions[0] && $('eHasil').selectedOptions[0].disabled) $('eHasil').value = '';
+}
+
+// ---------- simpan ----------
+async function submit() {
+  if (!needPic('saveStatus')) return;
+  if (!pek) return setLine('saveStatus', 'Pilih pekerjaan subkon dulu.');
+  const data = {
+    pekerjaanId: pek.id, tahap: $('eTahap').value, tanggalEvaluasi: S.fromLocalInput($('eTanggal').value),
+    checklistList: readChecklist(), hasil: $('eHasil').value, temuanTindakan: $('eTemuan').value.trim(),
+    linkDokumen: $('eLink').value.trim()
+  };
+  const h = S.hitungNilai(data.checklistList);
+  if (!data.checklistList.length) return setLine('saveStatus', 'Checklist masih kosong.');
+  if (h.kosong) return setLine('saveStatus', `Masih ada ${h.kosong} item yang belum dinilai.`);
+  if (!h.dinilai) return setLine('saveStatus', 'Semua item N/A. Minimal 1 item harus dinilai.');
+  if (!data.hasil) return setLine('saveStatus', 'Pilih kesimpulan hasil evaluasi.');
+  if (data.hasil !== 'Memenuhi' && !data.temuanTindakan) return setLine('saveStatus', 'Tulis temuan dan tindak lanjutnya.');
+  const btn = $('btnSubmit'); btn.disabled = true;
+  try {
+    const file = $('eFile').files[0];
+    if (file) {
+      setLine('saveStatus', 'Mengupload berkas ke Drive...', true);
+      const up = await uploadLampiranToDrive(file);
+      data.linkDokumen = up.viewUrl || up.directUrl;
+    }
+    setLine('saveStatus', 'Menyimpan...', true);
+    const { data: res, error } = await hsse.rpc('save_subkon_evaluasi', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: data });
+    if (error) throw error;
+    $('eFile').value = '';
+    await loadDoc(res.id);
+    setLine('saveStatus', `✅ Evaluasi ${res.noEvaluasi} tersimpan (nilai ${S.nilai(res.nilaiPersen)}) dan diajukan. Menunggu approval pemegang Author "Approve Subkon".`, true);
+  } catch (e) {
+    setLine('saveStatus', '❌ ' + e.message);
+  } finally { btn.disabled = false; }
+}
+
+async function hapus() {
+  if (!needPic('saveStatus')) return;
+  if (!confirm('Hapus evaluasi ini?')) return;
+  const { error } = await hsse.rpc('delete_subkon_evaluasi', { ...aktorArgs(), p_id: doc.id });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  location.href = 'subkon-pekerjaan-form.html?id=' + doc.pekerjaanId;
+}
+
+async function approve(setuju) {
+  if (!aktor || !aktor.bisaApprove) return setLine('saveStatus', 'Butuh Author "Approve Subkon".');
+  const catatan = $('aCatatan').value.trim();
+  if (!setuju && !catatan) return setLine('saveStatus', 'Tulis alasan kenapa dikembalikan.');
+  const { error } = await hsse.rpc('approve_subkon_evaluasi', { ...aktorArgs(), p_id: doc.id, p_setuju: setuju, p_catatan: catatan || null });
+  if (error) return setLine('saveStatus', '❌ ' + error.message);
+  $('aCatatan').value = '';
+  await loadDoc(doc.id);
+  setLine('saveStatus', setuju ? '✅ Evaluasi disetujui.' : '↩️ Evaluasi dikembalikan ke PIC.', true);
+}
+</script>
+</body>
+</html>

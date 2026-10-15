@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Subkon — HSSE-Fusion4</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="subkonCommon.js"></script>
+<style>
+  :root {
+    --navy: #2D3C73; --navy-dark: #1B2650; --accent: #E02C2B; --safety-yellow: #F5A623;
+    --success: #178A4C; --success-bg: #E5F6EC; --border: #D5DAE6; --muted: #6B7280; --text: #1E1E1E; --bg: #F5F6FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 11.5px; line-height: 1.45; }
+  .toolbar { position: sticky; top: 0; z-index: 10; background: var(--navy-dark); color: #fff; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .toolbar a { color: #C7CEE8; text-decoration: none; font-size: 13px; font-weight: 700; }
+  .toolbar button { background: var(--accent); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .sheet { max-width: 210mm; margin: 16px auto; background: #fff; padding: 12mm; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.08); display: none; }
+  .sheet.landscape { max-width: 297mm; }
+  .doc-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 3px solid var(--navy); margin-bottom: 12px; }
+  .doc-header img { width: 100px; height: auto; object-fit: contain; }
+  .doc-title { text-align: right; }
+  .doc-title .eyebrow { font-size: 9px; color: var(--safety-yellow); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .doc-title h1 { font-size: 17px; font-weight: 800; color: var(--navy-dark); margin-top: 2px; }
+  .doc-title .sub { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+  .watermark { color: var(--accent); font-weight: 800; font-size: 11px; text-align: center; border: 1.5px dashed var(--accent); border-radius: 6px; padding: 4px; margin-bottom: 10px; }
+  .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .info-cell { padding: 6px 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .info-cell:nth-child(3n) { border-right: none; }
+  .label { font-size: 8px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .value { font-size: 10.5px; font-weight: 700; white-space: pre-wrap; }
+  h2 { font-size: 11px; font-weight: 800; color: #fff; background: var(--navy-dark); padding: 5px 10px; border-radius: 5px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .text-block { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; min-height: 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
+  thead th { background: #EEF2FC; color: var(--navy-dark); font-size: 8.5px; text-transform: uppercase; }
+  td.c { text-align: center; }
+  .k-memenuhi, .n-3, .s-berlaku { background: #CDEFD9; }
+  .n-2 { background: #DCEBF8; }
+  .k-memenuhi-dengan-catatan, .n-1, .s-segera-habis { background: #FBE7B5; }
+  .k-tidak-memenuhi, .n-0, .s-kedaluwarsa { background: #F4B1AC; }
+  .n-na { background: #EEF0F4; color: var(--muted); }
+  .result { display: flex; gap: 10px; align-items: stretch; }
+  .result .box { flex: 0 0 52mm; border-radius: 8px; padding: 10px; text-align: center; font-size: 15px; font-weight: 800; display: flex; flex-direction: column; justify-content: center; }
+  .result .box .label { margin-bottom: 4px; }
+  .result .text-block { flex: 1; }
+  .signature-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 18px; }
+  .signature-box { text-align: center; }
+  .signature-box .role { font-size: 9px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 34px; }
+  .signature-box .line { border-top: 1px solid var(--text); padding-top: 4px; font-size: 10px; font-weight: 700; }
+  .signature-box .sub { font-size: 8.5px; color: var(--muted); }
+  .doc-footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; border-radius: 0; padding: 0; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    tr, .signature-row { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+  }
+  @media screen and (max-width: 800px) {
+    .sheet { padding: 5vw; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .result { flex-direction: column; }
+    .sheet table { display: block; overflow-x: auto; }
+  }
+</style>
+<style id="pageSize">@page { size: A4 portrait; margin: 10mm; }</style>
+</head>
+<body>
+<div class="toolbar no-print">
+  <a href="subkon-list.html" id="backLink">⬅ Daftar Subkon</a>
+  <button onclick="window.print()">🖨️ Download / Cetak PDF</button>
+</div>
+<div id="loading" class="loading">Memuat...</div>
+
+<div class="sheet" id="sheet">
+  <div class="doc-header">
+    <img src="logo-bima.png" alt="Logo HSSE BiMa">
+    <div class="doc-title">
+      <div class="eyebrow">HSSE-Fusion4</div>
+      <h1 id="fJudul"></h1>
+      <div class="sub" id="fNo"></div>
+    </div>
+  </div>
+  <div id="fWatermark" class="watermark" style="display:none;"></div>
+  <div id="fBody"></div>
+  <div class="doc-footer">
+    <div>Dokumen dihasilkan otomatis oleh Sistem HSSE-Fusion4 &mdash; PT Bilal Mitra Aryatama</div>
+    <div id="fCetak"></div>
+  </div>
+</div>
+
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const S = SubkonCommon, esc = S.esc;
+const $ = id => document.getElementById(id);
+
+function info(rows) {
+  return `<div class="info-grid">${rows.map(([k, v]) => `<div class="info-cell"><div class="label">${k}</div><div class="value">${esc(v ?? '-')}</div></div>`).join('')}</div>`;
+}
+function fail(t) { $('loading').textContent = t; }
+function show(judul, no) {
+  $('fJudul').textContent = judul;
+  $('fNo').textContent = no;
+  $('fCetak').textContent = 'Dicetak ' + new Date().toLocaleString('id-ID');
+  $('loading').style.display = 'none';
+  $('sheet').style.display = 'block';
+}
+function nCls(v) { return v === 'N/A' ? 'n-na' : 'n-' + v; }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const q = new URLSearchParams(location.search);
+  try {
+    if (q.get('evaluasiId')) return await laporanEvaluasi(Number(q.get('evaluasiId')));
+    if (q.get('pekerjaanId')) return await ringkasanPekerjaan(Number(q.get('pekerjaanId')));
+    if (q.get('register')) return await register(q.get('projectId') ? Number(q.get('projectId')) : null);
+    fail('Parameter tidak lengkap (evaluasiId, pekerjaanId, atau register).');
+  } catch (e) { fail('Gagal memuat: ' + e.message); }
+});
+
+// ---------- Laporan evaluasi CSMS ----------
+async function laporanEvaluasi(id) {
+  const { data: d, error } = await db.rpc('get_subkon_evaluasi_detail', { p_id: id });
+  if (error || !d) return fail('Evaluasi tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  document.title = `${d.noEvaluasi} — Evaluasi CSMS ${d.tahap}`;
+  $('backLink').href = 'subkon-evaluasi-form.html?id=' + d.id; $('backLink').textContent = '⬅ Evaluasi';
+  if (d.status !== 'Disetujui') {
+    $('fWatermark').style.display = 'block';
+    $('fWatermark').textContent = `BELUM DISETUJUI (${d.status.toUpperCase()}) -- bukan dokumen resmi`;
+  }
+  const ck = d.checklistList || [];
+  const na = ck.filter(c => c.nilai === 'N/A').length;
+  $('fBody').innerHTML = `
+    ${info([
+      ['Subkontraktor', `${d.namaPerusahaan} (${d.kodeSubkon})`], ['Bidang Usaha', d.bidangUsaha || '-'], ['Kontak', d.namaKontak || '-'],
+      ['Pekerjaan', `${d.noPekerjaan} · ${d.lingkupPekerjaan}`], ['SPK / PO', d.noKontrakPO || '-'],
+      ['Project', `${d.kodeOperational ? d.kodeOperational + ' · ' : ''}${d.namaProject || '-'}`],
+      ['Periode Pekerjaan', `${S.tgl(d.tanggalMulai)} s/d ${S.tgl(d.tanggalSelesai)}`], ['Tingkat Risiko', d.tingkatRisiko],
+      ['Tanggal Evaluasi', S.tgl(d.tanggalEvaluasi)]
+    ])}
+
+    <h2>Checklist ${esc(d.tahap)}</h2>
+    <table><thead><tr><th style="width:4%">No</th><th style="width:18%">Elemen</th><th style="width:44%">Item</th><th style="width:7%">Nilai</th><th>Catatan / bukti</th></tr></thead>
+      <tbody>${ck.map((c, i) => `<tr><td class="c">${i + 1}</td><td>${esc(c.elemen || '')}</td><td>${esc(c.item)}</td>
+        <td class="c ${nCls(c.nilai)}">${esc(c.nilai)}</td><td>${esc(c.catatan || '')}</td></tr>`).join('')}</tbody></table>
+    <div style="margin-top:4px;font-size:9.5px;color:var(--muted);">Skala 3 = Baik, 2 = Cukup, 1 = Kurang, 0 = Tidak ada, N/A tidak dihitung.
+      ${d.jumlahDinilai} item dinilai · ${na} N/A · ${d.jumlahNol} bernilai 0. Nilai = jumlah nilai / (3 × item dinilai) × 100.</div>
+
+    <h2>Hasil</h2>
+    <div class="result">
+      <div class="box k-${S.statusCls(d.hasil)}"><span class="label">Nilai ${S.nilai(d.nilaiPersen)} (min ${d.nilaiMinimum})</span>${esc(d.hasil)}</div>
+      <div class="text-block"><div class="label">Temuan &amp; tindak lanjut</div>${esc(d.temuanTindakan || '-')}</div>
+    </div>
+    ${d.catatanApproval ? `<div class="text-block" style="margin-top:6px;"><div class="label">Catatan approval</div>${esc(d.catatanApproval)}</div>` : ''}
+    ${d.linkDokumen ? `<div style="margin-top:6px;font-size:9.5px;">Berkas pendukung: ${esc(d.linkDokumen)}</div>` : ''}
+
+    <div class="signature-row">
+      <div class="signature-box"><div class="role">Dievaluasi Oleh</div><div class="line">${esc(d.evaluator || ' ')}</div><div class="sub">${S.tgl(d.tanggalEvaluasi)}</div></div>
+      <div class="signature-box"><div class="role">Disetujui Oleh</div><div class="line">${d.status === 'Disetujui' ? esc(d.disetujuiOleh || ' ') : '&nbsp;'}</div>
+        <div class="sub">${d.status === 'Disetujui' && d.tanggalDisetujui ? S.tgl(d.tanggalDisetujui) : 'Nama &amp; Tanda Tangan'}</div></div>
+    </div>`;
+  show(`Evaluasi CSMS Subkontraktor -- ${d.tahap}`, `${d.noEvaluasi} · ${d.status}`);
+}
+
+// ---------- Ringkasan CSMS 1 pekerjaan ----------
+async function ringkasanPekerjaan(id) {
+  const { data: p, error } = await db.rpc('get_subkon_pekerjaan_detail', { p_id: id });
+  if (error || !p) return fail('Pekerjaan tidak ditemukan' + (error ? ': ' + error.message : '.'));
+  document.title = `${p.noPekerjaan} — Ringkasan CSMS`;
+  $('backLink').href = 'subkon-pekerjaan-form.html?id=' + p.id; $('backLink').textContent = '⬅ Pekerjaan';
+  const ev = (p.evaluasiList || []).slice().reverse();
+  const dok = p.dokumenList || [];
+  $('fBody').innerHTML = `
+    ${info([
+      ['Subkontraktor', `${p.namaPerusahaan} (${p.kodeSubkon})`], ['Status Subkon', p.statusSubkon], ['Status Pekerjaan', p.status],
+      ['Lingkup Pekerjaan', p.lingkupPekerjaan], ['SPK / PO', p.noKontrakPO || '-'],
+      ['Project', `${p.kodeOperational ? p.kodeOperational + ' · ' : ''}${p.namaProject || '-'}`],
+      ['Periode', `${S.tgl(p.tanggalMulai)} s/d ${S.tgl(p.tanggalSelesai)}`], ['Tingkat Risiko / Nilai Minimum', `${p.tingkatRisiko} / ${p.nilaiMinimum}`],
+      ['Jumlah Pekerja / Pengawas HSE', `${p.jumlahPekerja ?? '-'} / ${p.pengawasHSE || '-'}`]
+    ])}
+
+    <h2>Status CSMS per Tahap (evaluasi disetujui terakhir)</h2>
+    <table><thead><tr><th style="width:24%">Tahap</th><th style="width:20%">No. Evaluasi</th><th style="width:14%">Tanggal</th><th style="width:10%">Nilai</th><th>Hasil</th></tr></thead>
+      <tbody>${S.TAHAP.map(t => { const e = (p.csms || {})[t]; return `<tr><td>${esc(t)}</td>
+        <td>${e ? esc(e.noEvaluasi) : '-'}</td><td class="c">${e ? S.tgl(e.tanggal) : '-'}</td><td class="c">${e ? S.nilai(e.nilai) : '-'}</td>
+        <td class="${e ? 'k-' + S.statusCls(e.hasil) : ''}">${e ? esc(e.hasil) : 'Belum ada'}</td></tr>`; }).join('')}</tbody></table>
+    <div style="margin-top:4px;font-size:9.5px;color:var(--muted);">
+      ${p.bolehMulai ? 'Lolos Prakualifikasi &amp; Pre-Job Activity.' : 'Prakualifikasi / Pre-Job Activity belum lolos.'}
+      ${p.status === 'Berjalan' && p.wipJatuhTempo ? ` Evaluasi berkala berikutnya ${S.tgl(p.wipJatuhTempo)}${p.wipLewat ? ' (LEWAT JADWAL)' : ''}.` : ''}</div>
+
+    <h2>Riwayat Evaluasi</h2>
+    <table><thead><tr><th style="width:18%">No. Evaluasi</th><th style="width:12%">Tanggal</th><th style="width:18%">Tahap</th><th style="width:8%">Nilai</th><th style="width:16%">Hasil</th><th style="width:14%">Evaluator</th><th>Status</th></tr></thead>
+      <tbody>${ev.length ? ev.map(e => `<tr><td>${esc(e.noEvaluasi)}</td><td class="c">${S.tgl(e.tanggalEvaluasi)}</td><td>${esc(e.tahap)}</td>
+        <td class="c">${S.nilai(e.nilaiPersen)}</td><td class="k-${S.statusCls(e.hasil)}">${esc(e.hasil)}</td><td>${esc(e.evaluator || '-')}</td><td>${esc(e.status)}</td></tr>`).join('')
+        : '<tr><td colspan="7" class="c">Belum ada evaluasi.</td></tr>'}</tbody></table>
+
+    <h2>Dokumen Terkini</h2>
+    <table><thead><tr><th style="width:26%">Jenis</th><th style="width:20%">No. Dokumen</th><th style="width:18%">Personil</th><th style="width:12%">Untuk</th><th style="width:11%">Berlaku s/d</th><th>Status</th></tr></thead>
+      <tbody>${dok.length ? dok.map(d => `<tr><td>${esc(d.jenisDokumen)}</td><td>${esc(d.noDokumen)}</td><td>${esc(d.namaPersonil || '-')}</td>
+        <td>${d.pekerjaanId ? 'Pekerjaan' : 'Perusahaan'}</td><td class="c">${S.tgl(d.berlakuSampai)}</td>
+        <td class="s-${S.statusCls(d.statusBerlaku)}">${esc(d.statusBerlaku)}</td></tr>`).join('')
+        : '<tr><td colspan="6" class="c">Belum ada dokumen tercatat.</td></tr>'}</tbody></table>`;
+  show('Ringkasan CSMS Subkontraktor', `${p.noPekerjaan} · ${p.status}`);
+}
+
+// ---------- Daftar subkon & status CSMS per project (A4 landscape) ----------
+async function register(projectId) {
+  const { data, error } = await db.rpc('get_subkon_pekerjaan_list', { p_project_id: projectId, p_status: null, p_cari: null });
+  if (error) return fail('Gagal memuat: ' + error.message);
+  const rows = (data || []).filter(r => r.status !== 'Dibatalkan');
+  document.title = 'Daftar Subkontraktor & Status CSMS';
+  $('pageSize').textContent = '@page { size: A4 landscape; margin: 10mm; }';
+  $('sheet').classList.add('landscape');
+  const proj = projectId && rows[0] ? `${rows[0].kodeOperational ? rows[0].kodeOperational + ' · ' : ''}${rows[0].namaProject}` : (projectId ? '-' : 'Semua project');
+  const n = f => rows.filter(f).length;
+  const sel = (r, t) => { const e = (r.csms || {})[t]; return e ? `<td class="c k-${S.statusCls(e.hasil)}">${S.nilai(e.nilai)}<br>${S.tgl(e.tanggal)}</td>` : '<td class="c">-</td>'; };
+  $('fBody').innerHTML = `
+    ${info([
+      ['Project', proj], ['Pekerjaan subkon', rows.length], ['Per tanggal', S.tgl(new Date().toISOString())],
+      ['Berjalan', n(r => r.status === 'Berjalan')], ['Berjalan tanpa PQ/PJA lolos', n(r => r.status === 'Berjalan' && !r.bolehMulai)],
+      ['Evaluasi berkala lewat jadwal', n(r => r.wipLewat)]
+    ])}
+    <table><thead><tr><th style="width:3%">No</th><th style="width:16%">Subkon</th><th style="width:11%">No. Pekerjaan</th><th style="width:20%">Lingkup</th>
+      <th style="width:10%">Periode</th><th style="width:6%">Risiko</th><th style="width:7%">PQ</th><th style="width:7%">PJA</th><th style="width:7%">WIP terakhir</th><th style="width:7%">Final</th><th>Status</th></tr></thead>
+      <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="c">${i + 1}</td><td>${esc(r.namaPerusahaan)}<br>${esc(r.kodeSubkon)}</td>
+        <td>${esc(r.noPekerjaan)}${r.noKontrakPO ? '<br>' + esc(r.noKontrakPO) : ''}</td><td>${esc(r.lingkupPekerjaan)}</td>
+        <td class="c">${S.tgl(r.tanggalMulai)}<br>${S.tgl(r.tanggalSelesai)}</td><td class="c">${esc(r.tingkatRisiko)}<br>min ${r.nilaiMinimum}</td>
+        ${sel(r, 'Prakualifikasi')}${sel(r, 'Pre-Job Activity')}${sel(r, 'Work in Progress')}${sel(r, 'Final Evaluation')}
+        <td class="${r.wipLewat || (r.status === 'Berjalan' && !r.bolehMulai) ? 's-kedaluwarsa' : ''}">${esc(r.status)}${r.wipLewat ? '<br>WIP lewat jadwal' : ''}${r.status === 'Berjalan' && !r.bolehMulai ? '<br>PQ/PJA belum lolos' : ''}</td></tr>`).join('')
+        : '<tr><td colspan="11" class="c">Belum ada pekerjaan subkon.</td></tr>'}</tbody></table>
+    <div style="margin-top:4px;font-size:9.5px;color:var(--muted);">Angka = nilai evaluasi disetujui terakhir per tahap. PQ = Prakualifikasi, PJA = Pre-Job Activity, WIP = Work in Progress.</div>`;
+  show('Daftar Subkontraktor & Status CSMS', proj);
+}
+</script>
+</body>
+</html>
