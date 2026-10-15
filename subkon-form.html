@@ -55,6 +55,17 @@
   .smms-info { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
   .smms-info.warn { color: var(--accent, #D13438); font-weight: 700; }
   .lock { font-size: 9.5px; font-weight: 800; color: #3B5BA9; background: #E8ECF8; border-radius: 5px; padding: 1px 5px; margin-left: 4px; letter-spacing: 0; }
+  .combo { position: relative; }
+  .combo input { padding-right: 34px; }
+  .combo-x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; color: var(--muted); padding: 4px 8px; }
+  .combo-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; max-height: 300px; overflow-y: auto; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 30, 70, .14); }
+  .combo-item { padding: 9px 11px; cursor: pointer; border-bottom: 1px solid #F0F2F7; font-size: 13px; }
+  .combo-item:last-child { border-bottom: 0; }
+  .combo-item small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  .combo-item.aktif, .combo-item:hover { background: #EEF3FD; }
+  .combo-item.dipakai { cursor: not-allowed; color: var(--muted); background: #FAFBFC; }
+  .combo-item mark { background: #FFF1B8; color: inherit; border-radius: 3px; }
+  .combo-empty { padding: 12px; color: var(--muted); font-size: 12.5px; }
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .field, .field.small, .field.wide { min-width: 100%; flex-basis: 100%; }
@@ -96,7 +107,14 @@
     </div>
     <div class="smms-box" id="vendorPick">
       <div class="row">
-        <div class="field wide"><label>Pilih perusahaan dari SMMS BIMA</label><select id="sVendor" class="ed" onchange="pilihVendor()"><option value="">Memuat daftar vendor SMMS...</option></select></div>
+        <div class="field wide"><label>Cari &amp; pilih perusahaan dari SMMS BIMA</label>
+          <div class="combo">
+            <input id="sVendorCari" class="ed" autocomplete="off" placeholder="Memuat daftar vendor SMMS..."
+                   oninput="cariVendor(true)" onfocus="cariVendor(false)" onkeydown="tombolVendor(event)" onblur="setTimeout(tutupVendor, 150)">
+            <button type="button" class="combo-x hidden" id="vendorClear" title="Hapus pilihan" onclick="resetVendor()">✕</button>
+            <div class="combo-list hidden" id="vendorList"></div>
+          </div>
+        </div>
         <button type="button" class="secondary small" onclick="loadVendors()">🔄 Muat ulang</button>
       </div>
       <div class="hint" id="vendorHint" style="margin-top:6px;">Hanya vendor berstatus Approved di SMMS BIMA. Perusahaan belum ada? Daftarkan dulu lewat SMMS.</div>
@@ -192,6 +210,8 @@ let doc = null;     // hasil get_subkon_detail (null = subkon baru)
 let aktor = null;   // { nama, qrCodeId, bisaPic, bisaApprove }
 let dokEditId = null;
 let vendors = [];   // hasil get_smms_vendor_list
+let pilihId = null; // vendorId yang dipilih di kotak cari
+let hasilCari = [], idxCari = -1;
 
 function setLine(id, text, ok) { const el = $(id); el.textContent = text; el.className = 'status-line ' + (ok ? 'ok' : 'err'); }
 function aktorArgs() { return { p_aktor_nama: aktor.nama, p_aktor_qr: aktor.qrCodeId }; }
@@ -215,19 +235,92 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---------- vendor SMMS BIMA ----------
 async function loadVendors() {
-  $('sVendor').innerHTML = '<option value="">Memuat daftar vendor SMMS...</option>';
+  const box = $('sVendorCari');
+  box.placeholder = 'Memuat daftar vendor SMMS...';
   const { data, error } = await hsse.rpc('get_smms_vendor_list');
   if (error) {
-    $('sVendor').innerHTML = '<option value="">Gagal memuat vendor SMMS</option>';
+    box.placeholder = 'Gagal memuat vendor SMMS, klik Muat ulang';
     return setLine('subkonStatus', '❌ ' + error.message);
   }
   vendors = data || [];
-  const bebas = vendors.filter(v => !v.subkonId || (doc && v.subkonId === doc.id));
-  $('sVendor').innerHTML = `<option value="">${bebas.length ? '-- pilih vendor (' + bebas.length + ' belum terdaftar) --' : 'Semua vendor SMMS sudah terdaftar'}</option>` +
-    vendors.map(v => {
-      const dipakai = v.subkonId && !(doc && v.subkonId === doc.id);
-      return `<option value="${v.vendorId}" ${dipakai ? 'disabled' : ''}>${esc(v.nama)}${v.bidang || v.kategori ? ' · ' + esc(v.bidang || v.kategori) : ''}${dipakai ? ' (sudah ' + esc(v.kodeSubkon) + ')' : ''}</option>`;
-    }).join('');
+  const bebas = vendors.filter(v => !dipakaiLain(v)).length;
+  box.placeholder = bebas ? `Ketik nama, bidang, atau NPWP (${bebas} vendor belum terdaftar)` : 'Semua vendor SMMS sudah terdaftar';
+  if (document.activeElement === box) cariVendor(false);
+}
+
+function dipakaiLain(v) { return v.subkonId && !(doc && v.subkonId === doc.id); }
+
+// Cocokkan semua kata yang diketik ke nama / bidang / kategori / NPWP / kontak (tanpa beda huruf besar-kecil)
+function cariVendor(diketik) {
+  if (diketik && pilihId) { pilihId = null; isiSmms(doc || {}); }
+  $('vendorClear').classList.toggle('hidden', !$('sVendorCari').value);
+  const kata = $('sVendorCari').value.toLowerCase().split(/\s+/).filter(Boolean);
+  const angka = $('sVendorCari').value.replace(/\D/g, '');
+  hasilCari = vendors.filter(v => {
+    const teks = [v.nama, v.bidang, v.kategori, v.npwp, v.kontak].filter(Boolean).join(' ').toLowerCase();
+    return kata.every(k => teks.includes(k)) || (angka.length >= 4 && String(v.npwp || '').replace(/\D/g, '').includes(angka));
+  }).sort((a, b) => !!dipakaiLain(a) - !!dipakaiLain(b));
+  idxCari = hasilCari.findIndex(v => !dipakaiLain(v));
+  gambarVendor(kata);
+}
+
+// Tebalkan kata yang cocok; teks dipotong dulu baru di-escape supaya aman
+function tandai(teks, kata) {
+  const t = String(teks || ''), low = t.toLowerCase(), on = new Array(t.length).fill(false);
+  kata.forEach(k => { if (k.length < 2) return; let i = low.indexOf(k); while (i >= 0) { on.fill(true, i, i + k.length); i = low.indexOf(k, i + 1); } });
+  let h = '', buka = false;
+  for (let i = 0; i < t.length; i++) {
+    if (on[i] !== buka) { h += on[i] ? '<mark>' : '</mark>'; buka = on[i]; }
+    h += esc(t[i]);
+  }
+  return h + (buka ? '</mark>' : '');
+}
+
+function gambarVendor(kata) {
+  const el = $('vendorList');
+  if (!vendors.length) { el.innerHTML = '<div class="combo-empty">Daftar vendor belum termuat.</div>'; el.classList.remove('hidden'); return; }
+  el.innerHTML = hasilCari.length ? hasilCari.map((v, i) => {
+    const pakai = dipakaiLain(v);
+    const info = [v.bidang || v.kategori, v.npwp && 'NPWP ' + v.npwp, pakai && 'sudah terdaftar ' + v.kodeSubkon].filter(Boolean);
+    return `<div class="combo-item ${pakai ? 'dipakai' : ''} ${i === idxCari ? 'aktif' : ''}" data-i="${i}"
+      onmousedown="event.preventDefault(); klikVendor(${i})">${tandai(v.nama, kata)}<small>${info.map(x => tandai(x, kata)).join(' · ')}</small></div>`;
+  }).join('') : '<div class="combo-empty">Tidak ada vendor SMMS yang cocok. Perusahaan baru didaftarkan dulu lewat SMMS BIMA.</div>';
+  el.classList.remove('hidden');
+  const akt = el.querySelector('.aktif'); if (akt) akt.scrollIntoView({ block: 'nearest' });
+}
+
+function klikVendor(i) {
+  const v = hasilCari[i];
+  if (!v || dipakaiLain(v)) return;
+  pilihId = v.vendorId;
+  $('sVendorCari').value = v.nama;
+  $('vendorClear').classList.remove('hidden');
+  isiSmms(v);
+  tutupVendor();
+}
+
+function tombolVendor(e) {
+  const list = $('vendorList');
+  if (e.key === 'Escape') return tutupVendor();
+  if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) return;
+  if (list.classList.contains('hidden')) { if (e.key !== 'Enter') cariVendor(false); return; }
+  e.preventDefault();
+  if (e.key === 'Enter') return klikVendor(idxCari);
+  const langkah = e.key === 'ArrowDown' ? 1 : -1;
+  for (let j = idxCari + langkah; j >= 0 && j < hasilCari.length; j += langkah) {
+    if (!dipakaiLain(hasilCari[j])) { idxCari = j; break; }
+  }
+  gambarVendor($('sVendorCari').value.toLowerCase().split(/\s+/).filter(Boolean));
+}
+
+function tutupVendor() { $('vendorList').classList.add('hidden'); }
+
+function resetVendor() {
+  pilihId = null;
+  $('sVendorCari').value = '';
+  isiSmms(doc || {});
+  $('sVendorCari').focus();
+  cariVendor(false);
 }
 
 function isiSmms(v) {
@@ -240,10 +333,7 @@ function isiSmms(v) {
   $('sEmail').value = v.email || '';
 }
 
-function pilihVendor() {
-  const v = vendors.find(x => String(x.vendorId) === $('sVendor').value);
-  isiSmms(v || (doc ? doc : {}));
-}
+
 
 async function loadDoc(id) {
   const { data, error } = await hsse.rpc('get_subkon_detail', { p_id: id });
@@ -349,11 +439,11 @@ function renderDok(pic) {
 async function saveSubkon(sinkron) {
   if (!needPic('subkonStatus')) return;
   const d = {
-    vendorIdSmms: doc && doc.vendorIdSmms ? doc.vendorIdSmms : ($('sVendor').value ? Number($('sVendor').value) : null),
+    vendorIdSmms: doc && doc.vendorIdSmms ? doc.vendorIdSmms : pilihId,
     noNIB: $('sNIB').value.trim(), jabatanKontak: $('sJabatan').value.trim(),
     status: $('sStatus').value, keterangan: $('sKet').value.trim()
   };
-  if (!doc && !d.vendorIdSmms) return setLine('subkonStatus', 'Pilih perusahaan dari daftar vendor SMMS BIMA dulu.');
+  if (!doc && !d.vendorIdSmms) return setLine('subkonStatus', 'Ketik lalu pilih perusahaan dari daftar vendor SMMS BIMA dulu.');
   if (d.status === 'Daftar Hitam' && !d.keterangan) return setLine('subkonStatus', 'Tulis alasan Daftar Hitam di keterangan.');
   setLine('subkonStatus', sinkron ? 'Menarik data terbaru dari SMMS...' : 'Menyimpan...', true);
   const { data, error } = await hsse.rpc('save_subkon', { ...aktorArgs(), p_id: doc ? doc.id : null, p_data: d });
