@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSSE-Fusion4 — Status Proyek</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <img src="header-banner.png" class="header-banner" alt="SMART HSSE Reporting System -- PT Bilal Mitra Aryatama">
+    <div class="header-top">
+      <div>
+        <div class="eyebrow">HSSE Reporting System</div>
+        <h1>HSSE-Fusion4</h1>
+      </div>
+    </div>
+    <p>Pelaporan Health, Safety, Security &amp; Environment untuk pekerjaan konstruksi PT BIMA di proyek oil &amp; gas.</p>
+  </div>
+
+  <div class="card">
+    <h2>✅ Status: CERMAT &amp; Incident/Accident sudah jalan</h2>
+    <p>Supabase &amp; Drive Bridge sudah tersambung. Modul CERMAT (istilah lokal buat PEKA -- Positif/Negatif) dan Incident/Accident Report sudah bisa dipakai lapor &amp; audit. Modul lain masih menyusul.</p>
+  </div>
+
+  <div class="card">
+    <input type="text" id="moduleSearch" class="search-input" placeholder="🔍 Cari modul... (misal: CERMAT, Incident, Audit, Program)" oninput="filterModules(this.value)">
+    <div id="noResultsMsg" class="note" style="display:none; margin-top:10px;">Gak ada modul yang cocok sama kata kunci itu. Coba kata kunci lain.</div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:10px;">Modul</h2>
+    <div class="module-list">
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">CERMAT (PEKA -- Positif &amp; Negatif)</div>
+          <div class="module-desc">Safe act/condition (Positif) &amp; unsafe act/condition/near-miss (Negatif), terikat ke Project/Kontrak (Onshore/Offshore).</div>
+        </div>
+        <span class="badge-done"><a href="cermat-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Audit CERMAT</div>
+          <div class="module-desc">Daftar semua laporan, filter status, update tindak lanjut sampai Closed. Lapor sendiri boleh siapa aja, tapi tiap tahap butuh Author beda: <b>"Verifikasi Cermat"</b> buat verifikasi awal &amp; arahkan ke Dept + keputusan Review akhir, <b>"{Nama Dept} Admin"</b> (sesuai Dept yang dituju, misal "HSE Admin") buat isi followup-nya.</div>
+        </div>
+        <span class="badge-done"><a href="cermat-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Incident / Accident Report</div>
+          <div class="module-desc">Klasifikasi Near Miss s/d Fatality, info korban, investigasi (akar masalah &amp; tindakan korektif), terikat ke Project/Kontrak.</div>
+        </div>
+        <span class="badge-done"><a href="incident-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Investigasi Incident</div>
+          <div class="module-desc">Daftar semua laporan, filter status, update investigasi sampai Closed. Lapor sendiri boleh siapa aja, tapi tiap tahap butuh Author beda: <b>"Investigate Incident/Accident"</b> buat isi investigasi, <b>"Review Incident/Accident"</b> buat kirim ke Review, <b>"Approved Incident/Accident"</b> buat keputusan akhir &amp; buka lagi laporan.</div>
+        </div>
+        <span class="badge-done"><a href="incident-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Inspeksi &amp; Observasi Lapangan</div>
+          <div class="module-desc">Checklist per kunjungan (Inspeksi kondisi area/alat, atau Observasi perilaku pekerja) + skor otomatis. Temuan "Tidak Sesuai" auto jadi laporan CERMAT.</div>
+        </div>
+        <span class="badge-done"><a href="inspeksi-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat Inspeksi &amp; Observasi</div>
+          <div class="module-desc">Daftar semua checklist, filter Jenis, lihat skor &amp; link ke CERMAT hasil auto-generate.</div>
+        </div>
+        <span class="badge-done"><a href="inspeksi-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Permit to Work &amp; JSA</div>
+          <div class="module-desc">Izin kerja + Job Safety Analysis, hazard checklist per jenis pekerjaan, No. WO &amp; lampiran dokumen pendukung (foto/PDF), approval 3 tahap (HSE → Area Authority → HSE penutupan). Khusus Author "Permit &amp; JSA" yang boleh isi (scan QR/wajah/PIN) -- biar yang isi paham detail teknisnya.</div>
+        </div>
+        <span class="badge-done"><a href="ptw-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Approval Permit to Work</div>
+          <div class="module-desc">Daftar semua permit, filter status, alur approval sampai Ditutup, bisa dibuka lagi (reopen). Ada tombol cetak PDF per transaksi. Butuh Author <b>"Review Permit to Work"</b> (HSE Officer, termasuk approve penutupan &amp; reopen) dan <b>"Approve Permit to Work"</b> (Area Authority, approval final).</div>
+        </div>
+        <span class="badge-done"><a href="ptw-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">HIRADC / Risk Register</div>
+          <div class="module-desc">Identifikasi bahaya, penilaian risiko 5x5 (awal &amp; sisa), hierarki pengendalian, approval, revisi, dan cetak PDF. Baris yang Disetujui bisa diambil ke JSA PTW. Susun butuh PIC <b>"HSSE-HRC"</b>, approve butuh Author <b>"Approve HIRADC"</b>.</div>
+        </div>
+        <span class="badge-done"><a href="hiradc-list.html" style="color:inherit;text-decoration:none;">Buka</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Toolbox Meeting</div>
+          <div class="module-desc">Leader (Author "Leader Toolbox Meeting") buka sesi, peserta absen scan wajah/QR berurutan, tutup sesi + foto dokumentasi.</div>
+        </div>
+        <span class="badge-done"><a href="tbm-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat Toolbox Meeting</div>
+          <div class="module-desc">Daftar semua sesi briefing, daftar hadir peserta, link ke Permit to Work terkait (kalau ada).</div>
+        </div>
+        <span class="badge-done"><a href="tbm-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">HSE Weekly / Monthly Meeting</div>
+          <div class="module-desc">1 form buat Weekly &amp; Monthly (tinggal pilih Tipe Meeting), agenda &amp; peserta &amp; tindak lanjut dinamis, foto dokumentasi. Submit tunggal, khusus Author "Leader HSE Meeting" yang boleh isi (scan QR/wajah/PIN) -- gak ada approval berjenjang.</div>
+        </div>
+        <span class="badge-done"><a href="hse-meeting-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat HSE Meeting</div>
+          <div class="module-desc">Daftar semua notulen, filter Mingguan/Bulanan, lihat agenda/peserta/tindak lanjut, tombol cetak PDF per notulen.</div>
+        </div>
+        <span class="badge-done"><a href="hse-meeting-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Internal Audit</div>
+          <div class="module-desc">Rencana Audit dulu (jadwal, tim, scope, standar acuan), baru isi Temuan per kriteria checklist. Temuan "Tidak Sesuai" punya CAPA sendiri (akar masalah, rencana tindakan, PIC, tenggat) -- gak digabung ke CERMAT. Khusus Author "Internal Auditor" yang boleh isi (scan QR/wajah/PIN).</div>
+        </div>
+        <span class="badge-done"><a href="audit-report.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Closure Internal Audit</div>
+          <div class="module-desc">Daftar semua audit, filter status, lanjut pelaksanaan yang masih Direncanakan/Berlangsung, verifikasi &amp; tutup tiap temuan NC sampai audit Ditutup. Ada tombol cetak PDF per audit.</div>
+        </div>
+        <span class="badge-done"><a href="audit-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Management Walk Through (MWT)</div>
+          <div class="module-desc">Kunjungan lapangan oleh manajemen/leadership buat liat langsung kondisi HSSE, ngobrol sama pekerja, dan kasih bukti visible leadership commitment. 2 tahap: Admin MWT bikin jadwal/sesi dulu, baru management yang ikut gabung ke sesi itu &amp; isi catatan observasinya masing-masing (bisa lebih dari 1 orang per sesi).</div>
+        </div>
+        <span class="badge-done"><a href="mwt-schedule.html" style="color:inherit;text-decoration:none;">Buat Jadwal</a></span>
+      </div>
+      <div class="module-item done sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat &amp; Gabung MWT</div>
+          <div class="module-desc">Daftar semua sesi MWT (Terjadwal/Berlangsung/Selesai), gabung ke sesi yang masih terbuka buat isi kunjungan, &amp; lihat detail tiap kunjungan yang sudah masuk.</div>
+        </div>
+        <span class="badge-done"><a href="mwt-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Drill &amp; Emergency Response Plan</div>
+          <div class="module-desc">Jadwal drill tanggap darurat (fire, muster, medical, spill, gas), absen peserta scan QR/PIN, laporan &amp; evaluasi, temuan &amp; tindak lanjut, review ERP, cetak PDF. Realisasi HSE Program otomatis. Kerjakan butuh PIC <b>"HSSE-DRL"</b>, approve butuh Author <b>"Approve Drill"</b>.</div>
+        </div>
+        <span class="badge-done"><a href="drill-list.html" style="color:inherit;text-decoration:none;">Buka</a></span>
+      </div>
+      <div class="module-item done">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Inspeksi Alat &amp; Sertifikasi</div>
+          <div class="module-desc">Register alat per project (alat angkat, alat berat, kelistrikan, bejana tekan, APAR, gas detector, dll), sertifikat SILO/PJK3/kalibrasi + pengingat kedaluwarsa, inspeksi alat pakai checklist (hasil Tidak Layak langsung tag out), kartu alat dengan QR, cetak register &amp; laporan PDF. Realisasi HSE Program otomatis. Kerjakan butuh PIC <b>"HSSE-ALT"</b>, approve butuh Author <b>"Approve Inspeksi Alat"</b>.</div>
+        </div>
+        <span class="badge-done"><a href="alat-list.html" style="color:inherit;text-decoration:none;">Buka</a></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:4px;">Manajemen &amp; KPI HSSE</h2>
+    <p style="margin-bottom:10px;">Bukan buat lapor kejadian harian di lapangan -- ini halaman kerja HSE Officer/Management: atur target per project (HSE Program) dan pantau capaiannya (Monitor &amp; KPI), terpisah dari daftar modul pelaporan di atas.</p>
+    <div class="module-list">
+      <div class="module-item done mgmt">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">HSE Program</div>
+          <div class="module-desc">Lampiran HSE Plan tiap project -- daftar item kegiatan HSSE generik (TBM, HSE Meeting, Inspeksi, CERMAT, Internal Audit, PTW, Incident, MWT, Management Review), tinggal toggle Use/N/A per project dan isi target per bulan (Jan-Des). Realisasi dihitung otomatis dari laporan yang sudah masuk, jadi ini fondasi buat KPI compliance di bawah.</div>
+        </div>
+        <span class="badge-done"><a href="hse-program.html" style="color:inherit;text-decoration:none;">Atur</a></span>
+      </div>
+      <div class="module-item done mgmt sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Monitor HSE Program</div>
+          <div class="module-desc">Layar Actual vs Target read-only per item (chart per bulan) buat HSE Officer/Management pantau capaian tanpa perlu buka mode edit.</div>
+        </div>
+        <span class="badge-done"><a href="hse-program-monitor.html" style="color:inherit;text-decoration:none;">Monitor</a></span>
+      </div>
+      <div class="module-item done mgmt">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Training Matrix &amp; Training Records</div>
+          <div class="module-desc">Master 10 training, kebutuhan Wajib/Kondisional/N/A per posisi, dan pencatatan sertifikat karyawan dengan referensi read-only ke Fusion4 serta upload file melalui Drive Bridge.</div>
+        </div>
+        <span class="badge-done"><a href="training-matrix.html?v=3a48b61" style="color:inherit;text-decoration:none;">Buka</a></span>
+      </div>
+      <div class="module-item done mgmt">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Management Review</div>
+          <div class="module-desc">Registrasi &amp; QR absensi mandiri, 8 frame topik pembahasan lintas modul, action plan dinamis per topik, dan closing statement. Review Completed otomatis masuk realisasi HSE Program.</div>
+        </div>
+        <span class="badge-done"><a href="management-review.html" style="color:inherit;text-decoration:none;">Lapor</a></span>
+      </div>
+      <div class="module-item done mgmt sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Riwayat Management Review</div>
+          <div class="module-desc">Daftar semua notulen &amp; hasil meeting review, filter Project/Status/Pencarian, detail peserta &amp; absensi, keputusan, action plan per topik, dan closing statement.</div>
+        </div>
+        <span class="badge-done"><a href="management-review-list.html" style="color:inherit;text-decoration:none;">Riwayat</a></span>
+      </div>
+      <div class="module-item done mgmt">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Statistik &amp; KPI HSSE</div>
+          <div class="module-desc">TRIR, LTIFR, Severity Rate (basis 1.000.000 man-hours), man-hours dari absensi SmartGate, near miss, temuan terbuka/tertutup, dan % capaian HSE Program. Bisa per project atau gabungan, plus cetak PDF.</div>
+        </div>
+        <span class="badge-done"><a href="statistik-kpi.html" style="color:inherit;text-decoration:none;">Buka</a></span>
+      </div>
+      <div class="module-item done mgmt sub">
+        <span class="status-dot"></span>
+        <div>
+          <div class="module-name">Man-Hours (tarik SmartGate &amp; koreksi)</div>
+          <div class="module-desc">Tarik man-hours bulanan dari absensi SmartGate, petakan project, isi koreksi + alasan. Butuh PIC <b>"HSSE-STA"</b>.</div>
+        </div>
+        <span class="badge-done"><a href="statistik-kpi-input.html" style="color:inherit;text-decoration:none;">Atur</a></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:8px;">Sebelum lanjut ke modul berikutnya</h2>
+    <p style="margin-bottom:8px;">Lihat README.md untuk detail lengkap:</p>
+    <div class="note">1. Jalankan semua file <code>sql/001</code> s/d <code>sql/032</code> di Supabase secara berurutan (kalau belum)</div>
+    <div class="note" style="margin-top:6px;">2. Ganti/tambah data project asli di tabel "projectTbl" (masih ada 1 baris contoh placeholder)</div>
+    <div class="note" style="margin-top:6px;">3. Cek isi checklist/JSA draft di "inspeksiChecklistTemplateTbl", "ptwHazardChecklistTemplateTbl", "ptwJsaTemplateTbl" &amp; "auditKriteriaTemplateTbl" -- edit/tambah item lewat Table Editor Supabase kalau perlu disesuaikan sama form/standar HSSE PT BIMA yang asli</div>
+    <div class="note" style="margin-top:6px;">4. Kasih Author tag <b>"Permit &amp; JSA"</b> ke Requester yang boleh isi/ajukan form Permit to Work (butuh paham detail izin kerja &amp; JSA -- bisa diverifikasi via Scan QR, Scan Wajah, atau Input PIN, jadi tetap bisa dikerjakan pakai laptop tanpa kamera), <b>"Leader Toolbox Meeting"</b> ke orang yang boleh mimpin sesi TBM, <b>"Leader HSE Meeting"</b> ke orang yang boleh isi/kirim notulen HSE Weekly/Monthly Meeting, <b>"Review Permit to Work"</b> ke HSE Officer yang review/approve penutupan permit, <b>"Approve Permit to Work"</b> ke Area Authority, dan <b>"Internal Auditor"</b> ke orang yang boleh bikin Rencana Audit, isi Temuan, dan verifikasi closure CAPA Internal Audit -- lewat Table Editor "karyawanTbl" di Supabase Fusion4 (kolom "Author"). Catatan: di Fusion4 tag Author juga bisa ke-setting lewat tabel "paswordTbl" (beda dari "karyawanTbl") -- kalau tag yang di-set lewat form Fusion4 gak muncul di HSSE-Fusion4, RPC <code>get_karyawan_by_author()</code> (<code>sql/029</code>) udah baca dari dua-duanya sekaligus</div>
+  </div>
+
+</div>
+
+<script>
+function filterModules(query) {
+  var q = query.trim().toLowerCase();
+  var totalVisible = 0;
+  document.querySelectorAll('.module-list').forEach(function (list) {
+    var items = list.querySelectorAll('.module-item');
+    var visibleInList = 0;
+    items.forEach(function (item) {
+      var nameEl = item.querySelector('.module-name');
+      var descEl = item.querySelector('.module-desc');
+      var text = ((nameEl ? nameEl.textContent : '') + ' ' + (descEl ? descEl.textContent : '')).toLowerCase();
+      var match = q === '' || text.indexOf(q) !== -1;
+      item.style.display = match ? '' : 'none';
+      if (match) visibleInList++;
+    });
+    totalVisible += visibleInList;
+    var card = list.closest('.card');
+    if (card) card.style.display = (q !== '' && visibleInList === 0) ? 'none' : '';
+  });
+  var noRes = document.getElementById('noResultsMsg');
+  if (noRes) noRes.style.display = (q !== '' && totalVisible === 0) ? 'block' : 'none';
+}
+</script>
+
+</body>
+</html>

@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="faceScan.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="hsseAccess.js"></script>
@@ -440,9 +441,7 @@
 
   async function ensureApprovalFaceDataLoaded() {
     if (approvalAllFaceDataCache) return approvalAllFaceDataCache;
-    const { data, error } = await fusion4Client.rpc('get_all_face_data');
-    if (error) throw new Error(error.message);
-    approvalAllFaceDataCache = data || [];
+    approvalAllFaceDataCache = await HsseFace.fetchFaceData(fusion4Client);
     return approvalAllFaceDataCache;
   }
 
@@ -474,9 +473,7 @@
     setApprovalStatus('Memuat model wajah...', 'info');
     try {
       if (!approvalFaceModelsLoaded) {
-        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+        await HsseFace.loadModels();
         approvalFaceModelsLoaded = true;
       }
       setApprovalStatus('Mengambil data karyawan...', 'info');
@@ -487,17 +484,14 @@
       }
 
       approvalFacingMode = 'user';
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: approvalFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      approvalVideo.srcObject = stream;
-      await approvalVideo.play();
+      await HsseFace.openCamera(approvalVideo, approvalFacingMode);
       approvalCanvas.width = approvalVideo.videoWidth;
       approvalCanvas.height = approvalVideo.videoHeight;
       approvalCamWrap.style.display = 'block';
       approvalFaceOval.style.display = 'block';
       btnApprovalScanFaceGo.style.display = 'block';
-      setApprovalStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+      HsseFace.autoScan(approvalVideo, btnApprovalScanFaceGo);
+      setApprovalStatus('Posisikan wajah di oval dan tahan sebentar, wajah dideteksi otomatis (atau tekan Scan Wajah).', 'info');
     } catch (e) {
       setApprovalStatus('❌ ' + e.message, 'error');
     }
@@ -507,31 +501,19 @@
     btnApprovalScanFaceGo.disabled = true;
     setApprovalStatus('Mendeteksi wajah...', 'info');
     try {
-      const snapCanvas = document.createElement('canvas');
-      snapCanvas.width = approvalVideo.videoWidth || 640;
-      snapCanvas.height = approvalVideo.videoHeight || 480;
-      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
-      snapCtx.drawImage(approvalVideo, 0, 0, snapCanvas.width, snapCanvas.height);
-
-      const detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      const detection = await HsseFace.detect(approvalVideo);
 
       if (!detection) {
-        setApprovalStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+        setApprovalStatus('❌ Wajah tidak terdeteksi. ' + HsseFace.lastHint(), 'error');
         btnApprovalScanFaceGo.disabled = false;
         return;
       }
 
-      const sorted = approvalAllFaceDataCache.map(p => ({
-        person: p,
-        distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
-      })).sort((a, b) => a.distance - b.distance);
-
-      const best = sorted[0];
-      const secondBest = sorted[1];
-      const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
-      const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+      const faceMatch = HsseFace.match(detection, approvalAllFaceDataCache);
+      const best = faceMatch.best;
+      const secondBest = faceMatch.second;
+      const withinThreshold = faceMatch.withinThreshold;
+      const isAmbiguous = faceMatch.isAmbiguous;
 
       if (!withinThreshold) {
         setApprovalStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai PIN.`, 'error');

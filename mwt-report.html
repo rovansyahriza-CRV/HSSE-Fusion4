@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="faceScan.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -428,9 +429,7 @@
 
   async function ensureAllFaceData() {
     if (allFaceDataCache) return allFaceDataCache;
-    const { data, error } = await fusion4Client.rpc('get_all_face_data');
-    if (error) throw new Error(error.message);
-    allFaceDataCache = data || [];
+    allFaceDataCache = await HsseFace.fetchFaceData(fusion4Client);
     return allFaceDataCache;
   }
 
@@ -446,11 +445,7 @@
       idVideo.srcObject.getTracks().forEach(t => t.stop());
       idVideo.srcObject = null;
     }
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    idVideo.srcObject = stream;
-    await idVideo.play();
+    await HsseFace.openCamera(idVideo, facingMode);
     idCanvas.width = idVideo.videoWidth;
     idCanvas.height = idVideo.videoHeight;
     idCamWrap.style.display = 'block';
@@ -588,9 +583,7 @@
 
   async function loadFaceModelsOnce() {
     if (idFaceModelsLoaded) return;
-    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+    await HsseFace.loadModels();
     idFaceModelsLoaded = true;
   }
 
@@ -630,8 +623,9 @@
 
     idFaceOval.style.display = 'block';
     btnIdScanFace.style.display = 'block';
+    HsseFace.autoScan(idVideo, btnIdScanFace);
     btnIdSwitchCam.style.display = 'block';
-    setIdStatus('Posisikan wajah di oval, lalu tekan Scan Wajah.', 'info');
+    setIdStatus('Posisikan wajah di oval dan tahan sebentar, wajah dideteksi otomatis (atau tekan Scan Wajah).', 'info');
   }
 
   async function doIdFaceScan() {
@@ -640,15 +634,7 @@
 
     let detection;
     try {
-      const snapCanvas = document.createElement('canvas');
-      snapCanvas.width = idVideo.videoWidth || 640;
-      snapCanvas.height = idVideo.videoHeight || 480;
-      const snapCtx = snapCanvas.getContext('2d', { willReadFrequently: true });
-      snapCtx.drawImage(idVideo, 0, 0, snapCanvas.width, snapCanvas.height);
-
-      detection = await faceapi.detectSingleFace(snapCanvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      detection = await HsseFace.detect(idVideo);
     } catch (e) {
       setIdStatus('❌ ' + e.message, 'error');
       btnIdScanFace.disabled = false;
@@ -656,20 +642,16 @@
     }
 
     if (!detection) {
-      setIdStatus('❌ Wajah tidak terdeteksi. Coba lagi.', 'error');
+      setIdStatus('❌ Wajah tidak terdeteksi. ' + HsseFace.lastHint(), 'error');
       btnIdScanFace.disabled = false;
       return;
     }
 
-    const sorted = allFaceDataCache.map(p => ({
-      person: p,
-      distance: faceapi.euclideanDistance(detection.descriptor, p.descriptor)
-    })).sort((a, b) => a.distance - b.distance);
-
-    const best = sorted[0];
-    const secondBest = sorted[1];
-    const withinThreshold = best && best.distance <= FACE_MATCH_THRESHOLD;
-    const isAmbiguous = secondBest && (secondBest.distance - best.distance) < FACE_AMBIGUITY_MARGIN;
+    const faceMatch = HsseFace.match(detection, allFaceDataCache);
+    const best = faceMatch.best;
+    const secondBest = faceMatch.second;
+    const withinThreshold = faceMatch.withinThreshold;
+    const isAmbiguous = faceMatch.isAmbiguous;
 
     if (!withinThreshold) {
       setIdStatus(`❌ Wajah tidak dikenali (jarak terdekat: ${best.distance.toFixed(3)}). Coba lagi, atau pakai QR Code / PIN.`, 'error');
