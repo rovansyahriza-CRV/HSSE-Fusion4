@@ -246,16 +246,18 @@
 
   function snapshot(video) {
     // Snapshot ke canvas 2D dulu (fix Samsung Exynos/Safari) sebelum dikasih ke face-api.
-    const w = video.videoWidth, h = video.videoHeight;
-    const scale = Math.min(1, 960 / Math.max(w, h));
+    // Resolusi asli video, sama seperti enroll SmartGate (gak di-downscale).
     const c = document.createElement('canvas');
-    c.width = Math.round(w * scale);
-    c.height = Math.round(h * scale);
+    c.width = video.videoWidth || 640;
+    c.height = video.videoHeight || 480;
     c.getContext('2d', { willReadFrequently: true }).drawImage(video, 0, 0, c.width, c.height);
     return c;
   }
 
-  const detectorOptions = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
+  // inputSize WAJIB 224 = sama persis dgn enroll_fusion4.html & attendance-fusion4.html (SmartGate).
+  // Ukuran beda (dulu HSSE pakai 320/416) bikin kotak wajah beda -> descriptor geser ~0.1,
+  // padahal selisih aman antar orang cuma ~0.1 -> sering "belum dikenali"/"mirip orang lain".
+  const detectorOptions = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
 
   // Deteksi 1 frame. Return { det } / { small: true } / {} (gak ada wajah).
   async function detectOneFrame(video) {
