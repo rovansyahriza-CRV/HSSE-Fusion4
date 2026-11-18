@@ -434,18 +434,18 @@
     const start = Date.now();
     const win = [];
     (async () => {
-      try { await loadModels(); } catch (e) { return; }
-      await sleep(500);
+      showOverlay(video, 'Menyiapkan deteksi otomatis...', 'info');
+      try { await loadModels(); } catch (e) { showOverlay(video, 'Deteksi otomatis gagal dimuat. Tekan "Scan Wajah".', 'warn'); return; }
+      await sleep(300);
       while (video.__hsseAuto === token) {
         // Berhenti kalau tombol Scan Wajah disembunyikan (kamera ditutup / sudah teridentifikasi).
         if (!button.isConnected || button.style.display === 'none') { removeOverlay(video); break; }
         if (!lastList || !lastList.length) break;
         // Lagi ganti kamera depan/belakang -> tunggu.
         if (!video.srcObject) { win.length = 0; await sleep(300); continue; }
-        if (Date.now() - start > AUTO_TIMEOUT_MS) {
-          showOverlay(video, 'Belum dikenali. Tekan "Scan Wajah" untuk coba lagi, atau pakai QR Code/PIN.', 'warn');
-          break;
-        }
+        // Lewat 30 dtk: jangan berhenti (orang sering mengira "gak auto"), cukup diperlambat
+        // biar hemat baterai, sambil kasih saran pakai QR/PIN.
+        const slow = Date.now() - start > AUTO_TIMEOUT_MS;
         if (manualBusy || button.disabled || !video.videoWidth) { win.length = 0; await sleep(300); continue; }
 
         let r = {};
@@ -479,8 +479,9 @@
         }
         showOverlay(video, (m.withinThreshold
           ? 'Wajah mirip beberapa orang... hadap lurus ke kamera, cahaya dari depan'
-          : 'Belum dikenali... tahan posisi, hadap lurus ke kamera') + dbg, 'warn');
-        await sleep(150);
+          : 'Belum dikenali... tahan posisi, hadap lurus ke kamera') +
+          (slow ? ' (atau pakai QR Code/PIN)' : '') + dbg, 'warn');
+        await sleep(slow ? 700 : 150);
       }
     })();
   }
