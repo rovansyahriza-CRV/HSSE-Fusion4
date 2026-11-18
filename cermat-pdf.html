@@ -398,7 +398,8 @@
       document.getElementById('fKontrak').innerText = `No. Kontrak: ${r.noKontrak}${r.tipeKonstruksi ? ' · ' + r.tipeKonstruksi : ''}`;
       document.getElementById('fPelapor').innerHTML = escapeHtml(r.namaPelapor) +
         (r.pelaporQrCodeId ? ' <span class="badge badge-verified">&#10003; Terverifikasi</span>' : '');
-      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId ? `QrCodeId: ${r.pelaporQrCodeId} · Author: ${authorFor(r.pelaporQrCodeId)}` : '';
+      document.getElementById('fQrCodeId').innerText = r.pelaporQrCodeId ? `QrCodeId: ${r.pelaporQrCodeId} · Author: ${authorFor(r.pelaporQrCodeId)}`
+        : (r.pelaporEksternal ? `Pelapor Eksternal · ${r.pelaporPerusahaan || '-'} · disetujui PIC CERMAT` : '');
       document.getElementById('fSifat').innerHTML = `<span class="badge ${r.sifat === 'Positif' ? 'badge-positif' : 'badge-negatif'}">${r.sifat}</span>`;
       document.getElementById('fJenis').innerText = r.jenisTemuan;
       document.getElementById('fLokasi').innerText = r.lokasiArea;

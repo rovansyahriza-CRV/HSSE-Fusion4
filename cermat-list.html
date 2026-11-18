@@ -99,6 +99,9 @@
   }
   .btn-primary { background: var(--navy); color: #fff; }
   .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
+  .eks-chip { display: inline-block; background: #FDF3E3; color: #8A6100; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .filter-btn.eks { border-style: dashed; }
+  #eksPendingCount:not(:empty) { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; margin-left: 4px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -125,6 +128,12 @@
     <button type="button" class="filter-btn" data-status="In Progress" onclick="filterByStatus('In Progress', this)">In Progress</button>
     <button type="button" class="filter-btn" data-status="Review" onclick="filterByStatus('Review', this)">Review</button>
     <button type="button" class="filter-btn" data-status="Closed" onclick="filterByStatus('Closed', this)">Closed</button>
+    <button type="button" class="filter-btn eks" data-status="__EKS" onclick="filterByStatus('__EKS', this)">🧑‍💼 Eksternal <span id="eksPendingCount"></span></button>
+  </div>
+  <div class="filter-row" id="eksFilterRow" style="display:none;">
+    <button type="button" class="filter-btn active" onclick="filterEks('Menunggu verifikasi', this)">Menunggu verifikasi</button>
+    <button type="button" class="filter-btn" onclick="filterEks('Disetujui', this)">Disetujui</button>
+    <button type="button" class="filter-btn" onclick="filterEks('Ditolak', this)">Ditolak (arsip)</button>
   </div>
 
   <div id="reportContainer">
@@ -243,6 +252,8 @@
     // buat tahap itu -- gate-nya ke-skip.
     pendingApproval = {};
     rejectingIdx = null;
+    if (currentStatusFilter === '__EKS') return loadEksternal();
+    loadEksPendingCount();
     try {
       const { data, error } = await supabaseClient.rpc('get_cermat_reports', {
         p_status: currentStatusFilter || null,
@@ -260,7 +271,180 @@
     currentStatusFilter = status;
     document.querySelectorAll('#filterRow .filter-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
+    document.getElementById('eksFilterRow').style.display = status === '__EKS' ? 'flex' : 'none';
     loadReports();
+  }
+
+  // =====================================================================================
+  // LAPORAN EKSTERNAL (tamu / subkon / vendor) -- antrean "Menunggu verifikasi" dari
+  // cermatEksternalTbl (migrasi 073). PIC CERMAT (PIC "HSSE-CRM" / HSSE-ALL, atau Author
+  // "Verifikasi Cermat") Setujui -> masuk CERMAT biasa (Open) & ikut statistik,
+  // Tolak -> tetap di arsip. Akses dicek lagi di server.
+  // =====================================================================================
+  const EKS_TAG = 'PIC CERMAT (laporan eksternal)';
+  let eksStatusFilter = 'Menunggu verifikasi';
+  let eksReports = [];
+  let eksKontak = {};      // idx -> { noHp, fotoIdentitas }
+  let eksRejectingIdx = null;
+
+  function filterEks(status, btnEl) {
+    eksStatusFilter = status;
+    document.querySelectorAll('#eksFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    loadReports();
+  }
+
+  async function loadEksPendingCount() {
+    try {
+      const { data, error } = await supabaseClient.rpc('get_cermat_eksternal', { p_status: 'Menunggu verifikasi' });
+      if (error) throw error;
+      const n = (data || []).length;
+      document.getElementById('eksPendingCount').innerText = n > 0 ? String(n) : '';
+    } catch (e) {
+      console.error('Gagal memuat jumlah laporan eksternal:', e.message);
+    }
+  }
+
+  async function loadEksternal() {
+    eksKontak = {};
+    eksRejectingIdx = null;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_cermat_eksternal', { p_status: eksStatusFilter });
+      if (error) throw error;
+      eksReports = data || [];
+      if (eksStatusFilter === 'Menunggu verifikasi') {
+        document.getElementById('eksPendingCount').innerText = eksReports.length > 0 ? String(eksReports.length) : '';
+      }
+      renderEksternal();
+    } catch (e) {
+      reportsLoadFailed = true;
+      document.getElementById('reportContainer').innerHTML =
+        `<div class="empty-state">❌ Gagal memuat laporan eksternal: ${escapeHtml(e.message)}<br>(Sudah jalankan migrasi 073?)</div>`;
+    }
+  }
+
+  function eksStatusBadgeClass(s) {
+    if (s === 'Menunggu verifikasi') return 'open';
+    if (s === 'Disetujui') return 'closed';
+    return 'in-progress';
+  }
+
+  function eksStageHtml(r, idx) {
+    if (r.statusVerifikasi === 'Disetujui') {
+      return `<div class="stage-box">✅ Disetujui ${escapeHtml(r.verifikatorOleh || '')} — ${formatDate(r.tanggalVerifikasi)}${r.cermatNoLaporan ? ' → masuk CERMAT <b>' + escapeHtml(r.cermatNoLaporan) + '</b>' : ''}${r.catatanVerifikasi ? '<br>Catatan: ' + escapeHtml(r.catatanVerifikasi) : ''}</div>`;
+    }
+    if (r.statusVerifikasi === 'Ditolak') {
+      return `<div class="stage-box"><div class="warning-box"><b>Ditolak ${escapeHtml(r.verifikatorOleh || '')} — ${formatDate(r.tanggalVerifikasi)}</b>${escapeHtml(r.catatanVerifikasi || '')}</div></div>`;
+    }
+    const verified = pendingApproval[idx];
+    if (!verified) {
+      return `<div class="stage-box">
+        <div class="approval-gate-text">🔍 Perlu dicek PIC CERMAT (PIC "HSSE-CRM" atau Author "Verifikasi Cermat") sebelum masuk CERMAT &amp; statistik.</div>
+        <button type="button" class="btn-approval" onclick="openApprovalModal(${idx}, ${r.id}, EKS_TAG)">Verifikasi PIC CERMAT</button>
+      </div>`;
+    }
+    const k = eksKontak[idx];
+    const kontakHtml = k
+      ? `<div class="detail-row"><b>Kontak Lengkap</b>${k.noHp ? `<a href="tel:${escapeHtml(k.noHp)}">${escapeHtml(k.noHp)}</a>` : '(tanpa No HP)'}</div>${photoGalleryHtml('Foto ID', k.fotoIdentitas)}`
+      : `<div class="detail-row" style="color:var(--muted);">Memuat kontak...</div>`;
+    if (eksRejectingIdx === idx) {
+      return `<div class="stage-box">
+        <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+        ${kontakHtml}
+        <label class="mini-label">Alasan penolakan (wajib)</label>
+        <textarea id="eks-catatan-${idx}" maxlength="1000" placeholder="Contoh: duplikat, data tidak jelas, bukan temuan HSE..." style="min-height:60px;"></textarea>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-mini reject" id="btn-eks-tolak-${idx}" onclick="eksVerifikasi(${idx}, ${r.id}, 'tolak')">✖ Tolak</button>
+          <button type="button" class="btn-mini" style="background:var(--bg); color:var(--text);" onclick="eksRejectingIdx=null; renderReports();">Batal</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="stage-box">
+      <div class="verified-chip">✅ ${escapeHtml(verified.nama)}</div>
+      ${kontakHtml}
+      <label class="mini-label">Catatan (opsional)</label>
+      <textarea id="eks-catatan-${idx}" maxlength="1000" placeholder="Catatan verifikasi..." style="min-height:50px;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-mini" id="btn-eks-setujui-${idx}" onclick="eksVerifikasi(${idx}, ${r.id}, 'setujui')">✅ Setujui (masuk CERMAT)</button>
+        <button type="button" class="btn-mini reject" onclick="eksRejectingIdx=${idx}; renderReports();">✖ Tolak</button>
+      </div>
+    </div>`;
+  }
+
+  function renderEksternal() {
+    const container = document.getElementById('reportContainer');
+    if (eksReports.length === 0) {
+      container.innerHTML = `<div class="empty-state">Tidak ada laporan eksternal "${escapeHtml(eksStatusFilter)}".</div>`;
+      return;
+    }
+    container.innerHTML = eksReports.map((r, idx) => `
+      <div class="card report-card">
+        <div onclick="toggleDetail(${idx})">
+          <div class="report-top">
+            <div>
+              <div class="report-no">${escapeHtml(r.kodeRef)}</div>
+              <div class="report-title">${escapeHtml(r.jenisTemuan)} — ${escapeHtml(r.lokasiArea)}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${escapeHtml(r.namaProject)} (${escapeHtml(r.noKontrak)}) • Lapor: ${escapeHtml(r.namaPelapor)} (${escapeHtml(r.perusahaan)}) <span class="eks-chip">Eksternal</span></div>
+            </div>
+            <div class="badges" style="flex-direction: column; align-items: flex-end;">
+              <div style="display:flex; gap:6px;">
+                <span class="sifat-badge ${escapeHtml(r.sifat.toLowerCase())}">${escapeHtml(r.sifat)}</span>
+                <span class="status-badge ${eksStatusBadgeClass(r.statusVerifikasi)}">${escapeHtml(r.statusVerifikasi)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-panel" id="detail-${idx}">
+          <div class="detail-row"><b>Deskripsi</b>${escapeHtml(r.deskripsi)}</div>
+          <div class="detail-row"><b>Pelapor Eksternal</b>${escapeHtml(r.namaPelapor)} — ${escapeHtml(r.perusahaan)}${r.noHpSamar ? ' • HP ' + escapeHtml(r.noHpSamar) : ''}${r.adaFotoIdentitas ? ' • ada foto ID' : ''}</div>
+          ${photoGalleryHtml('Foto Temuan', r.fotoList)}
+          ${r.tindakanLangsung ? `<div class="detail-row"><b>Tindakan Langsung</b>${escapeHtml(r.tindakanLangsung)}</div>` : ''}
+          ${r.rekomendasi ? `<div class="detail-row"><b>Rekomendasi</b>${escapeHtml(r.rekomendasi)}</div>` : ''}
+          ${eksStageHtml(r, idx)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadEksKontak(idx) {
+    const r = eksReports[idx];
+    const verified = pendingApproval[idx];
+    if (!r || !verified) return;
+    try {
+      const { data, error } = await supabaseClient.rpc('get_cermat_eksternal_kontak', {
+        p_id: r.id, p_verifikator_nama: verified.nama, p_verifikator_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      eksKontak[idx] = data || { noHp: '', fotoIdentitas: [] };
+    } catch (e) {
+      eksKontak[idx] = { noHp: '', fotoIdentitas: [] };
+      alert('Gagal memuat kontak: ' + e.message);
+    }
+    renderReports();
+    const panel = document.getElementById('detail-' + idx);
+    if (panel) panel.classList.add('open');
+  }
+
+  async function eksVerifikasi(idx, id, keputusan) {
+    const verified = pendingApproval[idx];
+    if (!verified) return alert('Verifikasi PIC CERMAT dulu.');
+    const catatan = (document.getElementById(`eks-catatan-${idx}`) || {}).value || '';
+    if (keputusan === 'tolak' && !catatan.trim()) return alert('Isi alasan penolakan dulu.');
+    if (keputusan === 'setujui' && !confirm('Setujui laporan ini? Laporan masuk CERMAT (status Open) dan ikut terhitung di statistik.')) return;
+    const btn = document.getElementById(keputusan === 'setujui' ? `btn-eks-setujui-${idx}` : `btn-eks-tolak-${idx}`);
+    if (btn) { btn.disabled = true; btn.innerText = '⏳ Menyimpan...'; }
+    try {
+      const { data, error } = await supabaseClient.rpc('cermat_eksternal_verifikasi', {
+        p_id: id, p_keputusan: keputusan, p_catatan: catatan.trim(),
+        p_verifikator_nama: verified.nama, p_verifikator_qrcode: verified.qrCodeId,
+      });
+      if (error) throw error;
+      if (keputusan === 'setujui' && data && data.noLaporan) alert('✅ Disetujui. Masuk CERMAT dengan No. ' + data.noLaporan);
+      await loadReports();
+    } catch (e) {
+      alert('Gagal menyimpan keputusan: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerText = keputusan === 'setujui' ? '✅ Setujui (masuk CERMAT)' : '✖ Tolak'; }
+    }
   }
 
   function statusBadgeClass(status) {
@@ -383,6 +567,7 @@
   }
 
   function renderReports() {
+    if (currentStatusFilter === '__EKS') return renderEksternal();
     followupPhotoSlots = {};
     const container = document.getElementById('reportContainer');
     if (reports.length === 0) {
@@ -397,7 +582,7 @@
             <div>
               <div class="report-no">${r.noLaporan}</div>
               <div class="report-title">${r.jenisTemuan} — ${r.lokasiArea}</div>
-              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${r.namaPelapor}${r.pelaporQrCodeId ? ' ✅' : ''}${authorFor(r.pelaporQrCodeId) ? ' (' + escapeHtml(authorFor(r.pelaporQrCodeId)) + ')' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}${r.sourceInspeksiNoLaporan ? ' • 🔍 Dari Inspeksi ' + escapeHtml(r.sourceInspeksiNoLaporan) : ''}</div>
+              <div class="report-meta">${formatDate(r.tanggalWaktu)} • ${r.namaProject} (${r.noKontrak}) • Lapor: ${escapeHtml(r.namaPelapor)}${r.pelaporEksternal ? ' (' + escapeHtml(r.pelaporPerusahaan || '') + ') <span class="eks-chip">Eksternal</span>' : ''}${r.pelaporQrCodeId ? ' ✅' : ''}${authorFor(r.pelaporQrCodeId) ? ' (' + escapeHtml(authorFor(r.pelaporQrCodeId)) + ')' : ''}${r.assignedDeptNama ? ' • Dept: ' + escapeHtml(deptDisplay(r)) : ''}${r.sourceInspeksiNoLaporan ? ' • 🔍 Dari Inspeksi ' + escapeHtml(r.sourceInspeksiNoLaporan) : ''}</div>
             </div>
             <div class="badges" style="flex-direction: column; align-items: flex-end;">
               <div style="display:flex; gap:6px;">
@@ -638,7 +823,12 @@
   }
 
   function hasAuthorTag(person, tag) {
+    if (tag === EKS_TAG) return HSSEAccess.allows(person, 'HSSE-CRM') || HSSEAccess.allows(person, 'Verifikasi Cermat');
     return HSSEAccess.allows(person, tag);
+  }
+  function accessLabel(tag) {
+    if (tag === EKS_TAG) return 'PIC "HSSE-CRM" (atau Author "Verifikasi Cermat")';
+    return HSSEAccess.label(tag);
   }
 
   function setApprovalStatus(text, kind) {
@@ -651,7 +841,7 @@
   function openApprovalModal(idx, id, requiredTag) {
     approvalContext = { idx, id, requiredTag };
     approvalModalTitle.innerText = `Verifikasi: ${requiredTag}`;
-    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin ${HSSEAccess.label(requiredTag)}.`;
+    approvalModalSub.innerText = `Scan wajah atau input PIN -- khusus yang punya izin ${accessLabel(requiredTag)}.`;
     approvalChoiceScreen.style.display = 'block';
     approvalCamWrap.style.display = 'none';
     approvalFaceOval.style.display = 'none';
@@ -779,7 +969,7 @@
     const qrCodeId = getPersonField(person, ['qrCodeId'], '');
 
     if (!hasAuthorTag(person, requiredTag)) {
-      setApprovalStatus(`❌ ${nama} tidak punya izin ${HSSEAccess.label(requiredTag)}. Minta orang yang berwenang buat verifikasi ini.`, 'error');
+      setApprovalStatus(`❌ ${nama} tidak punya izin ${accessLabel(requiredTag)}. Minta orang yang berwenang buat verifikasi ini.`, 'error');
       btnApprovalScanFaceGo.disabled = false;
       return;
     }
@@ -794,6 +984,7 @@
     renderReports();
     const panel = document.getElementById('detail-' + idx);
     if (panel) panel.classList.add('open');
+    if (requiredTag === EKS_TAG) loadEksKontak(idx);
   }
 </script>
 

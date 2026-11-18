@@ -36,6 +36,13 @@
   .btn-primary { background: var(--navy); color: #fff; }
   .btn-primary:disabled { background: #B9C0D4; cursor: not-allowed; }
   #formBody { display: none; }
+  .eks-link {
+    display: block; width: 100%; margin-top: 10px; padding: 10px; border: 1.5px dashed var(--border);
+    border-radius: 12px; background: transparent; color: var(--navy); font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .eks-note { background: #FDF3E3; color: #8A6100; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin: 10px 0 14px; }
+  .eks-hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .eks-chip { display: inline-block; background: #FDF3E3; color: #8A6100; border-radius: 999px; padding: 2px 8px; font-size: 11px; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -64,6 +71,43 @@
     <div class="id-gate-buttons" id="idGateButtons">
       <button type="button" id="btnIdScanQr">🪪 Scan QR Code</button>
       <button type="button" id="btnIdScanFaceStart">🙂 Scan Wajah</button>
+    </div>
+    <button type="button" id="btnIdEksternal" class="eks-link" onclick="startEksternal()">🧑‍💼 Saya bukan karyawan BIMA (tamu / subkon / vendor)</button>
+
+    <div id="eksForm" style="display:none;">
+      <div class="eks-note">Laporan dari pelapor eksternal dicek dulu oleh PIC CERMAT sebelum diproses. Data kontak cuma dipakai HSE buat konfirmasi.</div>
+      <div class="form-group">
+        <label for="eksNama">Nama Lengkap</label>
+        <input type="text" id="eksNama" maxlength="80" autocomplete="name" placeholder="Nama kamu">
+      </div>
+      <div class="form-group">
+        <label for="eksPerusahaan">Perusahaan / Instansi</label>
+        <input type="text" id="eksPerusahaan" maxlength="100" autocomplete="organization" placeholder="Contoh: PT Subkon Jaya / Tamu dari ...">
+      </div>
+      <div class="form-group">
+        <label for="eksHp">No HP (opsional)</label>
+        <input type="tel" id="eksHp" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>Foto ID / kartu tamu (opsional)</label>
+        <div class="photo-slots" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="photo-slot" id="slotId">
+            <input type="file" accept="image/*" capture="environment" onchange="handleIdPhoto(event)">
+            <div class="slot-placeholder">🪪</div>
+            <img class="slot-preview">
+            <button type="button" class="slot-remove" onclick="removeIdPhoto(event)">✕</button>
+          </div>
+        </div>
+      </div>
+      <!-- honeypot: jangan diisi (disembunyikan dari orang, bot biasanya ngisi) -->
+      <div class="eks-hp-trap" aria-hidden="true">
+        <label for="eksWebsite">Website</label>
+        <input type="text" id="eksWebsite" tabindex="-1" autocomplete="off">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-block btn-primary" style="flex:2;" onclick="confirmEksternal()">Lanjut isi laporan</button>
+        <button type="button" class="btn-block" style="flex:1; background:var(--bg); color:var(--text);" onclick="resetIdentification()">Batal</button>
+      </div>
     </div>
 
     <div class="cam-wrap" id="idCamWrap">
@@ -479,9 +523,11 @@
   }
 
   function confirmIdentity(nama, qrCodeId) {
+    eksternalMode = false;
     identifiedNama = nama;
     identifiedQrCodeId = qrCodeId;
     stopIdCamera();
+    document.getElementById('btnIdEksternal').style.display = 'none';
     setIdStatus('', null);
     idNameEl.innerText = `${nama} (${qrCodeId})`;
     idResultBanner.style.display = 'flex';
@@ -491,6 +537,10 @@
   function resetIdentification() {
     identifiedNama = null;
     identifiedQrCodeId = null;
+    eksternalMode = false;
+    eksData = null;
+    document.getElementById('eksForm').style.display = 'none';
+    document.getElementById('btnIdEksternal').style.display = 'block';
     idResultBanner.style.display = 'none';
     formBody.style.display = 'none';
     idGateButtons.style.display = 'flex';
@@ -498,9 +548,142 @@
   }
 
   // =====================================================================================
+  // PELAPOR EKSTERNAL (tamu / subkon / vendor) -- tanpa QR/wajah. Laporan masuk antrean
+  // "Menunggu verifikasi" (submit_cermat_eksternal, migrasi 073) dan baru masuk CERMAT +
+  // statistik setelah disetujui PIC CERMAT di cermat-list.html.
+  // =====================================================================================
+  let eksternalMode = false;
+  let eksData = null;      // { nama, perusahaan, noHp }
+  let idPhotoFile = null;
+  let formStartedAt = 0;
+
+  function startEksternal() {
+    stopIdCamera();
+    setIdStatus('', null);
+    idGateButtons.style.display = 'none';
+    document.getElementById('btnIdEksternal').style.display = 'none';
+    document.getElementById('eksForm').style.display = 'block';
+    formStartedAt = Date.now();
+    document.getElementById('eksNama').focus();
+  }
+
+  function handleIdPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    idPhotoFile = file;
+    const slotEl = document.getElementById('slotId');
+    const img = slotEl.querySelector('.slot-preview');
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    slotEl.classList.add('filled');
+  }
+
+  function removeIdPhoto(evt) {
+    if (evt) evt.stopPropagation();
+    idPhotoFile = null;
+    const slotEl = document.getElementById('slotId');
+    const img = slotEl.querySelector('.slot-preview');
+    img.style.display = 'none';
+    img.src = '';
+    slotEl.classList.remove('filled');
+    slotEl.querySelector('input[type="file"]').value = '';
+  }
+
+  function confirmEksternal() {
+    const nama = document.getElementById('eksNama').value.trim().replace(/\s+/g, ' ');
+    const perusahaan = document.getElementById('eksPerusahaan').value.trim().replace(/\s+/g, ' ');
+    const noHp = document.getElementById('eksHp').value.replace(/[^0-9+]/g, '');
+    if (nama.length < 3) return setIdStatus('❌ Isi nama lengkap (minimal 3 huruf).', 'error');
+    if (perusahaan.length < 2) return setIdStatus('❌ Isi nama perusahaan / instansi.', 'error');
+    if (noHp && !/^\+?[0-9]{8,15}$/.test(noHp)) return setIdStatus('❌ No HP tidak valid (8-15 angka), atau kosongkan saja.', 'error');
+    eksternalMode = true;
+    eksData = { nama, perusahaan, noHp };
+    identifiedNama = nama;
+    identifiedQrCodeId = null;
+    setIdStatus('', null);
+    document.getElementById('eksForm').style.display = 'none';
+    idNameEl.innerHTML = `${escapeHtmlR(nama)} (${escapeHtmlR(perusahaan)}) <span class="eks-chip">Eksternal</span>`;
+    idResultBanner.style.display = 'flex';
+    formBody.style.display = 'block';
+  }
+
+  function escapeHtmlR(str) {
+    const div = document.createElement('div');
+    div.innerText = str || '';
+    return div.innerHTML;
+  }
+
+  async function submitCermatEksternal() {
+    if (!eksData) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return setStatus('❌ Isi data pelapor eksternal dulu di bagian atas.', 'error');
+    }
+    const projectId = selectProject.value;
+    const lokasi = document.getElementById('txtLokasi').value.trim();
+    const deskripsi = document.getElementById('txtDeskripsi').value.trim();
+    const jenisTemuan = selectJenis.value;
+    const tindakan = document.getElementById('txtTindakan').value.trim();
+    const rekomendasi = document.getElementById('txtRekomendasi').value.trim();
+
+    if (!selectedSifat) return setStatus('❌ Pilih sifat temuan (Positif/Negatif) dulu.', 'error');
+    if (!jenisTemuan) return setStatus('❌ Pilih jenis temuan dulu.', 'error');
+    if (!projectId) return setStatus('❌ Pilih project/kontrak dulu.', 'error');
+    if (lokasi.length < 3) return setStatus('❌ Lokasi/area kerja wajib diisi.', 'error');
+    if (deskripsi.length < 10) return setStatus('❌ Deskripsi temuan wajib diisi (minimal 10 karakter).', 'error');
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span>⏳ Mengirim...</span>';
+    try {
+      const fotoList = [];
+      const filledSlots = photoSlots.map((f, i) => ({ file: f, idx: i })).filter(s => s.file);
+      const totalFoto = filledSlots.length + (idPhotoFile ? 1 : 0);
+      if (totalFoto > 0) setStatus(`📤 Mengupload ${totalFoto} foto...`, 'info');
+      for (const slot of filledSlots) {
+        const uploaded = await uploadPhotoToDrive(slot.file, `CERMAT_EKS_${Date.now()}_${slot.idx + 1}.jpg`);
+        fotoList.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+      }
+      const fotoIdentitas = [];
+      if (idPhotoFile) {
+        const uploaded = await uploadPhotoToDrive(idPhotoFile, `CERMAT_EKS_ID_${Date.now()}.jpg`);
+        fotoIdentitas.push({ url: uploaded.directUrl, fileId: uploaded.fileId });
+      }
+
+      setStatus('📤 Menyimpan laporan...', 'info');
+      const { data, error } = await supabaseClient.rpc('submit_cermat_eksternal', {
+        p_project_id: projectId,
+        p_nama: eksData.nama,
+        p_perusahaan: eksData.perusahaan,
+        p_no_hp: eksData.noHp,
+        p_sifat: selectedSifat,
+        p_jenis_temuan: jenisTemuan,
+        p_lokasi_area: lokasi,
+        p_deskripsi: deskripsi,
+        p_foto_list: fotoList,
+        p_foto_identitas: fotoIdentitas,
+        p_tindakan_langsung: tindakan,
+        p_rekomendasi: rekomendasi,
+        p_website: document.getElementById('eksWebsite').value,
+        p_lama_isi_detik: Math.round((Date.now() - formStartedAt) / 1000),
+      });
+      if (error) throw error;
+
+      setStatus(`✅ Terima kasih! Laporan terkirim dengan kode ${data.kodeRef}. Status: Menunggu verifikasi PIC CERMAT.`, 'success');
+      resetForm();
+      removeIdPhoto(null);
+      formStartedAt = Date.now();
+    } catch (e) {
+      setStatus('❌ Gagal mengirim laporan: ' + e.message, 'error');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = '<span>📤 Kirim Laporan CERMAT</span>';
+    }
+  }
+
+  // =====================================================================================
   // SUBMIT LAPORAN
   // =====================================================================================
   async function submitCermat() {
+    if (eksternalMode) return submitCermatEksternal();
     if (!identifiedQrCodeId) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return setStatus('❌ Identifikasi Pelapor dulu (Scan QR Code / Scan Wajah) di bagian atas.', 'error');
