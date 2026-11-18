@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="faceScan.js"></script>
+<script src="faceScan.js?v=20261118c"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="hsseAccess.js"></script>
@@ -767,7 +767,7 @@
       approvalCamWrap.style.display = 'block';
       approvalFaceOval.style.display = 'block';
       btnApprovalScanFaceGo.style.display = 'block';
-      HsseFace.autoScan(approvalVideo, btnApprovalScanFaceGo);
+      if (HsseFace.autoScan) HsseFace.autoScan(approvalVideo, btnApprovalScanFaceGo);
       setApprovalStatus('Posisikan wajah di oval dan tahan sebentar, wajah dideteksi otomatis (atau tekan Scan Wajah).', 'info');
     } catch (e) {
       setApprovalStatus('❌ ' + e.message, 'error');

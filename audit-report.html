@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="faceScan.js"></script>
+<script src="faceScan.js?v=20261118c"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -738,7 +738,7 @@
 
     idFaceOval.style.display = 'block';
     btnIdScanFace.style.display = 'block';
-    HsseFace.autoScan(idVideo, btnIdScanFace);
+    if (HsseFace.autoScan) HsseFace.autoScan(idVideo, btnIdScanFace);
     btnIdSwitchCam.style.display = 'block';
     setIdStatus('Posisikan wajah di oval dan tahan sebentar, wajah dideteksi otomatis (atau tekan Scan Wajah).', 'info');
   }

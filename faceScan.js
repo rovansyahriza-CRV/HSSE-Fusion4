@@ -366,7 +366,8 @@
     const best = avg[0] || EMPTY_BEST;
     const second = avg[1] || null;
     const agree = avg[0] ? (tops.get(best.key) || 0) : 0;
-    const consistent = used > 0 && agree >= Math.ceil(used * CONSENSUS_AGREE) && (topDist.get(best.key) || 9) <= MAX_FRAME_DISTANCE;
+    const worstTop = topDist.has(best.key) ? topDist.get(best.key) : 9; // (jarak 0 itu valid, jangan pakai ||)
+    const consistent = used > 0 && agree >= Math.ceil(used * CONSENSUS_AGREE) && worstTop <= MAX_FRAME_DISTANCE;
     const withinThreshold = !!avg[0] && best.distance <= THRESHOLD;
     const clearMargin = !second || (second.distance - best.distance) >= MULTI_MARGIN;
     const isAmbiguous = withinThreshold && (!clearMargin || !consistent);
@@ -435,7 +436,7 @@
       await sleep(500);
       while (video.__hsseAuto === token) {
         // Berhenti kalau tombol Scan Wajah disembunyikan (kamera ditutup / sudah teridentifikasi).
-        if (button.offsetParent === null) { removeOverlay(video); break; }
+        if (!button.isConnected || button.style.display === 'none') { removeOverlay(video); break; }
         if (!lastList || !lastList.length) break;
         // Lagi ganti kamera depan/belakang -> tunggu.
         if (!video.srcObject) { win.length = 0; await sleep(300); continue; }
@@ -483,6 +484,37 @@
   }
 
   function stopAuto(video) { if (video) video.__hsseAuto = null; }
+
+  // ---------------------------------------------------------------------------------
+  // KAMERA LANGSUNG NYALA (halaman form yang punya tombol #btnIdScanFaceStart)
+  // Kalau terakhir kali orang ini identifikasi pakai Scan Wajah DAN izin kamera sudah
+  // "granted", kamera wajah langsung dibuka saat halaman dibuka -- gak perlu klik apa pun.
+  // Pertama kali (izin belum ada) tetap perlu 1 klik, karena browser wajib minta izin kamera
+  // dari aksi user. Kalau orangnya pilih Scan QR, pilihan itu yang diingat.
+  // ---------------------------------------------------------------------------------
+  const PREF_KEY = 'hsseIdMethod';
+  function setPref(v) { try { localStorage.setItem(PREF_KEY, v); } catch (e) {} }
+  function getPref() { try { return localStorage.getItem(PREF_KEY); } catch (e) { return null; } }
+  async function cameraGranted() {
+    try {
+      if (!navigator.permissions || !navigator.permissions.query) return false;
+      const s = await navigator.permissions.query({ name: 'camera' });
+      return s.state === 'granted';
+    } catch (e) { return false; }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const faceStart = document.getElementById('btnIdScanFaceStart');
+    if (!faceStart) return;
+    const qrStart = document.getElementById('btnIdScanQr');
+    faceStart.addEventListener('click', e => { if (e.isTrusted) setPref('face'); });
+    if (qrStart) qrStart.addEventListener('click', e => { if (e.isTrusted) setPref('qr'); });
+    setTimeout(async () => {
+      if (getPref() !== 'face') return;
+      if (!(await cameraGranted())) return;
+      if (faceStart.offsetParent === null) return; // tombol lagi disembunyikan halaman
+      faceStart.click();
+    }, 300);
+  });
 
   window.HsseFace = {
     THRESHOLD, AMBIGUITY_MARGIN, MULTI_MARGIN,
